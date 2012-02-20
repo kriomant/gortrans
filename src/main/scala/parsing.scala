@@ -14,17 +14,18 @@ object parsing {
 		}
 	}
 
-	def parseRoute(obj: JSONObject) = Route(
+	def parseRoute(vehicleType: VehicleType.Value, obj: JSONObject) = Route(
+		vehicleType,
 		id = obj.getString("marsh"),
 		name = obj.getString("name"),
 		begin = obj.getString("stopb"),
 		end = obj.getString("stope")
 	)
 	
-	def parseSection(obj: JSONObject): (VehicleType.Value,  Seq[Route]) = (
-		VehicleType(obj.getInt("type")),
-		obj.getJSONArray("ways") map parseRoute toSeq
-	)
+	def parseSection(obj: JSONObject): (VehicleType.Value, Seq[Route]) = {
+			val vtype = VehicleType(obj.getInt("type"))
+			(vtype, obj.getJSONArray("ways") map {j => parseRoute(vtype, j)} toSeq)
+	}
 
 	type RoutesInfo = Map[VehicleType.Value, Seq[Route]]
 

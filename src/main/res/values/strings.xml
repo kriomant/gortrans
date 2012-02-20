@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">GorTrans</string>
+    
+    <string name="route_name_format">%1$s №%2$s</string>
+    <string name="route_description_format">%1$s — %2$s</string>
+    
+    <string name="bus">Автобус</string>
+    <string name="trolleybus">Троллейбус</string>
+    <string name="tramway">Трамвай</string>
+    <string name="minibus">Маршрутка</string>
+
+    <string name="routes_list">Список маршрутов</string>
 </resources>
