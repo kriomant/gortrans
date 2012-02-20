@@ -1,6 +1,5 @@
 package net.kriomant.gortrans
 
-import net.kriomant.gortrans.core.RoutesInfo
 import java.net.{HttpURLConnection, URL}
 import java.io.{InputStreamReader, BufferedInputStream}
 import utils.readerUtils
@@ -10,14 +9,13 @@ import utils.readerUtils
 class Client {
 	final val HOST = "maps.nskgortrans.ru"
 
-	def getRoutesList(): RoutesInfo = {
+	def getRoutesList(): String = {
 		val url = new URL("http", HOST, "listmarsh.php?r")
 		val conn = url.openConnection().asInstanceOf[HttpURLConnection]
 		try {
 			val stream = new BufferedInputStream(conn.getInputStream())
 			// TODO: Use more effective android.util.JsonReader on API level 11.
-			val content = new InputStreamReader(stream).readAll()
-			parsing.parseRoutesJson(content)
+			new InputStreamReader(stream).readAll()
 		} finally {
 			conn.disconnect()
 		}

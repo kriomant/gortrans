@@ -6,14 +6,25 @@ import android.app.ListActivity
 import android.widget.SimpleAdapter
 import scala.collection.JavaConverters._
 import net.kriomant.gortrans.core.VehicleType
+import net.kriomant.gortrans.utils.closing
+import android.util.Log
+import net.kriomant.gortrans.utils.readerUtils
+import java.io._
 
 class MainActivity extends ListActivity with TypedActivity {
+	private[this] final val TAG = "MainActivity"
+
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
-    //setContentView(R.layout.main)
 
-	  val client = new Client
-	  val routesInfo = client.getRoutesList()
+	  val routesListJson = getCachedRoutesList() getOrElse {
+		  Log.d(TAG, "Fetch routes list")
+		  val client = new Client
+		  client.getRoutesList()
+	  }
+
+		val routesList = parsing.parseRoutesJson(routesListJson)
+	  cacheRoutesList(routesListJson)
 
 	  val vehicleTypeNames = Map(
 	    VehicleType.Bus -> R.string.bus,
@@ -22,7 +33,7 @@ class MainActivity extends ListActivity with TypedActivity {
 	    VehicleType.MiniBus -> R.string.minibus
 	  ).mapValues(getString)
 
-		val data = routesInfo.values.flatten.toSeq.map { r =>
+		val data = routesList.values.flatten.toSeq.map { r =>
 			Map(
 				"number" -> getString(R.string.route_name_format,
 					vehicleTypeNames(r.vehicleType),
@@ -41,4 +52,26 @@ class MainActivity extends ListActivity with TypedActivity {
 
 	  setListAdapter(listAdapter)
   }
+
+	private[this] lazy val routesListCachePath = new File(getCacheDir, "routes.json")
+	
+	def getCachedRoutesList(): Option[String] = {
+		try {
+			closing(new FileInputStream(routesListCachePath)) { s =>
+				closing(new InputStreamReader(s)) { r =>
+					Some(r.readAll())
+				}
+			}
+		} catch {
+			case _: FileNotFoundException => None
+		}
+	}
+
+	def cacheRoutesList(routesList: String) {
+		closing(new FileOutputStream(routesListCachePath)) { s =>
+			closing(new OutputStreamWriter(s)) { w =>
+				w.write(routesList)
+			}
+		}
+	}
 }

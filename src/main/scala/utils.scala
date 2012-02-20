@@ -20,4 +20,13 @@ object utils {
 	}
 	implicit def readerUtils(r: Reader) = new ReaderUtils(r)
 
+	type Closable = {def close()}
+	def closing[R <: Closable, T](resource: R)(block: R => T): T = {
+		try {
+			block(resource)
+		} finally {
+			if (resource != null)
+				resource.close()
+		}
+	}
 }
