@@ -3,16 +3,20 @@ package net.kriomant.gortrans
 import _root_.android.os.Bundle
 
 import android.app.ListActivity
-import android.widget.SimpleAdapter
 import scala.collection.JavaConverters._
-import net.kriomant.gortrans.core.VehicleType
 import net.kriomant.gortrans.utils.closing
 import android.util.Log
 import net.kriomant.gortrans.utils.readerUtils
 import java.io._
+import android.view.View
+import net.kriomant.gortrans.core.{Route, VehicleType}
+import android.widget.{ListView, SimpleAdapter}
+import android.content.Intent
 
 class MainActivity extends ListActivity with TypedActivity {
 	private[this] final val TAG = "MainActivity"
+
+	private[this] var routesList: Seq[Route] = null
 
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
@@ -23,7 +27,7 @@ class MainActivity extends ListActivity with TypedActivity {
 		  client.getRoutesList()
 	  }
 
-		val routesList = parsing.parseRoutesJson(routesListJson)
+		routesList = parsing.parseRoutesJson(routesListJson).values.flatten.toSeq
 	  cacheRoutesList(routesListJson)
 
 	  val vehicleTypeNames = Map(
@@ -33,7 +37,7 @@ class MainActivity extends ListActivity with TypedActivity {
 	    VehicleType.MiniBus -> R.string.minibus
 	  ).mapValues(getString)
 
-		val data = routesList.values.flatten.toSeq.map { r =>
+		val data = routesList.map { r =>
 			Map(
 				"number" -> getString(R.string.route_name_format,
 					vehicleTypeNames(r.vehicleType),
@@ -53,11 +57,21 @@ class MainActivity extends ListActivity with TypedActivity {
 	  setListAdapter(listAdapter)
   }
 
-	private[this] lazy val routesListCachePath = new File(getCacheDir, "routes.json")
+	override def onListItemClick(l: ListView, v: View, position: Int, id: Long) {
+		val route = routesList(position)
+
+		val intent = new Intent(this, classOf[RouteInfoActivity])
+		intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_ID, route.id)
+		intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_NAME, route.name)
+		intent.putExtra(RouteInfoActivity.EXTRA_VEHICLE_TYPE, route.vehicleType.id)
+		startActivity(intent)
+	}
+
+	private[this] def getRoutesListCachePath = new File(getCacheDir, "routes.json")
 	
 	def getCachedRoutesList(): Option[String] = {
 		try {
-			closing(new FileInputStream(routesListCachePath)) { s =>
+			closing(new FileInputStream(getRoutesListCachePath)) { s =>
 				closing(new InputStreamReader(s)) { r =>
 					Some(r.readAll())
 				}
@@ -68,7 +82,7 @@ class MainActivity extends ListActivity with TypedActivity {
 	}
 
 	def cacheRoutesList(routesList: String) {
-		closing(new FileOutputStream(routesListCachePath)) { s =>
+		closing(new FileOutputStream(getRoutesListCachePath)) { s =>
 			closing(new OutputStreamWriter(s)) { w =>
 				w.write(routesList)
 			}

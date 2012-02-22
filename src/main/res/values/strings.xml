@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">GorTrans</string>
+    <string name="route_points">Маршрут</string>
     
     <string name="route_name_format">%1$s №%2$s</string>
     <string name="route_description_format">%1$s — %2$s</string>
@@ -7,7 +8,12 @@
     <string name="bus">Автобус</string>
     <string name="trolleybus">Троллейбус</string>
     <string name="tramway">Трамвай</string>
-    <string name="minibus">Маршрутка</string>
+    <string name="minibus">Маршрутное такси</string>
+
+    <string name="bus_route">Маршрут автобуса №%1$s</string>
+    <string name="trolleybus_route">Маршрут троллейбуса №%1$s</string>
+    <string name="tramway_route">Маршрут трамвая №%1$s</string>
+    <string name="minibus_route">Маршрут такси №%1$s</string>
 
     <string name="routes_list">Список маршрутов</string>
 </resources>

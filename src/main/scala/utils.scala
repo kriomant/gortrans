@@ -1,6 +1,7 @@
 package net.kriomant.gortrans
 
 import java.io.Reader
+import net.kriomant.gortrans.utils.BooleanUtils
 
 object utils {
 	
@@ -29,4 +30,12 @@ object utils {
 				resource.close()
 		}
 	}
+	
+	class BooleanUtils(value: Boolean) {
+		def ?[T](t: => T): Option[T] = {
+			if (value) Some(t) else None
+		}
+	}
+	implicit def booleanUtils(b: Boolean) = new BooleanUtils(b)
+
 }
