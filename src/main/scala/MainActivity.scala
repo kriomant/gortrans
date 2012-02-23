@@ -21,14 +21,8 @@ class MainActivity extends ListActivity with TypedActivity {
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
 
-	  val routesListJson = getCachedRoutesList() getOrElse {
-		  Log.d(TAG, "Fetch routes list")
-		  val client = new Client
-		  client.getRoutesList()
-	  }
-
-		routesList = parsing.parseRoutesJson(routesListJson).values.flatten.toSeq
-	  cacheRoutesList(routesListJson)
+	  implicit val context = this
+		routesList = DataManager.getRoutesList().values.flatten.toSeq
 
 	  val vehicleTypeNames = Map(
 	    VehicleType.Bus -> R.string.bus,
@@ -67,25 +61,4 @@ class MainActivity extends ListActivity with TypedActivity {
 		startActivity(intent)
 	}
 
-	private[this] def getRoutesListCachePath = new File(getCacheDir, "routes.json")
-	
-	def getCachedRoutesList(): Option[String] = {
-		try {
-			closing(new FileInputStream(getRoutesListCachePath)) { s =>
-				closing(new InputStreamReader(s)) { r =>
-					Some(r.readAll())
-				}
-			}
-		} catch {
-			case _: FileNotFoundException => None
-		}
-	}
-
-	def cacheRoutesList(routesList: String) {
-		closing(new FileOutputStream(getRoutesListCachePath)) { s =>
-			closing(new OutputStreamWriter(s)) { w =>
-				w.write(routesList)
-			}
-		}
-	}
 }

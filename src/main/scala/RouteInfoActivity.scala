@@ -42,15 +42,8 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 
 		setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
 		
-		val routePointsJson = getCachedRouteInfo(routeId) getOrElse {
-			Log.d(TAG, "Fetch route %s info".format(routeId))
-			val client = new Client
-			client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, RouteDirection.Both)))
-		}
-
-		val routePoints = parsing.parseRoutesPoints(routePointsJson)(routeId)
-
-		cacheRoutePoints(routeId, routePointsJson)
+		implicit val context = this
+		val routePoints = DataManager.getRoutePoints(vehicleType, routeId)
 
 		val stopNames = routePoints.collect {
 			case RoutePoint(Some(RouteStop(name, _)), _, _) => name
@@ -65,33 +58,5 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 		setListAdapter(listAdapter)
 	}
 
-	private[this] def getRoutePointsCachePath(routeId: String) =
-		new File(getCacheDir, "points/%s.json".format(routeId))
-
-	def getCachedRouteInfo(routeId: String): Option[String] = {
-		try {
-			val path = getRoutePointsCachePath(routeId)
-			closing(new FileInputStream(path)) { s =>
-				closing(new InputStreamReader(s)) { r =>
-					Some(r.readAll())
-				}
-			}
-		} catch {
-			case _: FileNotFoundException => None
-		}
-	}
-
-	def cacheRoutePoints(routeId: String, routePoints: String) {
-		val path = getRoutePointsCachePath(routeId)
-
-		if (! path.getParentFile.exists())
-			path.getParentFile.mkdirs()
-
-		closing(new FileOutputStream(path)) { s =>
-			closing(new OutputStreamWriter(s)) { w =>
-				w.write(routePoints)
-			}
-		}
-	}
 }
 
