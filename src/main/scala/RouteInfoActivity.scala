@@ -3,14 +3,12 @@ package net.kriomant.gortrans
 import _root_.android.os.Bundle
 
 import android.app.ListActivity
-import android.util.Log
 import net.kriomant.gortrans.core.VehicleType
-import net.kriomant.gortrans.utils.closing
-import net.kriomant.gortrans.utils.readerUtils
-import java.io._
-import net.kriomant.gortrans.Client.{RouteDirection, RouteInfoRequest}
 import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint}
 import android.widget.ArrayAdapter
+import android.view.View
+import android.view.View.OnClickListener
+import android.content.Intent
 
 object RouteInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -28,6 +26,8 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
 
+		setContentView(R.layout.route_info)
+
 		val intent = getIntent
 		val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
 		val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
@@ -41,6 +41,17 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 		).mapValues(getString)
 
 		setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+		
+		val showRouteMapButton = findView(TR.show_route_map)
+		showRouteMapButton.setOnClickListener(new OnClickListener {
+			def onClick(view: View) {
+				val intent = new Intent(RouteInfoActivity.this, classOf[RouteMapActivity])
+				intent.putExtra(RouteMapActivity.EXTRA_ROUTE_ID, routeId)
+				intent.putExtra(RouteMapActivity.EXTRA_ROUTE_NAME, routeName)
+				intent.putExtra(RouteMapActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
+				startActivity(intent)
+			}
+		})
 		
 		implicit val context = this
 		val routePoints = DataManager.getRoutePoints(vehicleType, routeId)

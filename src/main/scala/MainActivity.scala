@@ -4,10 +4,6 @@ import _root_.android.os.Bundle
 
 import android.app.ListActivity
 import scala.collection.JavaConverters._
-import net.kriomant.gortrans.utils.closing
-import android.util.Log
-import net.kriomant.gortrans.utils.readerUtils
-import java.io._
 import android.view.View
 import net.kriomant.gortrans.core.{Route, VehicleType}
 import android.widget.{ListView, SimpleAdapter}

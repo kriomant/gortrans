@@ -16,4 +16,5 @@
     <string name="minibus_route">Маршрут такси №%1$s</string>
 
     <string name="routes_list">Список маршрутов</string>
+    <string name="show_route_map">Показать маршрут на карте</string>
 </resources>
