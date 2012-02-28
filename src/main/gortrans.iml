@@ -35,6 +35,15 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" scope="PROVIDED" name="scala-library-2.9.1" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="scala-compiler-2.9" level="application" />
+    <orderEntry type="module-library" scope="TEST">
+      <library>
+        <CLASSES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/org.scalatest/scalatest_2.8.2/jars/scalatest_2.8.2-1.7.RC1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>
 
