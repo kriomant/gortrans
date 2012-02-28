@@ -2,7 +2,7 @@
     package="net.kriomant.gortrans">
 
     <application
-        android:icon="@drawable/android:star_big_on"
+        android:icon="@drawable/application_icon"
         android:label="@string/app_name"
         android:debuggable="true">
 
