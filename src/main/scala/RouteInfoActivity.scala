@@ -8,8 +8,8 @@ import android.view.View.OnClickListener
 import android.database.DataSetObserver
 import android.view.{LayoutInflater, ViewGroup, View}
 import android.content.{Context, Intent}
-import android.widget.{ImageView, TextView, ListAdapter}
-import net.kriomant.gortrans.core.{VehicleType, RouteStopDirections}
+import android.widget.{ListView, ImageView, TextView, ListAdapter}
+import net.kriomant.gortrans.core._
 
 object RouteInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -24,6 +24,11 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 
 	private[this] final val TAG = "RouteInfoActivity"
 	
+	private[this] var foldedRoute: Seq[(String, DirectionsEx.Value)] = null
+	private[this] var routeId: String = null
+	private[this] var routeName: String = null
+	private[this] var vehicleType: VehicleType.Value = null
+
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
 
@@ -34,9 +39,9 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 		getListView.setDivider(null)
 
 		val intent = getIntent
-		val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
-		val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
-		val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
+		routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
+		routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
+		vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
 
 		val routeNameFormatByVehicleType = Map(
 			VehicleType.Bus -> R.string.bus_route,
@@ -65,15 +70,30 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 		val stopNames = routePoints.collect {
 			case RoutePoint(Some(RouteStop(name, _)), _, _) => name
 		}
-		val foldedRoute = core.foldRoute(routeInfo, stopNames)
+		foldedRoute = core.foldRoute(routeInfo, stopNames)
 
 		val listAdapter = new RouteStopsAdapter(this, foldedRoute)
 		setListAdapter(listAdapter)
 	}
 
+	override def onListItemClick(l: ListView, v: View, position: Int, id: Long) {
+		implicit val context: Context = this
+
+		val stopName = foldedRoute(position)._1
+		val stopsMap = DataManager.getStopsList()
+		val stopId = stopsMap(stopName)
+
+		val intent = new Intent(this, classOf[StopScheduleActivity])
+		intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_ID, routeId)
+		intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_NAME, routeName)
+		intent.putExtra(StopScheduleActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
+		intent.putExtra(StopScheduleActivity.EXTRA_STOP_ID, stopId)
+		intent.putExtra(StopScheduleActivity.EXTRA_STOP_NAME, stopName)
+		startActivity(intent)
+	}
 }
 
-class RouteStopsAdapter(context: Context, foldedRoute: Seq[(String, RouteStopDirections.Value)]) extends ListAdapter {
+class RouteStopsAdapter(context: Context, foldedRoute: Seq[(String, DirectionsEx.Value)]) extends ListAdapter {
 	case class Tag(icon: ImageView, name: TextView)
 	
 	// Data won't change, so observers are unneeded.
@@ -105,9 +125,9 @@ class RouteStopsAdapter(context: Context, foldedRoute: Seq[(String, RouteStopDir
 			case 0 => R.drawable.first_stop
 			case x if x == foldedRoute.length-1 => R.drawable.last_stop
 			case x => foldedRoute(x)._2 match {
-				case RouteStopDirections.Forward => R.drawable.forth_only_stop
-				case RouteStopDirections.Backward => R.drawable.back_only_stop
-				case RouteStopDirections.Both => R.drawable.back_and_forth_stop
+				case DirectionsEx.Forward => R.drawable.forth_only_stop
+				case DirectionsEx.Backward => R.drawable.back_only_stop
+				case DirectionsEx.Both => R.drawable.back_and_forth_stop
 			}
 		})
 		tag.name.setText(foldedRoute(position)._1)

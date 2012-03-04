@@ -16,6 +16,7 @@
         </activity>
         
         <activity android:label="@string/route_points" android:name=".RouteInfoActivity"/>
+        <activity android:label="@string/stop_schedule" android:name=".StopScheduleActivity"/>
 
         <!-- From MapActivity documentation:
         "Only one MapActivity is supported per process. Multiple MapActivities running

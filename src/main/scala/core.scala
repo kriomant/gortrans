@@ -15,14 +15,25 @@ object core {
 
 	type RoutesInfo = Map[VehicleType.Value, Seq[Route]]
 
-	object RouteStopDirections extends Enumeration {
+	object Direction extends Enumeration {
+		val Forward, Backward = Value
+	}
+
+	object DirectionsEx extends Enumeration {
 		val Forward, Backward, Both = Value
 	}
-	case class FoldedRouteStop(name: String, directions: RouteStopDirections.Value)
+
+	object ScheduleType extends Enumeration {
+		val Holidays = Value(5)
+		val Workdays = Value(11)
+		val Daily = Value(23)
+	}
+
+	case class FoldedRouteStop(name: String, directions: DirectionsEx.Value)
 
 	class RouteFoldingException(msg: String) extends Exception(msg)
 
-	def foldRoute(routeInfo: Route, stopNames: Seq[String]): Seq[(String,  RouteStopDirections.Value)] = {
+	def foldRoute(routeInfo: Route, stopNames: Seq[String]): Seq[(String,  DirectionsEx.Value)] = {
 		// nskgortrans.ru returns route stops for both back and forth
 		// route parts as single list. E.g. for route between A and D
 		// (with corresponding stops in between) route stops list is
@@ -55,7 +66,7 @@ object core {
 		val stopIndex = stopNames.toSet[String].map{ name => (name, (forward.indexOf(name), backward.indexOf(name)))}.toMap
 
 		// Build folded route at last.
-		val foldedRoute = new mutable.ArrayBuffer[(String, RouteStopDirections.Value)]
+		val foldedRoute = new mutable.ArrayBuffer[(String, DirectionsEx.Value)]
 		var fpos = 0 // Position of first unfolded stop in forward route.
 		var bpos = 0 // The same for backward route.
 		while (fpos < forward.length) {
@@ -69,11 +80,11 @@ object core {
 					throw new RouteFoldingException("Different order of route stops")
 
 				// Add all backward stops between bpos and bstoppos as backward-only.
-				foldedRoute ++= backward.slice(bpos, bstoppos).map((_, RouteStopDirections.Backward))
-				foldedRoute += Tuple2(name, RouteStopDirections.Both)
+				foldedRoute ++= backward.slice(bpos, bstoppos).map((_, DirectionsEx.Backward))
+				foldedRoute += Tuple2(name, DirectionsEx.Both)
 				bpos = bstoppos+1
 			} else {
-				foldedRoute += Tuple2(name, RouteStopDirections.Forward)
+				foldedRoute += Tuple2(name, DirectionsEx.Forward)
 			}
 
 			fpos += 1

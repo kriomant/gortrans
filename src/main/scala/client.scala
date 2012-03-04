@@ -2,49 +2,67 @@ package net.kriomant.gortrans
 
 import java.io.{InputStreamReader, BufferedInputStream}
 import utils.readerUtils
-import net.kriomant.gortrans.core.VehicleType
 import java.net.{URLEncoder, HttpURLConnection, URL}
+import net.kriomant.gortrans.core.{ScheduleType, VehicleType, Direction, DirectionsEx}
+import android.util.Log
 
 object Client {
-	object RouteDirection extends Enumeration {
-		val Forward, Backward, Both = Value
-	}
-
 	case class RouteInfoRequest(
 		vehicleType: VehicleType.Value,
 		routeId: String,
-		direction: RouteDirection.Value
+		direction: DirectionsEx.Value
 	)
 }
 /** Client for maps.nskgortrans.ru site.
 	*/
 class Client {
-	final val HOST = "maps.nskgortrans.ru"
+	final val HOST = new URL("http://nskgortrans.ru")
+	final val MAPS_HOST = new URL("http://maps.nskgortrans.ru")
 
 	def getRoutesList(): String = {
-		query("listmarsh.php?r")
+		fetch(new URL(MAPS_HOST, "listmarsh.php?r"))
 	}
 
 	def directionCodes = Map(
-		Client.RouteDirection.Forward -> "A",
-		Client.RouteDirection.Backward -> "B",
-		Client.RouteDirection.Both -> "W"
+		Direction.Forward -> "A",
+		Direction.Backward -> "B"
+	)
+
+	def directionsExCodes = Map(
+		DirectionsEx.Forward -> "A",
+		DirectionsEx.Backward -> "B",
+		DirectionsEx.Both -> "W"
 	)
 	
 	def getRoutesInfo(requests: Seq[Client.RouteInfoRequest]): String = {
 		val params = requests map { r =>
-			"%d-%s-%s-%s" format (r.vehicleType.id+1, r.routeId, directionCodes(r.direction), r.routeId)
+			"%d-%s-%s-%s" format (r.vehicleType.id+1, r.routeId, directionsExCodes(r.direction), r.routeId)
 		} mkString "|"
-		query("gsearch.php?r=" + URLEncoder.encode(params))
+		fetch(new URL(MAPS_HOST, "gsearch.php?r=" + URLEncoder.encode(params)))
 	}
-	
-	private def query(path: String): String = {
-		val url = new URL("http", HOST, path)
+
+	def getStopsList(query: String = ""): String = {
+		fetch(new URL(HOST, "components/com_planrasp/helpers/grasp.php?q=%s&typeview=stops" format URLEncoder.encode(query)))
+	}
+
+	def getStopSchedule(stopId: Int, vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value, scheduleType: ScheduleType.Value) = {
+		fetch(
+			new URL(
+				HOST,
+				"components/com_planrasp/helpers/grasp.php?tv=mr&m=%s&t=%d&r=%s&sch=%d&s=%d&v=0" format (routeId, vehicleType.id+1, directionCodes(direction), scheduleType.id, stopId)
+			)
+			// v=0 - detailed, v=1 - intervals
+		)
+	}
+
+	private def fetch(url: URL): String = {
 		val conn = url.openConnection().asInstanceOf[HttpURLConnection]
 		try {
 			val stream = new BufferedInputStream(conn.getInputStream())
 			// TODO: Use more effective android.util.JsonReader on API level 11.
-			new InputStreamReader(stream).readAll()
+			val content = new InputStreamReader(stream).readAll()
+			Log.v("Client", "Response from %s: %s" format (url, content))
+			content
 		} finally {
 			conn.disconnect()
 		}

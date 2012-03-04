@@ -15,6 +15,12 @@
     <string name="tramway_route">Маршрут трамвая №%1$s</string>
     <string name="minibus_route">Маршрут такси №%1$s</string>
 
+    <string name="bus_stop_schedule">Расписание автобуса №%1$s для остановки «%2$s»</string>
+    <string name="trolleybus_stop_schedule">Расписание троллейбуса №%1$s для остановки «%2$s»</string>
+    <string name="tramway_stop_schedule">Расписание трамвая №%1$s для остановки «%2$s»</string>
+    <string name="minibus_stop_schedule">Расписание маршр. такси №%1$s для остановки «%2$s»</string>
+
     <string name="routes_list">Список маршрутов</string>
     <string name="show_route_map">Показать маршрут на карте</string>
+    <string name="stop_schedule">Расписание для остановки</string>
 </resources>

@@ -4,6 +4,14 @@ import org.json._
 
 import net.kriomant.gortrans.core._
 import net.kriomant.gortrans.utils.booleanUtils
+import org.xml.sax.helpers.DefaultHandler
+import java.io.StringReader
+import org.xml.sax._
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMResult
+import javax.xml.transform.sax.SAXSource
+import org.w3c.dom.{Element, Node, NodeList, Document}
+import net.kriomant.gortrans.parsing.NodeUtils
 
 object parsing {
 
@@ -39,7 +47,15 @@ object parsing {
 		val arr = new JSONArray(tokenizer)
 		parseRoutes(arr)
 	}
-	
+
+	def parseStopsList(content: String): Map[String, Int] = {
+		content.lines.map{ line =>
+			val parts = line.split('|')
+			// Line format is "name|name|0|id"
+			(parts(0), parts(3).toInt)
+		}.toMap
+	}
+
 	case class RouteStop(name: String, length: Int)
 	case class RoutePoint(stop: Option[RouteStop], latitude: Double, longitude: Double)
 
@@ -60,6 +76,66 @@ object parsing {
 
 	def parseRoutesPoints(json: String): Map[String, Seq[RoutePoint]] = {
 		parseRoutesPoints(new JSONObject(new JSONTokener(json)))
+	}
+
+	case class StopInfo(id: Int, name: String)
+	
+	def parseRouteStops(xml: String): Seq[StopInfo] = {
+		val stops = new scala.collection.mutable.ArrayBuffer[StopInfo]
+
+		android.util.Xml.parse(xml, new DefaultHandler {
+			override def startElement(uri: String, localName: String, qName: String, attrs: Attributes) {
+				if (localName == "stop") {
+					stops += StopInfo(attrs.getValue("id").toInt, attrs.getValue("title"))
+				}
+			}
+		})
+		
+		stops
+	}
+
+	class NodeListAsTraversable(nodeList: NodeList) extends Traversable[Node] {
+		def foreach[U](f: (Node) => U) {
+			for (i <- 0 until nodeList.getLength)
+				f(nodeList.item(i))
+		}
+	}
+	implicit def nodeListAsTraversable(nodeList: NodeList) = new NodeListAsTraversable(nodeList)
+
+	class NodeUtils(node: Node) {
+		def getNextSiblingElement: Element = {
+			var sibling = node.getNextSibling
+			while (sibling != null && sibling.getNodeType != Node.ELEMENT_NODE)
+				sibling = sibling.getNextSibling
+			sibling.asInstanceOf[Element]
+		}
+	}
+	implicit def nodeUtils(node: Node) = new NodeUtils(node)
+	
+	def parseStopSchedule(html: String): Seq[(Int, Seq[Int])] = {
+		val doc = parseHtml(html)
+		(doc.getElementsByTagName("td")
+			.view
+			.collect { case e: Element if e.getAttribute("class") == "td_plan_h" => {
+				val hour = e.getElementsByTagName("span").head.asInstanceOf[Element].getTextContent.toInt
+				val minutes = for (
+					minutesNode <- Option(e.getNextSiblingElement)
+					if minutesNode.getAttribute("class") == "td_plan_m"
+				) yield minutesNode.getElementsByTagName("div").map{_.getTextContent.toInt}.toSeq
+				(hour, minutes getOrElse Seq())
+			}}
+		).toSeq
+	}
+
+	def parseHtml(html: String): Document = {
+		val reader = new StringReader(html)
+		val parser = new org.ccil.cowan.tagsoup.Parser()
+		//tagsoupParser.setFeature(org.ccil.cowan.tagsoup.Parser.namespacesFeature, false);
+		//tagsoupParser.setFeature(org.ccil.cowan.tagsoup.Parser.namespacePrefixesFeature, false);
+		val transformer = TransformerFactory.newInstance().newTransformer()
+		val domResult = new DOMResult
+		transformer.transform(new SAXSource(parser, new InputSource(reader)), domResult)
+		domResult.getNode.asInstanceOf[Document]
 	}
 }
 

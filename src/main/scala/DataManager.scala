@@ -3,27 +3,48 @@ package net.kriomant.gortrans
 import java.io._
 import net.kriomant.gortrans.utils.{closing, readerUtils}
 import android.util.Log
-import net.kriomant.gortrans.core.VehicleType
+import net.kriomant.gortrans.core._
 import net.kriomant.gortrans.parsing.{RoutePoint, RoutesInfo}
-import net.kriomant.gortrans.Client.{RouteDirection, RouteInfoRequest}
+import net.kriomant.gortrans.Client.{RouteInfoRequest}
 import android.content.Context
 
 object DataManager {
 	private[this] final val TAG = "DataManager"
 
 	val client = new Client
-
+	                                                           
 	def getRoutesList()(implicit context: Context): RoutesInfo = {
 		val cacheName = "routes.json"
 		getCachedOrFetch(cacheName, () => client.getRoutesList(), parsing.parseRoutesJson(_))
+	}
+
+	def getStopsList()(implicit context: Context): Map[String, Int] = {
+		val cacheName = "stops.txt"
+		getCachedOrFetch(
+			cacheName,
+			() => client.getStopsList(""),
+			parsing.parseStopsList(_)
+		)
 	}
 
 	def getRoutePoints(vehicleType: VehicleType.Value, routeId: String)(implicit context: Context): Seq[RoutePoint] = {
 		val cacheName = "points/%s-%s.json".format(vehicleType.toString, routeId)
 		getCachedOrFetch(
 			cacheName,
-			() => client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, RouteDirection.Both))),
+			() => client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, DirectionsEx.Both))),
 			json => parsing.parseRoutesPoints(json)(routeId)
+		)
+	}
+
+	def getStopSchedule
+		(stopId: Int, vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value, scheduleType: ScheduleType.Value)
+	  (implicit context: Context)
+	= {
+		val cacheName = "stop-schedule/%d-%s-%s-%s-%s.xml" format (stopId, vehicleType.toString, routeId, direction.toString, scheduleType.toString)
+		getCachedOrFetch(
+			cacheName,
+			() => client.getStopSchedule(stopId, vehicleType, routeId, direction, scheduleType),
+			xml => parsing.parseStopSchedule(xml)
 		)
 	}
 

@@ -2,7 +2,7 @@ package net.kriomant.gortrans.core_tests
 
 import org.scalatest.FunSuite
 import net.kriomant.gortrans.core._
-import net.kriomant.gortrans.core.RouteStopDirections.{Forward, Backward, Both}
+import net.kriomant.gortrans.core.DirectionsEx.{Forward, Backward, Both}
 
 class FoldRouteTest extends FunSuite {
 	test("exception is thrown if route is empty") {

@@ -35,6 +35,7 @@ object General {
     AndroidMarketPublish.settings ++ Seq (
       keyalias in Android := "change-me",
       libraryDependencies += "org.scalatest" %% "scalatest" % "1.7.RC1" % "test",
+      libraryDependencies += "org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
 
       googleMapsJar <<= (sdkPath in Android, apiLevel in Android) { (path, apiLevel) =>
           (path / "add-ons" / "addon-google_apis-google_inc_-%d".format(apiLevel)
