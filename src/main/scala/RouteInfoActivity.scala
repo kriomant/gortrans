@@ -94,7 +94,7 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 }
 
 class RouteStopsAdapter(context: Context, foldedRoute: Seq[(String, DirectionsEx.Value)]) extends ListAdapter {
-	case class Tag(icon: ImageView, name: TextView)
+	case class Tag(icon: View, name: TextView)
 	
 	// Data won't change, so observers are unneeded.
 	def registerDataSetObserver(p1: DataSetObserver) {}
@@ -112,7 +112,7 @@ class RouteStopsAdapter(context: Context, foldedRoute: Seq[(String, DirectionsEx
 			val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
 			val view = inflater.inflate(R.layout.route_info_item, parent, false)
 			val tag = Tag(
-				icon = view.findViewById(R.id.route_stop_icon).asInstanceOf[ImageView],
+				icon = view.findViewById(R.id.route_stop_icon).asInstanceOf[View],
 				name = view.findViewById(R.id.route_stop_name).asInstanceOf[TextView]
 			)
 			view.setTag(tag)
@@ -121,7 +121,7 @@ class RouteStopsAdapter(context: Context, foldedRoute: Seq[(String, DirectionsEx
 			(convertView, convertView.getTag.asInstanceOf[Tag])
 		}
 		
-		tag.icon.setImageResource(position match {
+		tag.icon.setBackgroundResource(position match {
 			case 0 => R.drawable.first_stop
 			case x if x == foldedRoute.length-1 => R.drawable.last_stop
 			case x => foldedRoute(x)._2 match {
