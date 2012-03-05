@@ -7,77 +7,70 @@ import net.kriomant.gortrans.core.DirectionsEx.{Forward, Backward, Both}
 class FoldRouteTest extends FunSuite {
 	test("exception is thrown if route is empty") {
 		val error = intercept[RouteFoldingException] {
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "B"), Seq())
+			foldRoute(Seq())
 		}
 		assert(error.getMessage === "Less than 2 stops in route")
 	}
 
 	test("exception is thrown if route contains just one stop") {
 		val error = intercept[RouteFoldingException] {
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "B"), Seq("A"))
+			foldRoute(Seq("A"))
 		}
 		assert(error.getMessage === "Less than 2 stops in route")
 	}
 
-	test("exception is thrown if first route stop name differs from 'begin' in route info") {
+	test("exception is thrown if first route is not the same as last one") {
 		val error = intercept[RouteFoldingException] {
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "B"), Seq("B", "B"))
+			foldRoute(Seq("B", "C", "C", "A"))
 		}
-		assert(error.getMessage === "First route stop differs from 'begin' in route info")
+		assert(error.getMessage === "The first route stop is not the same as the last one")
 	}
 
-	test("exception is thrown if last route stop name differs from 'begin' in route info") {
+	test("exception is thrown if there are no two identical consequtive stops in route") {
 		val error = intercept[RouteFoldingException] {
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "B"), Seq("A", "C"))
+			foldRoute(Seq("A", "B", "C", "A"))
 		}
-		assert(error.getMessage === "Last route stop differs from 'begin' in route info")
-	}
-
-	test("exception is thrown if there are no two consequtive 'end' stops in route") {
-		val error = intercept[RouteFoldingException] {
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "B"), Seq("A", "B", "C", "A"))
-		}
-		assert(error.getMessage === "Two consequtive 'end' stops aren't found in route")
+		assert(error.getMessage === "End route stop is not found")
 	}
 	
 	test("route with identical forward and backward parts") {
 		assert(
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "C"), Seq("A", "B", "C", "C", "B", "A"))
+			foldRoute(Seq("A", "B", "C", "C", "B", "A"))
 			=== Seq(("A", Both), ("B", Both), ("C", Both))
 		)
 	}
 	
 	test("route with stop skipped on backward route part") {
 		assert(
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "C"), Seq("A", "B", "C", "C", "A"))
+			foldRoute(Seq("A", "B", "C", "C", "A"))
 			=== Seq(("A", Both), ("B", Forward), ("C", Both))
 		)
 	}
 
 	test("route with stop skipped on forward route part") {
 		assert(
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "C"), Seq("A", "C", "C", "B", "A"))
+			foldRoute(Seq("A", "C", "C", "B", "A"))
 				=== Seq(("A", Both), ("B", Backward), ("C", Both))
 		)
 	}
 
 	test("route with different stops on forward and backward route parts") {
 		assert(
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "C"), Seq("A", "B", "C", "C", "D", "A"))
+			foldRoute(Seq("A", "B", "C", "C", "D", "A"))
 				=== Seq(("A", Both), ("B", Forward), ("D", Backward), ("C", Both))
 		)
 	}
 
 	test("route with several stops skipped on backward route part") {
 		assert(
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "D"), Seq("A", "B", "C", "D", "D", "A"))
+			foldRoute(Seq("A", "B", "C", "D", "D", "A"))
 				=== Seq(("A", Both), ("B", Forward), ("C", Forward), ("D", Both))
 		)
 	}
 
 	test("route with different order of stops") {
 		val error = intercept[RouteFoldingException] {
-			foldRoute(Route(VehicleType.Bus, "id", "name", "A", "D"), Seq("A", "B", "C", "D", "D", "B", "C", "A"))
+			foldRoute(Seq("A", "B", "C", "D", "D", "B", "C", "A"))
 		}
 		assert(error.getMessage === "Different order of route stops")
 	}

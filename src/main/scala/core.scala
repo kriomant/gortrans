@@ -33,7 +33,7 @@ object core {
 
 	class RouteFoldingException(msg: String) extends Exception(msg)
 
-	def foldRoute(routeInfo: Route, stopNames: Seq[String]): Seq[(String,  DirectionsEx.Value)] = {
+	def foldRoute(stopNames: Seq[String]): Seq[(String,  DirectionsEx.Value)] = {
 		// nskgortrans.ru returns route stops for both back and forth
 		// route parts as single list. E.g. for route between A and D
 		// (with corresponding stops in between) route stops list is
@@ -50,14 +50,12 @@ object core {
 
 		// Split route into forward and backward parts basing
 		// on end route stop name from route info.
-		if (stopNames.head != routeInfo.begin)
-			throw new RouteFoldingException("First route stop differs from 'begin' in route info")
-		if (stopNames.last != routeInfo.begin)
-			throw new RouteFoldingException("Last route stop differs from 'begin' in route info")
+		if (stopNames.head != stopNames.last)
+			throw new RouteFoldingException("The first route stop is not the same as the last one")
 
-		val pos = stopNames.indexOfSlice(Seq(routeInfo.end, routeInfo.end))
+		val pos = (0 until stopNames.length-1).indexWhere(i => stopNames(i) == stopNames(i+1))
 		if (pos == -1)
-			throw new RouteFoldingException("Two consequtive 'end' stops aren't found in route")
+			throw new RouteFoldingException("End route stop is not found")
 
 		val (forward, back) = stopNames.splitAt(pos + 1)
 		val backward = back.reverse

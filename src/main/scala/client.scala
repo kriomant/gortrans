@@ -19,6 +19,10 @@ class Client {
 	final val HOST = new URL("http://nskgortrans.ru")
 	final val MAPS_HOST = new URL("http://maps.nskgortrans.ru")
 
+	// Note that route ends returned by this method are unreliable!
+	// There are many routes for which this method returns stops
+	// different from actual start and end stops as returned by
+	// getRoutePoints.
 	def getRoutesList(): String = {
 		fetch(new URL(MAPS_HOST, "listmarsh.php?r"))
 	}

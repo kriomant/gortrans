@@ -70,7 +70,7 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 		val stopNames = routePoints.collect {
 			case RoutePoint(Some(RouteStop(name, _)), _, _) => name
 		}
-		foldedRoute = core.foldRoute(routeInfo, stopNames)
+		foldedRoute = core.foldRoute(stopNames)
 
 		val listAdapter = new RouteStopsAdapter(this, foldedRoute)
 		setListAdapter(listAdapter)
