@@ -27,11 +27,11 @@ object DataManager {
 		)
 	}
 
-	def getRoutePoints(vehicleType: VehicleType.Value, routeId: String)(implicit context: Context): Seq[RoutePoint] = {
+	def getRoutePoints(vehicleType: VehicleType.Value, routeId: String, routeName: String)(implicit context: Context): Seq[RoutePoint] = {
 		val cacheName = "points/%s-%s.json".format(vehicleType.toString, routeId)
 		getCachedOrFetch(
 			cacheName,
-			() => client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, DirectionsEx.Both))),
+			() => client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both))),
 			json => parsing.parseRoutesPoints(json)(routeId)
 		)
 	}

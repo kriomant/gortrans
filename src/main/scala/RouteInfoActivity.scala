@@ -64,7 +64,7 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 		})
 		
 		implicit val context = this
-		val routePoints = DataManager.getRoutePoints(vehicleType, routeId)
+		val routePoints = DataManager.getRoutePoints(vehicleType, routeId, routeName)
 		val routeInfo = DataManager.getRoutesList().apply(vehicleType).find(r => r.id == routeId).get
 
 		val stopNames = routePoints.collect {

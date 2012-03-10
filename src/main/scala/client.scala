@@ -5,11 +5,14 @@ import utils.readerUtils
 import java.net.{URLEncoder, HttpURLConnection, URL}
 import net.kriomant.gortrans.core.{ScheduleType, VehicleType, Direction, DirectionsEx}
 import android.util.Log
+import scala.collection.JavaConverters._
+import org.json.{JSONObject, JSONArray}
 
 object Client {
 	case class RouteInfoRequest(
 		vehicleType: VehicleType.Value,
 		routeId: String,
+		routeName: String,
 		direction: DirectionsEx.Value
 	)
 }
@@ -40,7 +43,7 @@ class Client {
 	
 	def getRoutesInfo(requests: Seq[Client.RouteInfoRequest]): String = {
 		val params = requests map { r =>
-			"%d-%s-%s-%s" format (r.vehicleType.id+1, r.routeId, directionsExCodes(r.direction), r.routeId)
+			"%d-%s-%s-%s" format (r.vehicleType.id+1, r.routeId, directionsExCodes(r.direction), r.routeName)
 		} mkString "|"
 		fetch(new URL(MAPS_HOST, "gsearch.php?r=" + URLEncoder.encode(params)))
 	}
@@ -57,6 +60,61 @@ class Client {
 			)
 			// v=0 - detailed, v=1 - intervals
 		)
+	}
+
+	def getVehiclesLocation(requests: Seq[Client.RouteInfoRequest]) = {
+		val cookies = {
+			val conn = MAPS_HOST.openConnection().asInstanceOf[HttpURLConnection]
+			try {
+				val cookieHeaders = Option(conn.getHeaderFields().get("set-cookie").asInstanceOf[java.util.List[String]]).getOrElse(new java.util.ArrayList[String])
+				cookieHeaders.asScala.map {
+					header =>
+						val text = header.takeWhile(_ != ';')
+						val parts = text.split("=", 2)
+						(parts(0), parts(1))
+				} toMap
+			} finally {
+				conn.disconnect()
+			}
+		}
+
+		val sessionId = cookies("PHPSESSID")
+		Log.d("client", "PHPSESSID: %s" format sessionId)
+
+		val params = requests map {
+			r =>
+				"%d-%s-%s-%s" format(r.vehicleType.id + 1, r.routeId, directionsExCodes(r.direction), r.routeName)
+		} mkString "|"
+		val url = new URL(MAPS_HOST, "markers.php?r=%s" format URLEncoder.encode(params))
+
+		val conn = url.openConnection().asInstanceOf[HttpURLConnection]
+		try {
+			val watchList = new JSONArray(Seq(
+				new JSONObject(Map(
+					"name" -> "list",
+					"routes" -> new JSONArray(requests.map(r =>
+						new JSONObject(Map(
+							"type" -> r.vehicleType.id,
+							"way" -> r.routeName,
+							"marsh" -> r.routeId,
+							"left" -> "",
+							"right" -> ""
+						).asJava)
+					).asJavaCollection),
+					"zoom" -> 13,
+					"latlng" -> "(55.0,83.0)"
+				).asJava)
+			).asJavaCollection)
+			val cookie = "PHPSESSID=%s; value=%s" format(sessionId, URLEncoder.encode(watchList.toString))
+			conn.addRequestProperty("X-Requested-With", "XMLHttpRequest")
+			conn.addRequestProperty("Cookie", cookie)
+			val stream = new BufferedInputStream(conn.getInputStream())
+			val content = new InputStreamReader(stream).readAll()
+			Log.v("Client", "Response from %s: %s" format(url, content))
+			content
+		} finally {
+			conn.disconnect()
+		}
 	}
 
 	private def fetch(url: URL): String = {

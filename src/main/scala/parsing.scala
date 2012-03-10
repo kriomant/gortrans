@@ -11,7 +11,8 @@ import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMResult
 import javax.xml.transform.sax.SAXSource
 import org.w3c.dom.{Element, Node, NodeList, Document}
-import net.kriomant.gortrans.parsing.NodeUtils
+import java.text.SimpleDateFormat
+import java.util.Date
 
 object parsing {
 
@@ -47,6 +48,51 @@ object parsing {
 		val arr = new JSONArray(tokenizer)
 		parseRoutes(arr)
 	}
+
+  case class VehicleInfo(
+    vehicleType: VehicleType.Value,
+    routeId: String,
+    routeName: String,
+    scheduleNr: Int,
+    direction: Option[Direction.Value],
+    latitude: Float, longitude: Float,
+    time: Date,
+    azimuth: Int,
+    speed: Int,
+    schedule: Seq[(String, String)]
+  )
+  
+  def parseVehiclesLocation(obj: JSONObject): Seq[VehicleInfo] = {
+    obj.getJSONArray("markers") map { o: JSONObject =>
+      val routeName = o.getString("title")
+      val vehicleType = VehicleType(o.getString("id_typetr").toInt-1)
+      val routeId = o.getString("marsh")
+      val scheduleNr = o.getString("graph").toInt
+      val direction = {
+        val dir = o.getString("direction")
+        (dir != "-") ? (dir match {
+          case "A" => Direction.Forward
+          case "B" => Direction.Backward
+        })
+      }
+      val latitude = o.getString("lat").toFloat
+      val longitude = o.getString("lng").toFloat
+      val time = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(o.getString("time_nav"))
+      val azimuth = o.getString("azimuth").toInt
+      val schedule = o.getString("rasp").split('|').map { l =>
+        l.splitAt(l.indexOf('+'))
+      }
+      val speed = o.getString("speed").toInt
+
+      VehicleInfo(vehicleType, routeId, routeName, scheduleNr, direction, latitude, longitude, time, azimuth, speed, schedule)
+    } toSeq
+  }
+
+  def parseVehiclesLocation(json: String): Seq[VehicleInfo] = {
+    val tokenizer = new JSONTokener(json)
+    val obj = new JSONObject(tokenizer)
+    parseVehiclesLocation(obj)
+  }
 
 	def parseStopsList(content: String): Map[String, Int] = {
 		content.lines.map{ line =>

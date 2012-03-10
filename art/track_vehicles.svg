@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Generator: Adobe Illustrator 15.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.1"
+   id="Layer_1"
+   x="0px"
+   y="0px"
+   width="60.293px"
+   height="100px"
+   viewBox="0 0 60.293 100"
+   enable-background="new 0 0 60.293 100"
+   xml:space="preserve"
+   inkscape:version="0.48.2 r9819"
+   sodipodi:docname="track_vehicles.svg"
+   inkscape:export-filename="/home/kriomant/Dropbox/Projects/gortrans/src/main/res/drawable/track_vehicles_off.png"
+   inkscape:export-xdpi="35.825054"
+   inkscape:export-ydpi="35.825054"><metadata
+   id="metadata3051"><rdf:RDF><cc:Work
+       rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
+         rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title></dc:title></cc:Work></rdf:RDF></metadata><defs
+   id="defs3049" /><sodipodi:namedview
+   pagecolor="#ffffff"
+   bordercolor="#666666"
+   borderopacity="1"
+   objecttolerance="10"
+   gridtolerance="10"
+   guidetolerance="10"
+   inkscape:pageopacity="0"
+   inkscape:pageshadow="2"
+   inkscape:window-width="1600"
+   inkscape:window-height="876"
+   id="namedview3047"
+   showgrid="false"
+   inkscape:snap-page="true"
+   inkscape:zoom="7.29"
+   inkscape:cx="-5.9564696"
+   inkscape:cy="47.608675"
+   inkscape:window-x="0"
+   inkscape:window-y="24"
+   inkscape:window-maximized="1"
+   inkscape:current-layer="Layer_1" />
+<path
+   d="m 32.912,61.816994 c 0,-9.078 -7.362,-16.440999 -16.456,-16.440999 -9.0929978,0 -16.4559973242954,7.362999 -16.4559973242954,16.440999 0,2.604 0.6189999042954,5.056999 1.6909999242954,7.244999 l -0.014,0.0031 14.7779984,30.934997 0.001,-9.97e-4 v 9.97e-4 l 14.776998,-30.934997 -0.01198,-0.0031 c 1.071999,-2.188 1.691,-4.64 1.691,-7.244999 z M 16.456,52.972995 c 4.894001,0 8.860001,3.969 8.860001,8.862 0,2.078999 -0.723001,3.987999 -1.923001,5.500999 -1.621999,2.043 -4.124999,3.358999 -6.938,3.358999 -2.812999,0 -5.312999,-1.315999 -6.937998,-3.358999 -1.201,-1.513 -1.9239994,-3.422 -1.9239994,-5.500999 10e-4,-4.894002 3.9689984,-8.862 8.8629974,-8.862 z"
+   id="path3039"
+   inkscape:connector-curvature="0"
+   style="opacity:1" />
+<path
+   d="m 33.455,45.026995 5.367999,-5.369999 C 33.092,33.927996 25.179,30.377997 16.456,30.377997 v 7.595999 c 6.63,10e-4 12.643999,2.698 16.999,7.052999 z"
+   id="path3041"
+   inkscape:connector-curvature="0"
+   style="opacity:1" />
+<path
+   d="m 16.456,15.189998 v 7.595 c 10.819,0 20.628,4.4 27.733998,11.505998 l 5.367,-5.366999 C 41.076999,20.442997 29.369,15.189998 16.456,15.189998 z"
+   id="path3043"
+   inkscape:connector-curvature="0"
+   style="opacity:1" />
+<path
+   d="m 54.924998,23.554997 5.367999,-5.366999 C 49.061998,6.9559984 33.556999,-6.073855e-7 16.456,-6.073855e-7 V 7.5949989 c 15.004999,0 28.612999,6.1039991 38.468998,15.9599981 z"
+   id="path3045"
+   inkscape:connector-curvature="0"
+   style="opacity:1" />
+</svg>
