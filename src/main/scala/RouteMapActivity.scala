@@ -33,6 +33,7 @@ class RouteMapActivity extends MapActivity with TypedActivity {
   private[this] val handler = new Handler
 
 	private[this] var dataManager: DataManager = null
+	private[this] val client = new Client
 
   var routeId: String = null
   var routeName: String = null
@@ -183,7 +184,6 @@ class RouteMapActivity extends MapActivity with TypedActivity {
     }
 
     override def doInBackgroundBridge(param: Unit): Seq[VehicleInfo] = {
-      val client = new Client
       val request = new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
       val json = client.getVehiclesLocation(Seq(request))
       parsing.parseVehiclesLocation(json)

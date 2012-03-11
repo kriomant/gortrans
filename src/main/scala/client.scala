@@ -22,6 +22,8 @@ class Client {
 	final val HOST = new URL("http://nskgortrans.ru")
 	final val MAPS_HOST = new URL("http://maps.nskgortrans.ru")
 
+	private[this] var mapsSessionId: String = null
+
 	// Note that route ends returned by this method are unreliable!
 	// There are many routes for which this method returns stops
 	// different from actual start and end stops as returned by
@@ -63,23 +65,8 @@ class Client {
 	}
 
 	def getVehiclesLocation(requests: Seq[Client.RouteInfoRequest]) = {
-		val cookies = {
-			val conn = MAPS_HOST.openConnection().asInstanceOf[HttpURLConnection]
-			try {
-				val cookieHeaders = Option(conn.getHeaderFields().get("set-cookie").asInstanceOf[java.util.List[String]]).getOrElse(new java.util.ArrayList[String])
-				cookieHeaders.asScala.map {
-					header =>
-						val text = header.takeWhile(_ != ';')
-						val parts = text.split("=", 2)
-						(parts(0), parts(1))
-				} toMap
-			} finally {
-				conn.disconnect()
-			}
-		}
-
-		val sessionId = cookies("PHPSESSID")
-		Log.d("client", "PHPSESSID: %s" format sessionId)
+		if (mapsSessionId == null)
+			updateSessionId()
 
 		val params = requests map {
 			r =>
@@ -105,7 +92,7 @@ class Client {
 					"latlng" -> "(55.0,83.0)"
 				).asJava)
 			).asJavaCollection)
-			val cookie = "PHPSESSID=%s; value=%s" format(sessionId, URLEncoder.encode(watchList.toString))
+			val cookie = "PHPSESSID=%s; value=%s" format(mapsSessionId, URLEncoder.encode(watchList.toString))
 			conn.addRequestProperty("X-Requested-With", "XMLHttpRequest")
 			conn.addRequestProperty("Cookie", cookie)
 			val stream = new BufferedInputStream(conn.getInputStream())
@@ -115,6 +102,26 @@ class Client {
 		} finally {
 			conn.disconnect()
 		}
+	}
+
+	private def updateSessionId() {
+		val cookies = {
+			val conn = MAPS_HOST.openConnection().asInstanceOf[HttpURLConnection]
+			try {
+				val cookieHeaders = Option(conn.getHeaderFields().get("set-cookie").asInstanceOf[java.util.List[String]]).getOrElse(new java.util.ArrayList[String])
+				cookieHeaders.asScala.map {
+					header =>
+						val text = header.takeWhile(_ != ';')
+						val parts = text.split("=", 2)
+						(parts(0), parts(1))
+				} toMap
+			} finally {
+				conn.disconnect()
+			}
+		}
+
+		mapsSessionId = cookies("PHPSESSID")
+		Log.d("client", "PHPSESSID: %s" format mapsSessionId)
 	}
 
 	private def fetch(url: URL): String = {
