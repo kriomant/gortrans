@@ -41,8 +41,8 @@ class StopScheduleActivity extends ListActivity with TypedActivity {
 
 		setTitle(stopScheduleFormatByVehicleType(vehicleType).format(routeName, stopName))
 
-		implicit val context = this
-		val stopSchedule = DataManager.getStopSchedule(stopId, vehicleType, routeId, Direction.Forward, ScheduleType.Daily)
+		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+		val stopSchedule = dataManager.getStopSchedule(stopId, vehicleType, routeId, Direction.Forward, ScheduleType.Daily)
 
 		val adapter = new SimpleAdapter(this,
 			stopSchedule.map{it => Map("hour" -> it._1, "minutes" -> it._2.mkString(" ")).asJava}.asJava,

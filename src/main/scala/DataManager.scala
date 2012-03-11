@@ -2,23 +2,22 @@ package net.kriomant.gortrans
 
 import java.io._
 import net.kriomant.gortrans.utils.{closing, readerUtils}
-import android.util.Log
 import net.kriomant.gortrans.core._
 import net.kriomant.gortrans.parsing.{RoutePoint, RoutesInfo}
 import net.kriomant.gortrans.Client.{RouteInfoRequest}
 import android.content.Context
 
-object DataManager {
+class DataManager(context: Context) {
 	private[this] final val TAG = "DataManager"
 
 	val client = new Client
 	                                                           
-	def getRoutesList()(implicit context: Context): RoutesInfo = {
+	def getRoutesList(): RoutesInfo = {
 		val cacheName = "routes.json"
 		getCachedOrFetch(cacheName, () => client.getRoutesList(), parsing.parseRoutesJson(_))
 	}
 
-	def getStopsList()(implicit context: Context): Map[String, Int] = {
+	def getStopsList(): Map[String, Int] = {
 		val cacheName = "stops.txt"
 		getCachedOrFetch(
 			cacheName,
@@ -27,7 +26,7 @@ object DataManager {
 		)
 	}
 
-	def getRoutePoints(vehicleType: VehicleType.Value, routeId: String, routeName: String)(implicit context: Context): Seq[RoutePoint] = {
+	def getRoutePoints(vehicleType: VehicleType.Value, routeId: String, routeName: String): Seq[RoutePoint] = {
 		val cacheName = "points/%s-%s.json".format(vehicleType.toString, routeId)
 		getCachedOrFetch(
 			cacheName,
@@ -38,7 +37,6 @@ object DataManager {
 
 	def getStopSchedule
 		(stopId: Int, vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value, scheduleType: ScheduleType.Value)
-	  (implicit context: Context)
 	= {
 		val cacheName = "stop-schedule/%d-%s-%s-%s-%s.xml" format (stopId, vehicleType.toString, routeId, direction.toString, scheduleType.toString)
 		getCachedOrFetch(
@@ -48,7 +46,7 @@ object DataManager {
 		)
 	}
 
-	def readFromCache(relPath: String)(implicit context: Context): Option[String] = {
+	def readFromCache(relPath: String): Option[String] = {
 		try {
 			val path = new File(context.getCacheDir, relPath)
 			closing(new FileInputStream(path)) { s =>
@@ -61,7 +59,7 @@ object DataManager {
 		}
 	}
 
-	def writeToCache(relPath: String, data: String)(implicit context: Context) {
+	def writeToCache(relPath: String, data: String) {
 		val path = new File(context.getCacheDir, relPath)
 
 		if (! path.getParentFile.exists())
@@ -74,7 +72,7 @@ object DataManager {
 		}
 	}
 
-	def getCachedOrFetch[T](cacheName: String, fetch: () => String, parse: String => T)(implicit context: Context): T = {
+	def getCachedOrFetch[T](cacheName: String, fetch: () => String, parse: String => T): T = {
 		val cached = readFromCache(cacheName)
 		val data = cached getOrElse fetch()
 

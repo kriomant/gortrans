@@ -23,7 +23,9 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 	import RouteInfoActivity._
 
 	private[this] final val TAG = "RouteInfoActivity"
-	
+
+	private[this] var dataManager: DataManager = null
+
 	private[this] var foldedRoute: Seq[(String, DirectionsEx.Value)] = null
 	private[this] var routeId: String = null
 	private[this] var routeName: String = null
@@ -31,6 +33,8 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
+
+		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 
 		setContentView(R.layout.route_info)
 
@@ -63,9 +67,8 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 			}
 		})
 		
-		implicit val context = this
-		val routePoints = DataManager.getRoutePoints(vehicleType, routeId, routeName)
-		val routeInfo = DataManager.getRoutesList().apply(vehicleType).find(r => r.id == routeId).get
+		val routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
+		val routeInfo = dataManager.getRoutesList().apply(vehicleType).find(r => r.id == routeId).get
 
 		val stopNames = routePoints.collect {
 			case RoutePoint(Some(RouteStop(name, _)), _, _) => name
@@ -77,10 +80,8 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 	}
 
 	override def onListItemClick(l: ListView, v: View, position: Int, id: Long) {
-		implicit val context: Context = this
-
 		val stopName = foldedRoute(position)._1
-		val stopsMap = DataManager.getStopsList()
+		val stopsMap = dataManager.getStopsList()
 		val stopId = stopsMap(stopName)
 
 		val intent = new Intent(this, classOf[StopScheduleActivity])

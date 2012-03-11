@@ -17,8 +17,8 @@ class MainActivity extends ListActivity with TypedActivity {
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
 
-	  implicit val context = this
-		routesList = DataManager.getRoutesList().values.flatten.toSeq
+	  val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+		routesList = dataManager.getRoutesList().values.flatten.toSeq
 
 	  val vehicleTypeNames = Map(
 	    VehicleType.Bus -> R.string.bus,

@@ -32,6 +32,8 @@ class RouteMapActivity extends MapActivity with TypedActivity {
   private[this] var trackVehiclesToggle: ToggleButton = null
   private[this] val handler = new Handler
 
+	private[this] var dataManager: DataManager = null
+
   var routeId: String = null
   var routeName: String = null
   var vehicleType: VehicleType.Value = null
@@ -56,6 +58,8 @@ class RouteMapActivity extends MapActivity with TypedActivity {
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
+
+		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 
     // Enable to show indeterminate progress indicator in activity header.
     requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
@@ -100,7 +104,7 @@ class RouteMapActivity extends MapActivity with TypedActivity {
 		setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
 
 		// Load route details.
-		val routePoints = DataManager.getRoutePoints(vehicleType, routeId, routeName)(this)
+		val routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
 		routeStops = routePoints filter(_.stop.isDefined)
 
 		// Calculate rectangle (and it's center) containing whole route.
