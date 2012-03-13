@@ -140,6 +140,20 @@ object parsing {
 		stops
 	}
 
+	def parseAvailableScheduleTypes(xml: String): Map[ScheduleType.Value, String] = {
+		var schedules = Map[ScheduleType.Value, String]()
+
+		android.util.Xml.parse(xml, new DefaultHandler {
+			override def startElement(uri: String, localName: String, qName: String, attrs: Attributes) {
+				if (localName == "schedule") {
+					schedules += ((ScheduleType(attrs.getValue("id").toInt), attrs.getValue("title")))
+				}
+			}
+		})
+
+		schedules
+	}
+
 	class NodeListAsTraversable(nodeList: NodeList) extends Traversable[Node] {
 		def foreach[U](f: (Node) => U) {
 			for (i <- 0 until nodeList.getLength)

@@ -35,6 +35,15 @@ class DataManager(context: Context) {
 		)
 	}
 
+	def getAvailableRouteScheduleTypes(vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value): Map[ScheduleType.Value, String] = {
+		val cacheName = "route-schedule-types/%d-%s-%s.xml" format (vehicleType.id, routeId, direction.toString)
+		getCachedOrFetch(
+			cacheName,
+			() => client.getAvailableScheduleTypes(vehicleType, routeId, direction),
+			parsing.parseAvailableScheduleTypes(_)
+		)
+	}
+
 	def getStopSchedule
 		(stopId: Int, vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value, scheduleType: ScheduleType.Value)
 	= {

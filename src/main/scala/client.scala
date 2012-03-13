@@ -54,6 +54,13 @@ class Client {
 		fetch(new URL(HOST, "components/com_planrasp/helpers/grasp.php?q=%s&typeview=stops" format URLEncoder.encode(query)))
 	}
 
+	def getAvailableScheduleTypes(vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value): String = {
+		fetch(new URL(
+			HOST,
+			"components/com_planrasp/helpers/grasp.php?m=%s&t=%d&r=%s" format (routeId, vehicleType.id+1, directionCodes(direction))
+		))
+	}
+
 	def getStopSchedule(stopId: Int, vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value, scheduleType: ScheduleType.Value) = {
 		fetch(
 			new URL(

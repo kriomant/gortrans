@@ -7,6 +7,7 @@ import scala.util.matching.Regex
 object General {
   val apiLevel = SettingKey[Int]("api-level", "Target Android API level")
   val googleMapsJar = SettingKey[File]("google-maps-jar", "Google Maps JAR path")
+	val androidSupportJar = SettingKey[File]("android-support-jar", "Google Support Library JAR path")
 
   val settings = Defaults.defaultSettings ++ Seq (
     name := "GorTrans",
@@ -44,7 +45,13 @@ object General {
 
       // Add Google Maps library.
       unmanagedJars in Compile <+= googleMapsJar map { jar => Attributed.blank(jar) },
-      libraryJarPath in Android <+= googleMapsJar
+      libraryJarPath in Android <+= googleMapsJar,
+
+      // Add Android support library.
+	    androidSupportJar <<= (sdkPath in Android) { path =>
+		    (path / "extras" / "android" / "support" / "v4" / "android-support-v4.jar")
+	    },
+	    unmanagedJars in Compile <+= androidSupportJar map { jar => Attributed.blank(jar) }
     )
 }
 
