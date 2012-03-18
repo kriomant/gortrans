@@ -20,4 +20,24 @@
 		android:textOn=""
 		android:textOff=""
 	/>
+	<ToggleButton
+		android:id="@+id/toggle_gps"
+		android:layout_width="36sp"
+		android:layout_height="36sp"
+		android:layout_alignParentRight="true"
+		android:layout_below="@id/track_vehicles"
+		android:background="@drawable/toggle_gps_bg"
+		android:textOn=""
+		android:textOff=""
+	/>
+	<ImageButton
+		android:id="@+id/show_my_location"
+		android:layout_width="36sp"
+		android:layout_height="36sp"
+		android:layout_alignParentRight="true"
+		android:layout_below="@id/toggle_gps"
+		android:visibility="invisible"
+		android:src="@drawable/show_my_location"
+		android:background="@drawable/map_button_bg"
+	/>
 </RelativeLayout>

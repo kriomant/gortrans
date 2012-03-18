@@ -1,18 +1,21 @@
 package net.kriomant.gortrans
 
 import android.util.Log
-import android.content.Intent
 import android.content.res.Resources
 import android.graphics._
+import drawable.Drawable
 import java.lang.Math
 import android.widget.CompoundButton.OnCheckedChangeListener
 import android.os.{Handler, Bundle}
 import com.google.android.maps._
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint}
 import android.widget.{ToggleButton, Toast, CompoundButton}
-import android.view.Window
 import net.kriomant.gortrans.Client.RouteInfoRequest
 import net.kriomant.gortrans.core.{DirectionsEx, Direction, VehicleType}
+import android.content.{Context, Intent}
+import android.location.{Location, LocationListener, LocationManager}
+import android.view.{View, Window}
+import android.view.View.OnClickListener
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -23,11 +26,11 @@ object RouteMapActivity {
 	final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
 }
 
-class RouteMapActivity extends MapActivity with TypedActivity {
+class RouteMapActivity extends MapActivity with TrackLocation with TypedActivity {
 	import RouteMapActivity._
 
   private[this] final val VEHICLES_LOCATION_UPDATE_PERIOD = 20000 /* ms */
-  
+
 	private[this] var mapView: MapView = null
   private[this] var trackVehiclesToggle: ToggleButton = null
   private[this] val handler = new Handler
@@ -42,6 +45,7 @@ class RouteMapActivity extends MapActivity with TypedActivity {
   var routeOverlay: Overlay = null
   var stopOverlays: Seq[Overlay] = null
   var vehiclesOverlay: ItemizedOverlay[OverlayItem] = null
+	var locationOverlay: Overlay = null
 
   var updatingVehiclesLocationIsOn: Boolean = false
 
@@ -84,6 +88,21 @@ class RouteMapActivity extends MapActivity with TypedActivity {
     })
     trackVehiclesToggle.setChecked(updatingVehiclesLocationIsOn)
 
+		val gpsToggle = findView(TR.toggle_gps)
+		gpsToggle.setOnCheckedChangeListener(new OnCheckedChangeListener {
+			def onCheckedChanged(button: CompoundButton, checked: Boolean) {
+				setGpsEnabled(checked)
+			}
+		})
+
+		val showMyLocationButton = findView(TR.show_my_location)
+		showMyLocationButton.setOnClickListener(new OnClickListener {
+			def onClick(view: View) {
+				val location = currentLocation
+				val ctrl = mapView.getController
+				ctrl.animateTo(new GeoPoint((location.getLatitude * 1e6).toInt, (location.getLongitude * 1e6).toInt))
+			}
+		})
 		onNewIntent(getIntent)
 	}
 
@@ -142,6 +161,8 @@ class RouteMapActivity extends MapActivity with TypedActivity {
       overlays.add(o)
     if (vehiclesOverlay != null)
       overlays.add(vehiclesOverlay)
+	  if (locationOverlay != null)
+		  overlays.add(locationOverlay)
     mapView.postInvalidate()
   }
 
@@ -178,7 +199,21 @@ class RouteMapActivity extends MapActivity with TypedActivity {
     task.execute(Unit)
   }
 
-  class TrackVehiclesTask extends AsyncTaskBridge[Unit, Unit, Seq[VehicleInfo]] {
+	def onLocationUpdated(location: Location) {
+		Log.d("RouteMapActivity", "Location updated: %s" format location)
+		if (location != null) {
+			val point = new GeoPoint((location.getLatitude * 1e6).toInt, (location.getLongitude * 1e6).toInt)
+			val drawable = getResources.getDrawable(R.drawable.location_marker)
+			locationOverlay = new MarkerOverlay(drawable, point, new PointF(0.5f, 0.5f))
+		} else {
+			locationOverlay = null
+		}
+		updateOverlays()
+		
+		findView(TR.show_my_location).setVisibility(if (location != null) View.VISIBLE else View.INVISIBLE)
+	}
+
+	class TrackVehiclesTask extends AsyncTaskBridge[Unit, Unit, Seq[VehicleInfo]] {
     override def onPreExecute() {
       setProgressBarIndeterminateVisibility(true)
     }
@@ -204,6 +239,28 @@ class RouteMapActivity extends MapActivity with TypedActivity {
     }
   }
 
+}
+
+class MarkerOverlay(drawable: Drawable, location: GeoPoint, anchorPosition: PointF) extends Overlay {
+	val offset = new Point(
+		-(drawable.getIntrinsicWidth  * anchorPosition.x).toInt,
+		-(drawable.getIntrinsicHeight * anchorPosition.y).toInt
+	)
+
+	override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
+		if (! shadow) {
+			val point = new Point
+			view.getProjection.toPixels(location, point)
+
+			drawable.setBounds(
+				point.x + offset.x,
+				point.y + offset.y,
+				point.x + drawable.getIntrinsicWidth + offset.x,
+				point.y + drawable.getIntrinsicHeight + offset.y
+			)
+			drawable.draw(canvas)
+		}
+	}
 }
 
 class RouteOverlay(resources: Resources, geoPoints: Seq[GeoPoint]) extends Overlay {
