@@ -8,7 +8,7 @@
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
 		android:clickable="true"
-		android:apiKey="0DiQN3hl-lyw8EheDiNw3CmZLvjeSf2d46vymqQ"
+		android:apiKey="@string/google_maps_key"
 	/>
 
 	<ToggleButton

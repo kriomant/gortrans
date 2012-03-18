@@ -1,0 +1,11 @@
+import AndroidKeys._
+import General._
+
+keystorePath in Android := file("/path/to/keystore")
+
+keyalias in Android := "android"
+
+customResources in (Android, packageDebug)   += ("google_maps_key" -> "")
+
+customResources in (Android, packageRelease) += ("google_maps_key" -> "")
+
