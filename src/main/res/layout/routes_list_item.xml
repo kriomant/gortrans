@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+>
+	<TextView
+		android:id="@+id/route_name"
+	  android:layout_width="wrap_content"
+	  android:layout_height="wrap_content"
+	  android:minWidth="65sp"
+	  android:textColor="?android:textColorPrimary"
+	  android:textAppearance="?android:attr/textAppearanceLarge"
+	/>
+	<TextView
+		android:id="@+id/start_stop_name"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+	  android:layout_toRightOf="@id/route_name"
+	  android:layout_alignTop="@id/route_name"
+	/>
+	<TextView
+		android:id="@+id/end_stop_name"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_below="@id/start_stop_name"
+	  android:layout_toRightOf="@id/route_name"
+	/>
+</RelativeLayout>
