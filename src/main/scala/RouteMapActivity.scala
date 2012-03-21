@@ -26,7 +26,7 @@ object RouteMapActivity {
 	final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
 }
 
-class RouteMapActivity extends MapActivity with TrackLocation with TypedActivity {
+class RouteMapActivity extends MapActivity with TrackLocation with ShortcutTarget with TypedActivity {
 	import RouteMapActivity._
 
   private[this] final val VEHICLES_LOCATION_UPDATE_PERIOD = 20000 /* ms */
@@ -211,6 +211,17 @@ class RouteMapActivity extends MapActivity with TrackLocation with TypedActivity
 		updateOverlays()
 		
 		findView(TR.show_my_location).setVisibility(if (location != null) View.VISIBLE else View.INVISIBLE)
+	}
+
+	def getShortcutNameAndIcon: (String, Int) = {
+		val vehicleShortName = getString(vehicleType match {
+			case VehicleType.Bus => R.string.bus_short
+			case VehicleType.TrolleyBus => R.string.trolleybus_short
+			case VehicleType.TramWay => R.string.tramway_short
+			case VehicleType.MiniBus => R.string.minibus_short
+		})
+		val name = getString(R.string.route_map_shortcut_format, vehicleShortName, routeName)
+		(name, R.drawable.route_map)
 	}
 
 	class TrackVehiclesTask extends AsyncTaskBridge[Unit, Unit, Seq[VehicleInfo]] {

@@ -7,6 +7,11 @@
     <string name="tramway">Трамвай</string>
     <string name="minibus">Маршрутное такси</string>
 
+		<string name="bus_short">Авт.</string>
+		<string name="trolleybus_short">Трол.</string>
+		<string name="tramway_short">Трам.</string>
+		<string name="minibus_short">Марш.</string>
+
     <string name="bus_route">Маршрут автобуса №%1$s</string>
     <string name="trolleybus_route">Маршрут троллейбуса №%1$s</string>
     <string name="tramway_route">Маршрут трамвая №%1$s</string>
@@ -23,4 +28,10 @@
 	
     <string name="vehicles_tracking_turned_on">Включено отслеживание положения транспорта</string>
     <string name="vehicles_tracking_turned_off">Выключено отслеживание положения транспорта</string>
+	
+		<string name="create_shortcut">Создать ярлык</string>
+		<string name="shortcut_is_created">На домашнем экране создан ярлык «%1$s»</string>
+
+		<string name="stop_schedule_shortcut_format">%1$s №%2$s, ост. «%3$s»</string>
+		<string name="route_map_shortcut_format">%1$s №%2$s на карте</string>
 </resources>

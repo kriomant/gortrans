@@ -4,12 +4,12 @@ import _root_.android.os.Bundle
 
 import net.kriomant.gortrans.core.{ScheduleType, Direction, VehicleType}
 import android.support.v4.view.PagerAdapter
-import android.content.Context
-import android.view.{LayoutInflater, ViewGroup, View}
 import android.app.Activity
-import android.widget.{SimpleAdapter, ListView}
 import scala.collection.JavaConverters._
 import android.util.Log
+import android.view._
+import android.content.{Intent, Context}
+import android.widget.{Toast, SimpleAdapter, ListView}
 
 object StopScheduleActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -21,10 +21,16 @@ object StopScheduleActivity {
 	final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
 }
 
-class StopScheduleActivity extends Activity with TypedActivity {
+class StopScheduleActivity extends Activity with TypedActivity with ShortcutTarget {
 	import StopScheduleActivity._
 
 	private[this] final val TAG = "StopScheduleActivity"
+
+	private var routeId: String = null
+	private var routeName: String = null
+	private var vehicleType: VehicleType.Value = null
+	private var stopId: Int = -1
+	private var stopName: String = null
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
@@ -32,11 +38,11 @@ class StopScheduleActivity extends Activity with TypedActivity {
 		setContentView(R.layout.stop_schedule_activity)
 
 		val intent = getIntent
-		val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
-		val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
-		val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
-		val stopId = intent.getIntExtra(EXTRA_STOP_ID, -1)
-		val stopName = intent.getStringExtra(EXTRA_STOP_NAME)
+		routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
+		routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
+		vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
+		stopId = intent.getIntExtra(EXTRA_STOP_ID, -1)
+		stopName = intent.getStringExtra(EXTRA_STOP_NAME)
 
 		val stopScheduleFormatByVehicleType = Map(
 			VehicleType.Bus -> R.string.bus_stop_schedule,
@@ -87,6 +93,17 @@ class StopScheduleActivity extends Activity with TypedActivity {
 		override def setPrimaryItem(container: ViewGroup, position: Int, `object`: AnyRef) {}
 
 		def isViewFromObject(p1: View, p2: AnyRef): Boolean = p1 == p2.asInstanceOf[View]
+	}
+
+	def getShortcutNameAndIcon: (String, Int) = {
+		val vehicleShortName = getString(vehicleType match {
+			case VehicleType.Bus => R.string.bus_short
+			case VehicleType.TrolleyBus => R.string.trolleybus_short
+			case VehicleType.TramWay => R.string.tramway_short
+			case VehicleType.MiniBus => R.string.minibus_short
+		})
+		val name = getString(R.string.stop_schedule_shortcut_format, vehicleShortName, routeName, stopName)
+		(name, R.drawable.route_stop_schedule)
 	}
 }
 
