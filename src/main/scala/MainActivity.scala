@@ -2,13 +2,12 @@ package net.kriomant.gortrans
 
 import _root_.android.os.Bundle
 
-import scala.collection.JavaConverters._
 import android.view.View
 import net.kriomant.gortrans.core.VehicleType
 import android.content.Intent
 import android.app.TabActivity
-import android.widget.{AdapterView, TabHost, ListView, SimpleAdapter}
 import android.widget.AdapterView.OnItemClickListener
+import android.widget._
 
 class MainActivity extends TabActivity with TypedActivity {
 	private[this] final val TAG = "MainActivity"
@@ -38,22 +37,28 @@ class MainActivity extends TabActivity with TypedActivity {
 		val tabs = dataManager.getRoutesList().map { p =>
 			val (vehicleType, routes) = p
 
-			val data = routes.map { r =>
-				Map(
-					"number" -> r.name,
-					"begin" -> r.begin,
-					"end" -> r.end
-				).asJava
-			}.asJava
-
 			val factory = new TabHost.TabContentFactory {
 				def createTabContent(p1: String) = {
-					val listAdapter = new SimpleAdapter(
-						MainActivity.this, data,
-						R.layout.routes_list_item,
-						Array("number", "begin", "end"),
-						Array(R.id.route_name, R.id.start_stop_name, R.id.end_stop_name)
-					)
+					val listAdapter = new ListAdapter with EasyAdapter with SeqAdapter {
+						val context = MainActivity.this
+						val items = routes
+						val itemLayout = R.layout.routes_list_item
+						case class SubViews(number: TextView, begin: TextView, end: TextView)
+						
+						def findSubViews(view: View) = SubViews(
+							view.findViewById(R.id.route_name).asInstanceOf[TextView],
+							view.findViewById(R.id.start_stop_name).asInstanceOf[TextView],
+							view.findViewById(R.id.end_stop_name).asInstanceOf[TextView]
+						)
+
+						def adjustItem(position: Int, views: SubViews) {
+							val route = routes(position)
+							views.number.setText(route.name)
+							views.begin.setText(route.begin)
+							views.end.setText(route.end)
+						}
+					}
+
 					val list = new ListView(MainActivity.this)
 					list.setAdapter(listAdapter)
 					list.setOnItemClickListener(new OnItemClickListener {

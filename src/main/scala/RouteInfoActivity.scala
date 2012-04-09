@@ -94,35 +94,20 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 	}
 }
 
-class RouteStopsAdapter(context: Context, foldedRoute: Seq[(String, DirectionsEx.Value)]) extends ListAdapter {
-	case class Tag(icon: View, name: TextView)
-	
-	// Data won't change, so observers are unneeded.
-	def registerDataSetObserver(p1: DataSetObserver) {}
-	def unregisterDataSetObserver(p1: DataSetObserver) {}
+class RouteStopsAdapter(val context: Context, foldedRoute: Seq[(String, DirectionsEx.Value)])
+	extends ListAdapter with EasyAdapter with SeqAdapter {
 
-	def getCount: Int = foldedRoute.length
-	def isEmpty: Boolean = foldedRoute.isEmpty
+	val items = foldedRoute
+	val itemLayout = R.layout.route_info_item
+	case class SubViews(icon: View, name: TextView)
 
-	def getItem(position: Int): AnyRef = null
-	def getItemId(position: Int): Long = position
-	def hasStableIds: Boolean = false
+	def findSubViews(view: View) = SubViews(
+		icon = view.findViewById(R.id.route_stop_icon).asInstanceOf[View],
+		name = view.findViewById(R.id.route_stop_name).asInstanceOf[TextView]
+	)
 
-	def getView(position: Int, convertView: View, parent: ViewGroup): View = {
-		val (view, tag) = if (convertView == null) {
-			val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
-			val view = inflater.inflate(R.layout.route_info_item, parent, false)
-			val tag = Tag(
-				icon = view.findViewById(R.id.route_stop_icon).asInstanceOf[View],
-				name = view.findViewById(R.id.route_stop_name).asInstanceOf[TextView]
-			)
-			view.setTag(tag)
-			(view, tag)
-		} else {
-			(convertView, convertView.getTag.asInstanceOf[Tag])
-		}
-		
-		tag.icon.setBackgroundResource(position match {
+	def adjustItem(position: Int, views: SubViews) {
+		views.icon.setBackgroundResource(position match {
 			case 0 => R.drawable.first_stop
 			case x if x == foldedRoute.length-1 => R.drawable.last_stop
 			case x => foldedRoute(x)._2 match {
@@ -131,14 +116,6 @@ class RouteStopsAdapter(context: Context, foldedRoute: Seq[(String, DirectionsEx
 				case DirectionsEx.Both => R.drawable.back_and_forth_stop
 			}
 		})
-		tag.name.setText(foldedRoute(position)._1)
-
-		view
+		views.name.setText(foldedRoute(position)._1)
 	}
-
-	def getItemViewType(position: Int): Int = 0
-	def getViewTypeCount: Int = 1
-
-	def areAllItemsEnabled(): Boolean = true
-	def isEnabled(position: Int): Boolean = true
 }
