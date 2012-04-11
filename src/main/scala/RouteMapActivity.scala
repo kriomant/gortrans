@@ -26,17 +26,19 @@ object RouteMapActivity {
 	final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
 }
 
-class RouteMapActivity extends MapActivity with TrackLocation with ShortcutTarget with TypedActivity {
-	import RouteMapActivity._
+class RouteMapActivity extends MapActivity
+	with TypedActivity
+	with TrackLocation
+	with ShortcutTarget
+	with VehiclesWatcher {
 
-  private[this] final val VEHICLES_LOCATION_UPDATE_PERIOD = 20000 /* ms */
+	import RouteMapActivity._
 
 	private[this] var mapView: MapView = null
   private[this] var trackVehiclesToggle: ToggleButton = null
-  private[this] val handler = new Handler
+  val handler = new Handler
 
 	private[this] var dataManager: DataManager = null
-	private[this] val client = new Client
 
   var routeId: String = null
   var routeName: String = null
@@ -50,13 +52,6 @@ class RouteMapActivity extends MapActivity with TrackLocation with ShortcutTarge
   var updatingVehiclesLocationIsOn: Boolean = false
 
   var routeStops: Seq[RoutePoint] = null
-
-  private[this] final val updateVehiclesLocationRunnable = new Runnable {
-    def run() {
-      updateVehiclesLocation()
-      handler.postDelayed(this, VEHICLES_LOCATION_UPDATE_PERIOD)
-    }
-  }
 
 	def isRouteDisplayed = false
 	override def isLocationDisplayed = false
@@ -180,25 +175,6 @@ class RouteMapActivity extends MapActivity with TrackLocation with ShortcutTarge
     super.onPause()
   }
 
-  def startUpdatingVehiclesLocation() {
-    handler.post(updateVehiclesLocationRunnable)
-
-    Toast.makeText(this, R.string.vehicles_tracking_turned_on, Toast.LENGTH_SHORT).show()
-  }
-
-  def stopUpdatingVehiclesLocation() {
-    handler.removeCallbacks(updateVehiclesLocationRunnable)
-    vehiclesOverlay = null
-    updateOverlays()
-
-    Toast.makeText(this, R.string.vehicles_tracking_turned_off, Toast.LENGTH_SHORT).show()
-  }
-
-  def updateVehiclesLocation() {
-    val task = new TrackVehiclesTask
-    task.execute(Unit)
-  }
-
 	def onLocationUpdated(location: Location) {
 		Log.d("RouteMapActivity", "Location updated: %s" format location)
 		if (location != null) {
@@ -224,32 +200,26 @@ class RouteMapActivity extends MapActivity with TrackLocation with ShortcutTarge
 		(name, R.drawable.route_map)
 	}
 
-	class TrackVehiclesTask extends AsyncTaskBridge[Unit, Unit, Seq[VehicleInfo]] {
-    override def onPreExecute() {
-      setProgressBarIndeterminateVisibility(true)
-    }
 
-    override def doInBackgroundBridge(param: Unit): Seq[VehicleInfo] = {
-      val request = new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
-      val json = client.getVehiclesLocation(Seq(request))
-      parsing.parseVehiclesLocation(json)
-    }
+	def getVehiclesToTrack = (vehicleType, routeId, routeName)
 
-    override def onPostExecute(result: Seq[VehicleInfo]) {
-      setProgressBarIndeterminateVisibility(false)
+	def onVehiclesLocationUpdateStarted() {
+		setProgressBarIndeterminateVisibility(true)
+	}
 
-      vehiclesOverlay = new VehiclesOverlay(getResources, result)
-      updateOverlays()
-    }
+	def onVehiclesLocationUpdateCancelled() {
+		setProgressBarIndeterminateVisibility(false)
 
-    override def onCancelled() {
-      setProgressBarIndeterminateVisibility(false)
+		vehiclesOverlay = null
+		updateOverlays()
+	}
 
-      vehiclesOverlay = null
-      updateOverlays()
-    }
-  }
+	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
+		setProgressBarIndeterminateVisibility(false)
 
+		vehiclesOverlay = new VehiclesOverlay(getResources, vehicles)
+		updateOverlays()
+	}
 }
 
 class MarkerOverlay(drawable: Drawable, location: GeoPoint, anchorPosition: PointF) extends Overlay {
