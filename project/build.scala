@@ -56,7 +56,7 @@ object General {
       libraryDependencies += "org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
 
       googleMapsJar <<= (sdkPath in Android, apiLevel in Android) { (path, apiLevel) =>
-          (path / "add-ons" / "addon-google_apis-google_inc_-%d".format(apiLevel)
+          (path / "add-ons" / "addon-google_apis-google-%d".format(apiLevel)
           / "libs" / "maps.jar")
       },
 
