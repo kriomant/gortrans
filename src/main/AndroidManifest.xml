@@ -18,10 +18,22 @@
         
         <activity android:label="@string/route_points" android:name=".RouteInfoActivity"/>
 
+				<activity android:label="@string/next_arrivals" android:name=".RouteStopInfoActivity">
+					<intent-filter>
+						<action android:name="android.intent.action.VIEW"/>
+					</intent-filter>
+				</activity>
+
         <activity android:label="@string/stop_schedule" android:name=".StopScheduleActivity">
 	        <intent-filter>
 		        <action android:name="android.intent.action.VIEW"/>
 	        </intent-filter>
+				</activity>
+
+	      <activity android:label="@string/next_arrivals" android:name=".RouteStopInfoActivity">
+					<intent-filter>
+						<action android:name="android.intent.action.VIEW"/>
+					</intent-filter>
 				</activity>
 
         <!-- From MapActivity documentation:

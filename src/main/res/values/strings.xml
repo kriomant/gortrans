@@ -34,4 +34,10 @@
 
 		<string name="stop_schedule_shortcut_format">%1$s №%2$s, ост. «%3$s»</string>
 		<string name="route_map_shortcut_format">%1$s №%2$s на карте</string>
+		<string name="stop_arrivals_shortcut_format">%1$s №%2$s, ост. «%3$s»</string>
+
+		<string name="next_arrivals">Ближайшие прибытия</string>
+		<string name="no_arrivals">Транспорт уже не ходит. Время ловить такси!</string>
+		<string name="refresh_arrivals">Обновить</string>
+		<string name="show_schedule">Показать расписание</string>
 </resources>

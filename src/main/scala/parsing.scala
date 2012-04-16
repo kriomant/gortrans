@@ -12,7 +12,7 @@ import javax.xml.transform.dom.DOMResult
 import javax.xml.transform.sax.SAXSource
 import org.w3c.dom.{Element, Node, NodeList, Document}
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.{Calendar, Date}
 
 object parsing {
 
@@ -185,6 +185,25 @@ object parsing {
 				(hour, minutes getOrElse Seq())
 			}}
 		).toSeq
+	}
+
+	def parseExpectedArrivals(html: String): Option[Seq[Date]] = {
+		val doc = parseHtml(html)
+		doc.getElementsByTagName("span")
+			.view
+			.collect { case e: Element if e.getAttribute("class") == "time" => e.getTextContent }
+			.headOption
+			.map { text =>
+				val calendar = Calendar.getInstance
+				text.split(' ').map { t =>
+					val Array(h, m) = t.split(":", 2)
+					calendar.set(Calendar.HOUR_OF_DAY, h.toInt)
+					calendar.set(Calendar.MINUTE, m.toInt)
+					calendar.set(Calendar.SECOND, 0)
+					calendar.set(Calendar.MILLISECOND, 0)
+					calendar.getTime
+				}
+			}
 	}
 
 	def parseHtml(html: String): Document = {

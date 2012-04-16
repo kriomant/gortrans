@@ -19,8 +19,11 @@ object Client {
 /** Client for maps.nskgortrans.ru site.
 	*/
 class Client {
+	import Client._
+
 	final val HOST = new URL("http://nskgortrans.ru")
 	final val MAPS_HOST = new URL("http://maps.nskgortrans.ru")
+	final val MOBILE_HOST = new URL("http://m.nskgortrans.ru")
 
 	private[this] var mapsSessionId: String = null
 
@@ -109,6 +112,17 @@ class Client {
 		} finally {
 			conn.disconnect()
 		}
+	}
+
+	def getExpectedArrivals(routeId: String, vehicleType: VehicleType.Value, stopId: Int, direction: Direction.Value): String = {
+		fetch(
+			new URL(
+				MOBILE_HOST,
+				"index.php?m=%s&t=1&tt=%s&s=%s&r=%s&p=1" format (
+					routeId, vehicleType.id+1, stopId, directionCodes(direction)
+				)
+			)
+		)
 	}
 
 	private def updateSessionId() {

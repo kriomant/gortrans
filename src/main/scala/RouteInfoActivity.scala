@@ -84,12 +84,12 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 		val stopsMap = dataManager.getStopsList()
 		val stopId = stopsMap(stopName)
 
-		val intent = new Intent(this, classOf[StopScheduleActivity])
-		intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_ID, routeId)
-		intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_NAME, routeName)
-		intent.putExtra(StopScheduleActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
-		intent.putExtra(StopScheduleActivity.EXTRA_STOP_ID, stopId)
-		intent.putExtra(StopScheduleActivity.EXTRA_STOP_NAME, stopName)
+		val intent = new Intent(this, classOf[RouteStopInfoActivity])
+		intent.putExtra(RouteStopInfoActivity.EXTRA_ROUTE_ID, routeId)
+		intent.putExtra(RouteStopInfoActivity.EXTRA_ROUTE_NAME, routeName)
+		intent.putExtra(RouteStopInfoActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
+		intent.putExtra(RouteStopInfoActivity.EXTRA_STOP_ID, stopId)
+		intent.putExtra(RouteStopInfoActivity.EXTRA_STOP_NAME, stopName)
 		startActivity(intent)
 	}
 }

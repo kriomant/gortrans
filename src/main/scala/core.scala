@@ -17,6 +17,11 @@ object core {
 
 	object Direction extends Enumeration {
 		val Forward, Backward = Value
+
+		def inverse(dir: Direction.Value) = dir match {
+			case Forward => Backward
+			case Backward => Forward
+		}
 	}
 
 	object DirectionsEx extends Enumeration {
