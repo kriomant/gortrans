@@ -14,8 +14,10 @@ import net.kriomant.gortrans.Client.RouteInfoRequest
 import net.kriomant.gortrans.core.{DirectionsEx, Direction, VehicleType}
 import android.content.{Context, Intent}
 import android.location.{Location, LocationListener, LocationManager}
-import android.view.{View, Window}
+import android.view.View
 import android.view.View.OnClickListener
+import com.actionbarsherlock.app.SherlockMapActivity
+import com.actionbarsherlock.view.Window
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -26,10 +28,10 @@ object RouteMapActivity {
 	final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
 }
 
-class RouteMapActivity extends MapActivity
+class RouteMapActivity extends SherlockMapActivity
 	with TypedActivity
 	with TrackLocation
-	with ShortcutTarget
+	with MapShortcutTarget
 	with VehiclesWatcher {
 
 	import RouteMapActivity._
@@ -63,6 +65,7 @@ class RouteMapActivity extends MapActivity
 
     // Enable to show indeterminate progress indicator in activity header.
     requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
+		setSupportProgressBarIndeterminateVisibility(false)
 
 		setContentView(R.layout.route_map)
 		mapView = findView(TR.route_map_view)
@@ -204,18 +207,18 @@ class RouteMapActivity extends MapActivity
 	def getVehiclesToTrack = (vehicleType, routeId, routeName)
 
 	def onVehiclesLocationUpdateStarted() {
-		setProgressBarIndeterminateVisibility(true)
+		setSupportProgressBarIndeterminateVisibility(true)
 	}
 
 	def onVehiclesLocationUpdateCancelled() {
-		setProgressBarIndeterminateVisibility(false)
+		setSupportProgressBarIndeterminateVisibility(false)
 
 		vehiclesOverlay = null
 		updateOverlays()
 	}
 
 	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
-		setProgressBarIndeterminateVisibility(false)
+		setSupportProgressBarIndeterminateVisibility(false)
 
 		vehiclesOverlay = new VehiclesOverlay(getResources, vehicles)
 		updateOverlays()

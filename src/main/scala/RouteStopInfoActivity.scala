@@ -1,15 +1,16 @@
 package net.kriomant.gortrans
 
-import android.app.ListActivity
 import android.os.{Handler, Bundle}
-import android.widget.{ListAdapter, TextView}
 import android.text.format.{DateUtils, DateFormat}
 import java.util.{Date, Calendar}
 import android.view.View.OnClickListener
-import android.view.{Window, View}
+import android.view.View
 import android.util.Log
 import android.content.{Intent, Context}
 import net.kriomant.gortrans.core.{Route, Direction, VehicleType}
+import android.widget.{ListView, ListAdapter, TextView}
+import com.actionbarsherlock.app.SherlockActivity
+import com.actionbarsherlock.view.{Window, MenuItem, Menu}
 
 object RouteStopInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteStopInfoActivity].getName
@@ -24,7 +25,7 @@ object RouteStopInfoActivity {
 
 /** List of closest vehicle arrivals for given route stop.
  */
-class RouteStopInfoActivity extends ListActivity with TypedActivity with ShortcutTarget {
+class RouteStopInfoActivity extends SherlockActivity with TypedActivity with ShortcutTarget {
 	import RouteStopInfoActivity._
 
 	val handler = new Handler
@@ -44,6 +45,7 @@ class RouteStopInfoActivity extends ListActivity with TypedActivity with Shortcu
 
 		// Enable to show indeterminate progress indicator in activity header.
 		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
+		setSupportProgressBarIndeterminateVisibility(false)
 
 		setContentView(R.layout.route_stop_info)
 
@@ -76,24 +78,27 @@ class RouteStopInfoActivity extends ListActivity with TypedActivity with Shortcu
 			}
 		})
 
-		findView(TR.refresh_arrivals).setOnClickListener(new OnClickListener {
-			def onClick(view: View) {
-				refreshArrivals()
-			}
-		})
-
-		findView(TR.show_schedule).setOnClickListener(new OnClickListener {
-			def onClick(view: View) {
-				val intent = new Intent(RouteStopInfoActivity.this, classOf[StopScheduleActivity])
-				intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_ID, routeId)
-				intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_NAME, routeName)
-				intent.putExtra(StopScheduleActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
-				intent.putExtra(StopScheduleActivity.EXTRA_STOP_ID, stopId)
-				intent.putExtra(StopScheduleActivity.EXTRA_STOP_NAME, stopName)
-				startActivity(intent)
-			}
-		})
 		refreshArrivals()
+	}
+
+	override def onCreateOptionsMenu(menu: Menu): Boolean = {
+		super.onCreateOptionsMenu(menu)
+		getSupportMenuInflater.inflate(R.menu.route_stop_info_menu, menu)
+		true
+	}
+
+	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+		case R.id.refresh => refreshArrivals(); true
+		case R.id.show_schedule => {
+			val intent = new Intent(RouteStopInfoActivity.this, classOf[StopScheduleActivity])
+			intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_ID, routeId)
+			intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_NAME, routeName)
+			intent.putExtra(StopScheduleActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
+			intent.putExtra(StopScheduleActivity.EXTRA_STOP_ID, stopId)
+			intent.putExtra(StopScheduleActivity.EXTRA_STOP_NAME, stopName)
+			startActivity(intent)
+		}; true
+		case _ => super.onOptionsItemSelected(item)
 	}
 
 	def setDirectionText() {
@@ -116,27 +121,27 @@ class RouteStopInfoActivity extends ListActivity with TypedActivity with Shortcu
 	}
 
 	def refreshArrivals() {
-		setProgressBarIndeterminateVisibility(true)
+		setSupportProgressBarIndeterminateVisibility(true)
 
 		val expectedArrivals = parsing.parseExpectedArrivals(client.getExpectedArrivals(routeId, vehicleType, stopId, direction))
 
-		val list = getListView
+		val list = findViewById(android.R.id.list).asInstanceOf[ListView]
 		val no_arrivals_view = findView(TR.no_arrivals)
 		expectedArrivals match {
 			case Some(arrivals) => {
-				setListAdapter(new ArrivalsListAdapter(this, arrivals))
+				list.setAdapter(new ArrivalsListAdapter(this, arrivals))
 				no_arrivals_view.setVisibility(View.GONE)
 				list.setVisibility(View.VISIBLE)
 			}
 
 			case None => {
-				setListAdapter(null)
+				list.setAdapter(null)
 				no_arrivals_view.setVisibility(View.VISIBLE)
 				list.setVisibility(View.GONE)
 			}
 		}
 
-		setProgressBarIndeterminateVisibility(false)
+		setSupportProgressBarIndeterminateVisibility(false)
 	}
 }
 

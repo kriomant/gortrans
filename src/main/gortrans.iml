@@ -36,7 +36,7 @@
       <sourceFolder url="file://$MODULE_DIR$/../../target/scala-2.8.2/src_managed/main/scala" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../test/scala" isTestSource="true" />
     </content>
-    <orderEntry type="jdk" jdkName="Android 2.2 Google APIs" jdkType="Android SDK" />
+    <orderEntry type="jdk" jdkName="Android 4 Google APIs" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" scope="PROVIDED" name="scala-library-2.9.1" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="scala-compiler-2.9" level="application" />
@@ -62,6 +62,24 @@
       <library>
         <CLASSES>
           <root url="jar://$USER_HOME$/dev/android-sdk-linux/extras/android/support/v4/android-support-v4.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../target/scala-2.8.2/library-4.0.2/libs/android-support-v4.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.actionbarsherlock/plugin-maps/jars/plugin-maps-4.0.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

@@ -31,7 +31,7 @@ object General {
     version := "0.1",
     versionCode := 0,
     scalaVersion := "2.8.2",
-    platformName in Android := "android-8",
+    platformName in Android := "android-15",
 
     apiLevel in Android <<= (platformName in Android) { platform =>
       val platformNameRegex = """android-(\d+)""".r
@@ -55,6 +55,12 @@ object General {
       libraryDependencies += "org.scalatest" %% "scalatest" % "1.7.RC1" % "test",
       libraryDependencies += "org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
 
+			resolvers += "ActionBarSherlock" at  "http://r.jakewharton.com/maven/release/",
+			libraryDependencies += "com.actionbarsherlock" % "library" % "4.0.2" artifacts(Artifact("library", "apklib", "apklib")),
+	    libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.0.0",
+      // Prevent ProGuard from stripping ActionBarSherlock implementation classes which are used through reflection.
+      proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
+
       googleMapsJar <<= (sdkPath in Android, apiLevel in Android) { (path, apiLevel) =>
           (path / "add-ons" / "addon-google_apis-google-%d".format(apiLevel)
           / "libs" / "maps.jar")
@@ -63,12 +69,6 @@ object General {
       // Add Google Maps library.
       unmanagedJars in Compile <+= googleMapsJar map { jar => Attributed.blank(jar) },
       libraryJarPath in Android <+= googleMapsJar,
-
-      // Add Android support library.
-	    androidSupportJar <<= (sdkPath in Android) { path =>
-		    (path / "extras" / "android" / "support" / "v4" / "android-support-v4.jar")
-	    },
-	    unmanagedJars in Compile <+= androidSupportJar map { jar => Attributed.blank(jar) },
 
       customResourcesPath in Android <<= (mainResPath in Android) map { _ / "values" / "generated.xml" },
       customResources in Android := Seq(),

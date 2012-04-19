@@ -2,14 +2,14 @@ package net.kriomant.gortrans
 
 import _root_.android.os.Bundle
 
-import net.kriomant.gortrans.core.{ScheduleType, Direction, VehicleType}
+import net.kriomant.gortrans.core.{Direction, VehicleType}
 import android.support.v4.view.PagerAdapter
-import android.app.Activity
 import scala.collection.JavaConverters._
 import android.util.Log
 import android.view._
-import android.content.{Intent, Context}
-import android.widget.{Toast, SimpleAdapter, ListView}
+import android.content.Context
+import android.widget.{SimpleAdapter, ListView}
+import com.actionbarsherlock.app.SherlockActivity
 
 object StopScheduleActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -21,7 +21,7 @@ object StopScheduleActivity {
 	final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
 }
 
-class StopScheduleActivity extends Activity with TypedActivity with ShortcutTarget {
+class StopScheduleActivity extends SherlockActivity with TypedActivity with ShortcutTarget {
 	import StopScheduleActivity._
 
 	private[this] final val TAG = "StopScheduleActivity"

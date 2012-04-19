@@ -5,13 +5,6 @@
 	android:layout_height="match_parent"
   android:orientation="vertical"
 >
-	<Button
-		android:id="@+id/show_schedule"
-		android:layout_height="wrap_content"
-		android:layout_width="match_parent"
-		android:text="@string/show_schedule"
-	/>
-
 	<LinearLayout
 		android:orientation="horizontal"
 	  android:layout_width="match_parent"
@@ -37,13 +30,6 @@
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
 		android:text="@string/next_arrivals"
-	/>
-
-	<Button
-		android:id="@+id/refresh_arrivals"
-	  android:layout_height="wrap_content"
-	  android:layout_width="match_parent"
-	  android:text="@string/refresh_arrivals"
 	/>
 
 	<TextView
