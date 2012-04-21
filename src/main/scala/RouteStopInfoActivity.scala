@@ -25,10 +25,24 @@ object RouteStopInfoActivity {
 
 /** List of closest vehicle arrivals for given route stop.
  */
-class RouteStopInfoActivity extends SherlockActivity with TypedActivity with ShortcutTarget {
+class RouteStopInfoActivity extends SherlockActivity
+	with TypedActivity
+	with ShortcutTarget
+	with SherlockAsyncTaskIndicator
+{
 	import RouteStopInfoActivity._
 
-	val handler = new Handler
+	class RefreshArrivalsTask extends AsyncTaskBridge[Object, Object, Option[Seq[Date]]] with AsyncProcessIndicator[Object, Object, Option[Seq[Date]]] {
+		// "Object with Object" is workaround for some strange Scala bug.
+		override def doInBackgroundBridge(params: Array[Object with Object]) = {
+			parsing.parseExpectedArrivals(client.getExpectedArrivals(routeId, vehicleType, stopId, direction))
+		}
+
+		override def onPostExecute(arrivals: Option[Seq[Date]]) {
+			setArrivals(arrivals)
+			super.onPostExecute(arrivals)
+		}
+	}
 
 	var routeId: String = null
 	var routeName: String = null
@@ -43,11 +57,14 @@ class RouteStopInfoActivity extends SherlockActivity with TypedActivity with Sho
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
 
-		// Enable to show indeterminate progress indicator in activity header.
 		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
 		setSupportProgressBarIndeterminateVisibility(false)
+		setProgressBarIndeterminateVisibility(false)
 
 		setContentView(R.layout.route_stop_info)
+
+		setSupportProgressBarIndeterminateVisibility(false)
+		setProgressBarIndeterminateVisibility(false)
 
 		// Get route reference.
 		val intent = getIntent
@@ -121,13 +138,14 @@ class RouteStopInfoActivity extends SherlockActivity with TypedActivity with Sho
 	}
 
 	def refreshArrivals() {
-		setSupportProgressBarIndeterminateVisibility(true)
+		val task = new RefreshArrivalsTask
+		task.execute()
+	}
 
-		val expectedArrivals = parsing.parseExpectedArrivals(client.getExpectedArrivals(routeId, vehicleType, stopId, direction))
-
+	def setArrivals(maybeArrivals: Option[Seq[Date]]) {
 		val list = findViewById(android.R.id.list).asInstanceOf[ListView]
 		val no_arrivals_view = findView(TR.no_arrivals)
-		expectedArrivals match {
+		maybeArrivals match {
 			case Some(arrivals) => {
 				list.setAdapter(new ArrivalsListAdapter(this, arrivals))
 				no_arrivals_view.setVisibility(View.GONE)
@@ -140,8 +158,6 @@ class RouteStopInfoActivity extends SherlockActivity with TypedActivity with Sho
 				list.setVisibility(View.GONE)
 			}
 		}
-
-		setSupportProgressBarIndeterminateVisibility(false)
 	}
 }
 

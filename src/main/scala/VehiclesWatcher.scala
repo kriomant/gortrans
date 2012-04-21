@@ -48,7 +48,7 @@ trait VehiclesWatcher { this: Activity =>
 			onVehiclesLocationUpdateStarted()
 		}
 
-		override def doInBackgroundBridge(param: Unit): Seq[VehicleInfo] = {
+		override def doInBackgroundBridge(param: Array[Unit]): Seq[VehicleInfo] = {
 			val (vehicleType, routeId, routeName) = getVehiclesToTrack
 			val request = new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
 			val json = client.getVehiclesLocation(Seq(request))
