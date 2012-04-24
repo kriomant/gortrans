@@ -5,7 +5,7 @@
 				android:name=".CustomApplication"
         android:icon="@drawable/application_icon"
         android:label="@string/app_name"
-		    android:theme="@style/Theme.Sherlock"
+		    android:theme="@style/Dark"
         android:debuggable="true">
 
         <uses-library android:name="com.google.android.maps"/>
