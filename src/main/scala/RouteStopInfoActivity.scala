@@ -79,12 +79,16 @@ class RouteStopInfoActivity extends SherlockActivity
 
 		// Set title.
 		val routeNameFormatByVehicleType = Map(
-			VehicleType.Bus -> R.string.bus_route,
-			VehicleType.TrolleyBus -> R.string.trolleybus_route,
-			VehicleType.TramWay -> R.string.tramway_route,
-			VehicleType.MiniBus -> R.string.minibus_route
+			VehicleType.Bus -> R.string.bus_n,
+			VehicleType.TrolleyBus -> R.string.trolleybus_n,
+			VehicleType.TramWay -> R.string.tramway_n,
+			VehicleType.MiniBus -> R.string.minibus_n
 		).mapValues(getString)
-		setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+
+		val actionBar = getSupportActionBar
+		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+		actionBar.setSubtitle(stopName)
+		actionBar.setDisplayHomeAsUpEnabled(true)
 
 		setDirectionText()
 		findView(TR.toggle_direction).setOnClickListener(new OnClickListener {
@@ -105,6 +109,15 @@ class RouteStopInfoActivity extends SherlockActivity
 	}
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+		case android.R.id.home => {
+			val intent = new Intent(this, classOf[RouteInfoActivity])
+			intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_ID, route.id)
+			intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_NAME, route.name)
+			intent.putExtra(RouteInfoActivity.EXTRA_VEHICLE_TYPE, route.vehicleType.id)
+			intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+			startActivity(intent)
+			true
+		}
 		case R.id.refresh => refreshArrivals(); true
 		case R.id.show_schedule => {
 			val intent = new Intent(RouteStopInfoActivity.this, classOf[StopScheduleActivity])
@@ -114,7 +127,8 @@ class RouteStopInfoActivity extends SherlockActivity
 			intent.putExtra(StopScheduleActivity.EXTRA_STOP_ID, stopId)
 			intent.putExtra(StopScheduleActivity.EXTRA_STOP_NAME, stopName)
 			startActivity(intent)
-		}; true
+			true
+		}
 		case _ => super.onOptionsItemSelected(item)
 	}
 

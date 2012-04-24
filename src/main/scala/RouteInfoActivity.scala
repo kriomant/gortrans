@@ -5,11 +5,12 @@ import _root_.android.os.Bundle
 import android.app.ListActivity
 import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint}
 import android.view.View.OnClickListener
-import android.database.DataSetObserver
-import android.view.{LayoutInflater, ViewGroup, View}
+import android.view.View
 import android.content.{Context, Intent}
-import android.widget.{ListView, ImageView, TextView, ListAdapter}
+import android.widget.{ListView, TextView, ListAdapter}
 import net.kriomant.gortrans.core._
+import com.actionbarsherlock.app.SherlockListActivity
+import com.actionbarsherlock.view.{MenuItem, Menu}
 
 object RouteInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -19,7 +20,7 @@ object RouteInfoActivity {
 	final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
 }
 
-class RouteInfoActivity extends ListActivity with TypedActivity {
+class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 	import RouteInfoActivity._
 
 	private[this] final val TAG = "RouteInfoActivity"
@@ -36,8 +37,6 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 
 		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 
-		setContentView(R.layout.route_info)
-
 		// Disable list item dividers so that route stop icons
 		// together look like solid route line.
 		getListView.setDivider(null)
@@ -48,25 +47,17 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 		vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
 
 		val routeNameFormatByVehicleType = Map(
-			VehicleType.Bus -> R.string.bus_route,
-			VehicleType.TrolleyBus -> R.string.trolleybus_route,
-			VehicleType.TramWay -> R.string.tramway_route,
-			VehicleType.MiniBus -> R.string.minibus_route
+			VehicleType.Bus -> R.string.bus_n,
+			VehicleType.TrolleyBus -> R.string.trolleybus_n,
+			VehicleType.TramWay -> R.string.tramway_n,
+			VehicleType.MiniBus -> R.string.minibus_n
 		).mapValues(getString)
 
-		setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
-		
-		val showRouteMapButton = findView(TR.show_route_map)
-		showRouteMapButton.setOnClickListener(new OnClickListener {
-			def onClick(view: View) {
-				val intent = new Intent(RouteInfoActivity.this, classOf[RouteMapActivity])
-				intent.putExtra(RouteMapActivity.EXTRA_ROUTE_ID, routeId)
-				intent.putExtra(RouteMapActivity.EXTRA_ROUTE_NAME, routeName)
-				intent.putExtra(RouteMapActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
-				startActivity(intent)
-			}
-		})
-		
+		val actionBar = getSupportActionBar
+		actionBar.setDisplayHomeAsUpEnabled(true)
+		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+		actionBar.setSubtitle(R.string.route)
+
 		val routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
 		val routeInfo = dataManager.getRoutesList().apply(vehicleType).find(r => r.id == routeId).get
 
@@ -77,6 +68,30 @@ class RouteInfoActivity extends ListActivity with TypedActivity {
 
 		val listAdapter = new RouteStopsAdapter(this, foldedRoute)
 		setListAdapter(listAdapter)
+	}
+
+	override def onCreateOptionsMenu(menu: Menu): Boolean = {
+		super.onCreateOptionsMenu(menu)
+		getSupportMenuInflater.inflate(R.menu.route_info_menu, menu)
+		true
+	}
+
+	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+		case R.id.show_map => {
+			val intent = new Intent(RouteInfoActivity.this, classOf[RouteMapActivity])
+			intent.putExtra(RouteMapActivity.EXTRA_ROUTE_ID, routeId)
+			intent.putExtra(RouteMapActivity.EXTRA_ROUTE_NAME, routeName)
+			intent.putExtra(RouteMapActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
+			startActivity(intent)
+			true
+		}
+		case android.R.id.home => {
+			val intent = new Intent(RouteInfoActivity.this, classOf[MainActivity])
+			intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+			startActivity(intent)
+			true
+		}
+		case _ => false
 	}
 
 	override def onListItemClick(l: ListView, v: View, position: Int, id: Long) {

@@ -5,13 +5,12 @@
 				android:name=".CustomApplication"
         android:icon="@drawable/application_icon"
         android:label="@string/app_name"
+		    android:theme="@style/Theme.Sherlock"
         android:debuggable="true">
 
         <uses-library android:name="com.google.android.maps"/>
 
-        <activity android:label="@string/routes_list" android:name=".MainActivity"
-          android:theme="@style/Theme.Sherlock"
-				>
+        <activity android:label="@string/routes_list" android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -26,17 +25,13 @@
 					</intent-filter>
 				</activity>
 
-        <activity android:label="@string/stop_schedule" android:name=".StopScheduleActivity"
-          android:theme="@style/Theme.Sherlock"
-				>
+        <activity android:label="@string/stop_schedule" android:name=".StopScheduleActivity">
 	        <intent-filter>
 		        <action android:name="android.intent.action.VIEW"/>
 	        </intent-filter>
 				</activity>
 
-	      <activity android:label="@string/next_arrivals" android:name=".RouteStopInfoActivity"
-					android:theme="@style/Theme.Sherlock"
-				>
+	      <activity android:label="@string/next_arrivals" android:name=".RouteStopInfoActivity">
 					<intent-filter>
 						<action android:name="android.intent.action.VIEW"/>
 					</intent-filter>
@@ -46,9 +41,7 @@
         "Only one MapActivity is supported per process. Multiple MapActivities running
         simultaneously are likely to interfere in unexpected and undesired ways."
         Thus set launch mode to "singleTask". -->
-        <activity android:name=".RouteMapActivity" android:launchMode="singleTask"
-          android:theme="@style/Theme.Sherlock"
-				>
+        <activity android:name=".RouteMapActivity" android:launchMode="singleTask">
 					<intent-filter>
 						<action android:name="android.intent.action.VIEW"/>
 					</intent-filter>

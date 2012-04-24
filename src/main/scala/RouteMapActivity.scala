@@ -17,7 +17,7 @@ import android.location.{Location, LocationListener, LocationManager}
 import android.view.View
 import android.view.View.OnClickListener
 import com.actionbarsherlock.app.SherlockMapActivity
-import com.actionbarsherlock.view.Window
+import com.actionbarsherlock.view.{MenuItem, Window}
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -114,12 +114,15 @@ class RouteMapActivity extends SherlockMapActivity
 
 		// Set title.
 		val routeNameFormatByVehicleType = Map(
-			VehicleType.Bus -> R.string.bus_route,
-			VehicleType.TrolleyBus -> R.string.trolleybus_route,
-			VehicleType.TramWay -> R.string.tramway_route,
-			VehicleType.MiniBus -> R.string.minibus_route
+			VehicleType.Bus -> R.string.bus_n,
+			VehicleType.TrolleyBus -> R.string.trolleybus_n,
+			VehicleType.TramWay -> R.string.tramway_n,
+			VehicleType.MiniBus -> R.string.minibus_n
 		).mapValues(getString)
-		setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+
+		val actionBar = getSupportActionBar
+		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+		actionBar.setDisplayHomeAsUpEnabled(true)
 
 		// Load route details.
 		val routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
@@ -177,6 +180,18 @@ class RouteMapActivity extends SherlockMapActivity
 
     super.onPause()
   }
+
+	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+		case android.R.id.home => {
+			val intent = new Intent(this, classOf[RouteInfoActivity])
+			intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_ID, routeId)
+			intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_NAME, routeName)
+			intent.putExtra(RouteInfoActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
+			startActivity(intent)
+			true
+		}
+		case _ => super.onOptionsItemSelected(item)
+	}
 
 	def onLocationUpdated(location: Location) {
 		Log.d("RouteMapActivity", "Location updated: %s" format location)

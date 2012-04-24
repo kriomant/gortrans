@@ -7,9 +7,10 @@ import android.support.v4.view.PagerAdapter
 import scala.collection.JavaConverters._
 import android.util.Log
 import android.view._
-import android.content.Context
 import android.widget.{SimpleAdapter, ListView}
 import com.actionbarsherlock.app.SherlockActivity
+import com.actionbarsherlock.view.MenuItem
+import android.content.{Intent, Context}
 
 object StopScheduleActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -45,13 +46,16 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 		stopName = intent.getStringExtra(EXTRA_STOP_NAME)
 
 		val stopScheduleFormatByVehicleType = Map(
-			VehicleType.Bus -> R.string.bus_stop_schedule,
-			VehicleType.TrolleyBus -> R.string.trolleybus_stop_schedule,
-			VehicleType.TramWay -> R.string.tramway_stop_schedule,
-			VehicleType.MiniBus -> R.string.minibus_stop_schedule
+			VehicleType.Bus -> R.string.bus_n,
+			VehicleType.TrolleyBus -> R.string.trolleybus_n,
+			VehicleType.TramWay -> R.string.tramway_n,
+			VehicleType.MiniBus -> R.string.minibus_n
 		).mapValues(getString)
 
-		setTitle(stopScheduleFormatByVehicleType(vehicleType).format(routeName, stopName))
+		val actionBar = getSupportActionBar
+		actionBar.setTitle(stopScheduleFormatByVehicleType(vehicleType).format(routeName, stopName))
+		actionBar.setSubtitle(stopName)
+		actionBar.setDisplayHomeAsUpEnabled(true)
 
 		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 		val scheduleTypes = dataManager.getAvailableRouteScheduleTypes(vehicleType, routeId, Direction.Forward)
@@ -93,6 +97,20 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 		override def setPrimaryItem(container: ViewGroup, position: Int, `object`: AnyRef) {}
 
 		def isViewFromObject(p1: View, p2: AnyRef): Boolean = p1 == p2.asInstanceOf[View]
+	}
+
+	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+		case android.R.id.home => {
+			val intent = new Intent(this, classOf[RouteStopInfoActivity])
+			intent.putExtra(RouteStopInfoActivity.EXTRA_ROUTE_ID, routeId)
+			intent.putExtra(RouteStopInfoActivity.EXTRA_ROUTE_NAME, routeName)
+			intent.putExtra(RouteStopInfoActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
+			intent.putExtra(RouteStopInfoActivity.EXTRA_STOP_ID, stopId)
+			intent.putExtra(RouteStopInfoActivity.EXTRA_STOP_NAME, stopName)
+			startActivity(intent)
+			true
+		}
+		case _ => super.onOptionsItemSelected(item)
 	}
 
 	def getShortcutNameAndIcon: (String, Int) = {

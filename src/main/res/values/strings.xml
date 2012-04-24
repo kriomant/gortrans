@@ -12,10 +12,12 @@
 		<string name="tramway_short">Трам.</string>
 		<string name="minibus_short">Марш.</string>
 
-    <string name="bus_route">Маршрут автобуса №%1$s</string>
-    <string name="trolleybus_route">Маршрут троллейбуса №%1$s</string>
-    <string name="tramway_route">Маршрут трамвая №%1$s</string>
-    <string name="minibus_route">Маршрут такси №%1$s</string>
+		<string name="bus_n">Автобус №%1$s</string>
+		<string name="trolleybus_n">Троллейбус №%1$s</string>
+		<string name="tramway_n">Трамвай №%1$s</string>
+		<string name="minibus_n">Маршрутное такси №%1$s</string>
+
+    <string name="route">Маршрут</string>
 
     <string name="bus_stop_schedule">Расписание автобуса №%1$s для остановки «%2$s»</string>
     <string name="trolleybus_stop_schedule">Расписание троллейбуса №%1$s для остановки «%2$s»</string>
