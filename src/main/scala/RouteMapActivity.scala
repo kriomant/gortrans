@@ -11,21 +11,29 @@ import com.google.android.maps._
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint}
 import android.widget.{ToggleButton, Toast, CompoundButton}
 import net.kriomant.gortrans.Client.RouteInfoRequest
-import net.kriomant.gortrans.core.{DirectionsEx, Direction, VehicleType}
 import android.content.{Context, Intent}
 import android.location.{Location, LocationListener, LocationManager}
 import android.view.View
 import android.view.View.OnClickListener
 import com.actionbarsherlock.app.SherlockMapActivity
 import com.actionbarsherlock.view.{MenuItem, Window}
+import net.kriomant.gortrans.core.{Route, DirectionsEx, Direction, VehicleType}
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
 	final val TAG = CLASS_NAME
 
-	final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
-	final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
-	final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
+	private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
+	private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
+	private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
+
+	def createIntent(caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value): Intent = {
+		val intent = new Intent(caller, classOf[RouteMapActivity])
+		intent.putExtra(EXTRA_ROUTE_ID, routeId)
+		intent.putExtra(EXTRA_ROUTE_NAME, routeName)
+		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
+		intent
+	}
 }
 
 class RouteMapActivity extends SherlockMapActivity
@@ -183,10 +191,7 @@ class RouteMapActivity extends SherlockMapActivity
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case android.R.id.home => {
-			val intent = new Intent(this, classOf[RouteInfoActivity])
-			intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_ID, routeId)
-			intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_NAME, routeName)
-			intent.putExtra(RouteInfoActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
+			val intent = RouteInfoActivity.createIntent(this, routeId, routeName, vehicleType)
 			startActivity(intent)
 			true
 		}

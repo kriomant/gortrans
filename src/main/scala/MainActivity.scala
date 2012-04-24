@@ -3,13 +3,19 @@ package net.kriomant.gortrans
 import _root_.android.os.Bundle
 
 import net.kriomant.gortrans.core.VehicleType
-import android.content.Intent
 import android.widget._
 import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
 import android.support.v4.app.{ListFragment, FragmentTransaction}
 import android.view.View
 import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar, SherlockActivity}
 import android.content.res.Configuration
+import android.content.{Context, Intent}
+
+object MainActivity {
+	def createIntent(caller: Context): Intent = {
+		new Intent(caller, classOf[MainActivity])
+	}
+}
 
 class MainActivity extends SherlockFragmentActivity with TypedActivity {
 	private[this] final val TAG = "MainActivity"
@@ -119,10 +125,7 @@ class RoutesListFragment extends ListFragment {
 	override def onListItemClick(l: ListView, v: View, position: Int, id: Long) {
 		val route = routes(position)
 
-		val intent = new Intent(getActivity, classOf[RouteInfoActivity])
-		intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_ID, route.id)
-		intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_NAME, route.name)
-		intent.putExtra(RouteInfoActivity.EXTRA_VEHICLE_TYPE, route.vehicleType.id)
+		val intent = RouteInfoActivity.createIntent(getActivity, route.id, route.name, route.vehicleType)
 		startActivity(intent)
 	}
 

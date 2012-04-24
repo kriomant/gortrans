@@ -15,9 +15,17 @@ import com.actionbarsherlock.view.{MenuItem, Menu}
 object RouteInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
 
-	final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
-	final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
-	final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
+	private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
+	private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
+	private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
+
+	def createIntent(caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value): Intent = {
+		val intent = new Intent(caller, classOf[RouteInfoActivity])
+		intent.putExtra(EXTRA_ROUTE_ID, routeId)
+		intent.putExtra(EXTRA_ROUTE_NAME, routeName)
+		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
+		intent
+	}
 }
 
 class RouteInfoActivity extends SherlockListActivity with TypedActivity {
@@ -78,15 +86,12 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case R.id.show_map => {
-			val intent = new Intent(RouteInfoActivity.this, classOf[RouteMapActivity])
-			intent.putExtra(RouteMapActivity.EXTRA_ROUTE_ID, routeId)
-			intent.putExtra(RouteMapActivity.EXTRA_ROUTE_NAME, routeName)
-			intent.putExtra(RouteMapActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
+			val intent = RouteMapActivity.createIntent(this, routeId, routeName, vehicleType)
 			startActivity(intent)
 			true
 		}
 		case android.R.id.home => {
-			val intent = new Intent(RouteInfoActivity.this, classOf[MainActivity])
+			val intent = MainActivity.createIntent(this)
 			intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 			startActivity(intent)
 			true
@@ -99,12 +104,7 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 		val stopsMap = dataManager.getStopsList()
 		val stopId = stopsMap(stopName)
 
-		val intent = new Intent(this, classOf[RouteStopInfoActivity])
-		intent.putExtra(RouteStopInfoActivity.EXTRA_ROUTE_ID, routeId)
-		intent.putExtra(RouteStopInfoActivity.EXTRA_ROUTE_NAME, routeName)
-		intent.putExtra(RouteStopInfoActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
-		intent.putExtra(RouteStopInfoActivity.EXTRA_STOP_ID, stopId)
-		intent.putExtra(RouteStopInfoActivity.EXTRA_STOP_NAME, stopName)
+		val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
 		startActivity(intent)
 	}
 }

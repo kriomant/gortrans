@@ -16,11 +16,24 @@ object RouteStopInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteStopInfoActivity].getName
 	final val TAG = CLASS_NAME
 
-	final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
-	final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
-	final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
-	final val EXTRA_STOP_ID = CLASS_NAME + ".STOP_ID"
-	final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
+	private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
+	private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
+	private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
+	private final val EXTRA_STOP_ID = CLASS_NAME + ".STOP_ID"
+	private final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
+
+	def createIntent(
+		caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value,
+		stopId: Int, stopName: String
+	): Intent = {
+		val intent = new Intent(caller, classOf[RouteStopInfoActivity])
+		intent.putExtra(EXTRA_ROUTE_ID, routeId)
+		intent.putExtra(EXTRA_ROUTE_NAME, routeName)
+		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
+		intent.putExtra(EXTRA_STOP_ID, stopId)
+		intent.putExtra(EXTRA_STOP_NAME, stopName)
+		intent
+	}
 }
 
 /** List of closest vehicle arrivals for given route stop.
@@ -110,22 +123,14 @@ class RouteStopInfoActivity extends SherlockActivity
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case android.R.id.home => {
-			val intent = new Intent(this, classOf[RouteInfoActivity])
-			intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_ID, route.id)
-			intent.putExtra(RouteInfoActivity.EXTRA_ROUTE_NAME, route.name)
-			intent.putExtra(RouteInfoActivity.EXTRA_VEHICLE_TYPE, route.vehicleType.id)
+			val intent = RouteInfoActivity.createIntent(this, route.id, route.name, route.vehicleType)
 			intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 			startActivity(intent)
 			true
 		}
 		case R.id.refresh => refreshArrivals(); true
 		case R.id.show_schedule => {
-			val intent = new Intent(RouteStopInfoActivity.this, classOf[StopScheduleActivity])
-			intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_ID, routeId)
-			intent.putExtra(StopScheduleActivity.EXTRA_ROUTE_NAME, routeName)
-			intent.putExtra(StopScheduleActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
-			intent.putExtra(StopScheduleActivity.EXTRA_STOP_ID, stopId)
-			intent.putExtra(StopScheduleActivity.EXTRA_STOP_NAME, stopName)
+			val intent = StopScheduleActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
 			startActivity(intent)
 			true
 		}

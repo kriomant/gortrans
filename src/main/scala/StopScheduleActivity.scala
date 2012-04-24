@@ -15,11 +15,24 @@ import android.content.{Intent, Context}
 object StopScheduleActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
 
-	final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
-	final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
-	final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
-	final val EXTRA_STOP_ID = CLASS_NAME + ".STOP_ID"
-	final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
+	private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
+	private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
+	private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
+	private final val EXTRA_STOP_ID = CLASS_NAME + ".STOP_ID"
+	private final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
+
+	def createIntent(
+		caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value,
+		stopId: Int, stopName: String
+	): Intent = {
+		val intent = new Intent(caller, classOf[StopScheduleActivity])
+		intent.putExtra(EXTRA_ROUTE_ID, routeId)
+		intent.putExtra(EXTRA_ROUTE_NAME, routeName)
+		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
+		intent.putExtra(EXTRA_STOP_ID, stopId)
+		intent.putExtra(EXTRA_STOP_NAME, stopName)
+		intent
+	}
 }
 
 class StopScheduleActivity extends SherlockActivity with TypedActivity with ShortcutTarget {
@@ -101,12 +114,7 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case android.R.id.home => {
-			val intent = new Intent(this, classOf[RouteStopInfoActivity])
-			intent.putExtra(RouteStopInfoActivity.EXTRA_ROUTE_ID, routeId)
-			intent.putExtra(RouteStopInfoActivity.EXTRA_ROUTE_NAME, routeName)
-			intent.putExtra(RouteStopInfoActivity.EXTRA_VEHICLE_TYPE, vehicleType.id)
-			intent.putExtra(RouteStopInfoActivity.EXTRA_STOP_ID, stopId)
-			intent.putExtra(RouteStopInfoActivity.EXTRA_STOP_NAME, stopName)
+			val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
 			startActivity(intent)
 			true
 		}
