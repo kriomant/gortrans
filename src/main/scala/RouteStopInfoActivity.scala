@@ -34,6 +34,8 @@ object RouteStopInfoActivity {
 		intent.putExtra(EXTRA_STOP_NAME, stopName)
 		intent
 	}
+
+	final val REFRESH_PERIOD = 60 * 1000 /* ms */
 }
 
 /** List of closest vehicle arrivals for given route stop.
@@ -66,6 +68,8 @@ class RouteStopInfoActivity extends SherlockActivity
 	var route: Route = null
 
 	val client = new Client
+
+	var periodicRefresh = new PeriodicTimer(REFRESH_PERIOD)(refreshArrivals)
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
@@ -111,8 +115,19 @@ class RouteStopInfoActivity extends SherlockActivity
 				refreshArrivals()
 			}
 		})
+	}
+
+	protected override def onPause() {
+		periodicRefresh.stop()
+
+		super.onPause()
+	}
+
+	override def onResume() {
+		super.onResume()
 
 		refreshArrivals()
+		periodicRefresh.start()
 	}
 
 	override def onCreateOptionsMenu(menu: Menu): Boolean = {
