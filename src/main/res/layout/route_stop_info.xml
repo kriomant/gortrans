@@ -23,6 +23,7 @@
 		  android:layout_height="wrap_content"
 		  android:text="⇅"
 		  android:layout_weight="0"
+		  android:visibility="gone"
 		/>
 	</LinearLayout>
 

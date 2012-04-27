@@ -7,10 +7,11 @@ import android.view.View.OnClickListener
 import android.view.View
 import android.util.Log
 import android.content.{Intent, Context}
-import net.kriomant.gortrans.core.{Route, Direction, VehicleType}
 import android.widget.{ListView, ListAdapter, TextView}
 import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.{Window, MenuItem, Menu}
+import net.kriomant.gortrans.parsing.{RoutePoint, RouteStop}
+import net.kriomant.gortrans.core.{DirectionsEx, Route, Direction, VehicleType}
 
 object RouteStopInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteStopInfoActivity].getName
@@ -64,7 +65,8 @@ class RouteStopInfoActivity extends SherlockActivity
 	var vehicleType: VehicleType.Value = null
 	var stopId: Int = -1
 	var stopName: String = null
-	var direction: Direction.Value = Direction.Forward
+	var availableDirections: DirectionsEx.Value = null
+	var direction: Direction.Value = null
 	var route: Route = null
 
 	val client = new Client
@@ -107,14 +109,32 @@ class RouteStopInfoActivity extends SherlockActivity
 		actionBar.setSubtitle(stopName)
 		actionBar.setDisplayHomeAsUpEnabled(true)
 
+		// Get available directions.
+		val routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
+		val stopNames = routePoints.collect {
+			case RoutePoint(Some(RouteStop(name, _)), _, _) => name
+		}
+		val foldedRoute = core.foldRoute(stopNames)
+		availableDirections = foldedRoute.find(s => s._1 == stopName).get._2
+
+		direction = availableDirections match {
+			case DirectionsEx.Backward => Direction.Backward
+			case _ => Direction.Forward
+		}
+
 		setDirectionText()
-		findView(TR.toggle_direction).setOnClickListener(new OnClickListener {
-			def onClick(p1: View) {
-				direction = Direction.inverse(direction)
-				setDirectionText()
-				refreshArrivals()
-			}
-		})
+
+		if (availableDirections == DirectionsEx.Both) {
+			val toggleDirectionButton = findView(TR.toggle_direction)
+			toggleDirectionButton.setOnClickListener(new OnClickListener {
+				def onClick(p1: View) {
+					direction = Direction.inverse(direction)
+					setDirectionText()
+					refreshArrivals()
+				}
+			})
+			toggleDirectionButton.setVisibility(View.VISIBLE)
+		}
 	}
 
 	protected override def onPause() {
