@@ -50,20 +50,21 @@ object core {
 		// Each route stop in folded route is marked with directions
 		// where it is available.
 
-		if (stopNames.length < 2)
-			throw new RouteFoldingException("Less than 2 stops in route")
+		if (stopNames.length < 3)
+			throw new RouteFoldingException("Less than 3 stops in route")
 
 		// Split route into forward and backward parts basing
 		// on end route stop name from route info.
+		// First and last route stops are always the same stop (on the same route direction).
 		if (stopNames.head != stopNames.last)
 			throw new RouteFoldingException("The first route stop is not the same as the last one")
 
-		val pos = (0 until stopNames.length-1).indexWhere(i => stopNames(i) == stopNames(i+1))
+		val pos = (0 until stopNames.length-2).indexWhere(i => stopNames(i) == stopNames(i+1))
 		if (pos == -1)
 			throw new RouteFoldingException("End route stop is not found")
 
 		val (forward, back) = stopNames.splitAt(pos + 1)
-		val backward = back.reverse
+		val backward = back.reverse.tail
 
 		// Index stops position.
 		val stopIndex = stopNames.toSet[String].map{ name => (name, (forward.indexOf(name), backward.indexOf(name)))}.toMap
