@@ -31,13 +31,8 @@ object General {
     version := "0.1",
     versionCode := 1,
     scalaVersion := "2.8.2",
-    platformName in Android := "android-15",
-
-    apiLevel in Android <<= (platformName in Android) { platform =>
-      val platformNameRegex = """android-(\d+)""".r
-      val platformNameRegex(apiLevel) = platform
-      apiLevel.toInt
-    }
+    apiLevel := 15,
+    platformName in Android <<= (apiLevel in Android) { _ formatted "android-%d" }
   )
 
   val proguardSettings = Seq (
