@@ -48,13 +48,16 @@ class RouteStopInfoActivity extends SherlockActivity
 {
 	import RouteStopInfoActivity._
 
-	class RefreshArrivalsTask extends AsyncTaskBridge[Object, Object, Option[Seq[Date]]] with AsyncProcessIndicator[Object, Object, Option[Seq[Date]]] {
+	class RefreshArrivalsTask extends AsyncTaskBridge[Object, Object, Either[String, Seq[Date]]]
+		with AsyncProcessIndicator[Object, Object, Either[String, Seq[Date]]]
+	{
 		// "Object with Object" is workaround for some strange Scala bug.
 		override def doInBackgroundBridge(params: Array[Object with Object]) = {
-			parsing.parseExpectedArrivals(client.getExpectedArrivals(routeId, vehicleType, stopId, direction))
+			val response = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
+			parsing.parseExpectedArrivals(response, stopName, new Date)
 		}
 
-		override def onPostExecute(arrivals: Option[Seq[Date]]) {
+		override def onPostExecute(arrivals: Either[String, Seq[Date]]) {
 			setArrivals(arrivals)
 			super.onPostExecute(arrivals)
 		}
@@ -196,21 +199,26 @@ class RouteStopInfoActivity extends SherlockActivity
 		task.execute()
 	}
 
-	def setArrivals(maybeArrivals: Option[Seq[Date]]) {
+	def setArrivals(arrivals: Either[String, Seq[Date]]) {
 		val list = findViewById(android.R.id.list).asInstanceOf[ListView]
 		val no_arrivals_view = findView(TR.no_arrivals)
-		maybeArrivals match {
-			case Some(arrivals) => {
-				list.setAdapter(new ArrivalsListAdapter(this, arrivals))
-				no_arrivals_view.setVisibility(View.GONE)
-				list.setVisibility(View.VISIBLE)
-			}
-
-			case None => {
+		arrivals match {
+			case Right(Seq()) =>
 				list.setAdapter(null)
 				no_arrivals_view.setVisibility(View.VISIBLE)
+				no_arrivals_view.setText(R.string.no_arrivals)
 				list.setVisibility(View.GONE)
-			}
+
+			case Right(arr) =>
+				list.setAdapter(new ArrivalsListAdapter(this, arr))
+				no_arrivals_view.setVisibility(View.GONE)
+				list.setVisibility(View.VISIBLE)
+
+			case Left(message) =>
+				list.setAdapter(null)
+				no_arrivals_view.setVisibility(View.VISIBLE)
+				no_arrivals_view.setText(getResources.getString(R.string.cant_get_arrivals, message))
+				list.setVisibility(View.GONE)
 		}
 	}
 }

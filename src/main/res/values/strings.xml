@@ -40,6 +40,7 @@
 
 		<string name="next_arrivals">Ближайшие прибытия</string>
 		<string name="no_arrivals">Транспорт уже не ходит. Время ловить такси!</string>
+		<string name="cant_get_arrivals">Не удалось получить график транспорта, сервер сообщает: %1$s</string>
 		<string name="refresh_arrivals">Обновить</string>
 		<string name="show_schedule">Показать расписание</string>
 		<string name="refresh">Обновить</string>

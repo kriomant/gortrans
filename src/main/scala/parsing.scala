@@ -13,8 +13,12 @@ import javax.xml.transform.sax.SAXSource
 import org.w3c.dom.{Element, Node, NodeList, Document}
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}
+import util.matching.Regex.Match
+import java.util.regex.Pattern
 
 object parsing {
+
+	class ParsingException(msg: String) extends Exception(msg)
 
 	implicit def jsonArrayTraversable(arr: JSONArray) = new Traversable[JSONObject] {
 		def foreach[T](f: JSONObject => T) = {
@@ -187,23 +191,47 @@ object parsing {
 		).toSeq
 	}
 
-	def parseExpectedArrivals(html: String): Option[Seq[Date]] = {
-		val doc = parseHtml(html)
-		doc.getElementsByTagName("span")
-			.view
-			.collect { case e: Element if e.getAttribute("class") == "time" => e.getTextContent }
-			.headOption
-			.map { text =>
-				val calendar = Calendar.getInstance
-				text.split(' ').map { t =>
-					val Array(h, m) = t.split(":", 2)
-					calendar.set(Calendar.HOUR_OF_DAY, h.toInt)
-					calendar.set(Calendar.MINUTE, m.toInt)
-					calendar.set(Calendar.SECOND, 0)
-					calendar.set(Calendar.MILLISECOND, 0)
-					calendar.getTime
-				}
+	def parseExpectedArrivals(html: String, stopName: String, now: Date): Either[String, Seq[Date]]  = {
+		def parseTimes(text: String): Seq[Date] = {
+			val calendar = Calendar.getInstance
+			text.split(" |&nbsp;|\u00A0").map { t =>
+				val Array(h, m) = t.split(":", 2)
+				calendar.setTime(now)
+				calendar.set(Calendar.HOUR_OF_DAY, h.toInt)
+				calendar.set(Calendar.MINUTE, m.toInt)
+				calendar.set(Calendar.SECOND, 0)
+				calendar.set(Calendar.MILLISECOND, 0)
+				calendar.getTime
 			}
+		}
+
+		val encodedName = stopName.replace("\"", "&quot;")
+		val MARKERS = Seq(
+			("""Ближайшее время отправления\s+<br />%s<br /><span class="time">([^<]+)</span>""" format Pattern.quote(encodedName)).r -> { m: Match =>
+				Right(parseTimes(m.group(1)))
+			},
+
+			("""Отправления с остановки <br />«%s» - <br />""" format Pattern.quote(stopName)).r -> { m: Match =>
+				Right(Seq.empty)
+			},
+
+			"""Данные не верны\.""".r -> { m: Match =>
+				Left("Данные не верны")
+			},
+
+			"""В выбранном маршруте отсутствует данная остановка\.""".r -> { m: Match =>
+				Left("""В выбранном маршруте отсутствует данная остановка""")
+			}
+		)
+
+		for ((regex, parser) <- MARKERS) {
+			regex.findFirstMatchIn(html) match {
+				case Some(m) => return parser(m)
+				case None =>
+			}
+		}
+
+		throw new ParsingException("Marker not found")
 	}
 
 	def parseHtml(html: String): Document = {

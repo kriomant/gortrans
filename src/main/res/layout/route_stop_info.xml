@@ -37,7 +37,6 @@
 		android:id="@+id/no_arrivals"
 		android:layout_width="match_parent"
 	  android:layout_height="wrap_content"
-	  android:text="@string/no_arrivals"
 	  android:visibility="gone"
 	  android:textAppearance="@android:style/TextAppearance.Large"
 	/>
