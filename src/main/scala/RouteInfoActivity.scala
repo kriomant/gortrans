@@ -35,7 +35,7 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 
 	private[this] var dataManager: DataManager = null
 
-	private[this] var foldedRoute: Seq[(String, DirectionsEx.Value)] = null
+	private[this] var foldedRoute: Seq[FoldedRouteStop[String]] = null
 	private[this] var routeId: String = null
 	private[this] var routeName: String = null
 	private[this] var vehicleType: VehicleType.Value = null
@@ -72,7 +72,7 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 		val stopNames = routePoints.collect {
 			case RoutePoint(Some(RouteStop(name, _)), _, _) => name
 		}
-		foldedRoute = core.foldRoute(stopNames)
+		foldedRoute = core.foldRoute(stopNames, identity)
 
 		val listAdapter = new RouteStopsAdapter(this, foldedRoute)
 		setListAdapter(listAdapter)
@@ -100,7 +100,7 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 	}
 
 	override def onListItemClick(l: ListView, v: View, position: Int, id: Long) {
-		val stopName = foldedRoute(position)._1
+		val stopName = foldedRoute(position).name
 		val stopsMap = dataManager.getStopsList()
 		val stopId = stopsMap(stopName)
 
@@ -109,7 +109,7 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 	}
 }
 
-class RouteStopsAdapter(val context: Context, foldedRoute: Seq[(String, DirectionsEx.Value)])
+class RouteStopsAdapter(val context: Context, foldedRoute: Seq[FoldedRouteStop[String]])
 	extends ListAdapter with EasyAdapter with SeqAdapter {
 
 	val items = foldedRoute
@@ -125,12 +125,12 @@ class RouteStopsAdapter(val context: Context, foldedRoute: Seq[(String, Directio
 		views.icon.setBackgroundResource(position match {
 			case 0 => R.drawable.first_stop
 			case x if x == foldedRoute.length-1 => R.drawable.last_stop
-			case x => foldedRoute(x)._2 match {
+			case x => foldedRoute(x).directions match {
 				case DirectionsEx.Forward => R.drawable.forth_only_stop
 				case DirectionsEx.Backward => R.drawable.back_only_stop
 				case DirectionsEx.Both => R.drawable.back_and_forth_stop
 			}
 		})
-		views.name.setText(foldedRoute(position)._1)
+		views.name.setText(foldedRoute(position).name)
 	}
 }

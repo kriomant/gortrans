@@ -17,7 +17,7 @@ import android.view.View
 import android.view.View.OnClickListener
 import com.actionbarsherlock.app.SherlockMapActivity
 import com.actionbarsherlock.view.{MenuItem, Window}
-import net.kriomant.gortrans.core.{Route, DirectionsEx, Direction, VehicleType}
+import net.kriomant.gortrans.core.{Route, DirectionsEx, Direction, VehicleType, foldRoute}
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -56,6 +56,7 @@ class RouteMapActivity extends SherlockMapActivity
   
   var routeOverlay: Overlay = null
   var stopOverlays: Seq[Overlay] = null
+	var stopNameOverlays: Seq[Overlay] = null
   var vehiclesOverlay: ItemizedOverlay[OverlayItem] = null
 	var locationOverlay: Overlay = null
 
@@ -135,6 +136,7 @@ class RouteMapActivity extends SherlockMapActivity
 		// Load route details.
 		val routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
 		routeStops = routePoints filter(_.stop.isDefined)
+		val foldedRoute = foldRoute[RoutePoint](routeStops, _.stop.get.name)
 
 		// Calculate rectangle (and it's center) containing whole route.
 		val top = routeStops.map(_.latitude).min
@@ -156,7 +158,23 @@ class RouteMapActivity extends SherlockMapActivity
 		val routeGeoPoints = routePoints map routePointToGeoPoint
 		routeOverlay = new RouteOverlay(getResources, routeGeoPoints)
 		stopOverlays = routeStops map { p =>
-			new RouteStopOverlay(getResources, new GeoPoint((p.latitude * 1e6).toInt, (p.longitude * 1e6).toInt))
+			new RouteStopOverlay(
+				getResources,
+				new GeoPoint((p.latitude * 1e6).toInt, (p.longitude * 1e6).toInt)
+			)
+		}
+		// Display stop name next to one of folded stops.
+		stopNameOverlays = foldedRoute map { p =>
+			// Find stop which is to the east of another.
+			val stop = (p.forward, p.backward) match {
+				case (Some(f), Some(b)) => if (f.longitude > b.longitude) f else b
+				case (Some(f), None) => f
+				case (None, Some(b)) => b
+			}
+			new RouteStopNameOverlay(
+				p.name,
+				new GeoPoint((stop.latitude * 1e6).toInt, (stop.longitude * 1e6).toInt)
+			)
 		}
     updateOverlays()
 	}
@@ -168,6 +186,8 @@ class RouteMapActivity extends SherlockMapActivity
     overlays.add(routeOverlay)
     for (o <- stopOverlays)
       overlays.add(o)
+	  for (o <- stopNameOverlays)
+		  overlays.add(o)
     if (vehiclesOverlay != null)
       overlays.add(vehiclesOverlay)
 	  if (locationOverlay != null)
@@ -314,6 +334,23 @@ class RouteStopOverlay(resources: Resources, geoPoint: GeoPoint) extends Overlay
 			view.getProjection.toPixels(geoPoint, point)
 
 			canvas.drawBitmap(img, point.x - img.getWidth/2, point.y - img.getHeight/2, null)
+		}
+	}
+}
+
+class RouteStopNameOverlay(name: String, geoPoint: GeoPoint) extends Overlay {
+	final val X_OFFSET = 15
+	final val Y_OFFSET = 5
+
+	override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
+		if (! shadow) {
+			val point = new Point
+			view.getProjection.toPixels(geoPoint, point)
+
+			val pen = new Paint()
+			pen.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD))
+			pen.setTextSize(20.0f)
+			canvas.drawText(name, point.x + X_OFFSET, point.y + Y_OFFSET, pen)
 		}
 	}
 }

@@ -117,8 +117,8 @@ class RouteStopInfoActivity extends SherlockActivity
 		val stopNames = routePoints.collect {
 			case RoutePoint(Some(RouteStop(name, _)), _, _) => name
 		}
-		val foldedRoute = core.foldRoute(stopNames)
-		availableDirections = foldedRoute.find(s => s._1 == stopName).get._2
+		val foldedRoute = core.foldRoute(stopNames, identity[String])
+		availableDirections = foldedRoute.find(s => s.name == stopName).get.directions
 
 		direction = availableDirections match {
 			case DirectionsEx.Backward => Direction.Backward

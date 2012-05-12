@@ -34,11 +34,19 @@ object core {
 		val Daily = Value(23)
 	}
 
-	case class FoldedRouteStop(name: String, directions: DirectionsEx.Value)
-
 	class RouteFoldingException(msg: String) extends Exception(msg)
 
-	def foldRoute(stopNames: Seq[String]): Seq[(String,  DirectionsEx.Value)] = {
+	case class FoldedRouteStop[Stop](name: String, forward: Option[Stop], backward: Option[Stop]) {
+		require(forward.isDefined || backward.isDefined)
+
+		val directions = (forward, backward) match {
+			case (Some(_), Some(_)) => DirectionsEx.Both
+			case (Some(_), None) => DirectionsEx.Forward
+			case (None, Some(_)) => DirectionsEx.Backward
+		}
+	}
+
+	def foldRoute[Stop](stops: Seq[Stop], getName: Stop => String): Seq[FoldedRouteStop[Stop]] = {
 		// nskgortrans.ru returns route stops for both back and forth
 		// route parts as single list. E.g. for route between A and D
 		// (with corresponding stops in between) route stops list is
@@ -50,45 +58,45 @@ object core {
 		// Each route stop in folded route is marked with directions
 		// where it is available.
 
-		if (stopNames.length < 3)
+		if (stops.length < 3)
 			throw new RouteFoldingException("Less than 3 stops in route")
 
 		// Split route into forward and backward parts basing
 		// on end route stop name from route info.
 		// First and last route stops are always the same stop (on the same route direction).
-		if (stopNames.head != stopNames.last)
+		if (getName(stops.head) != getName(stops.last))
 			throw new RouteFoldingException("The first route stop is not the same as the last one")
 
-		val pos = (0 until stopNames.length-2).indexWhere(i => stopNames(i) == stopNames(i+1))
+		val pos = (0 until stops.length-2).indexWhere(i => getName(stops(i)) == getName(stops(i+1)))
 		if (pos == -1)
 			throw new RouteFoldingException("End route stop is not found")
 
-		val (forward, back) = stopNames.splitAt(pos + 1)
+		val (forward, back) = stops.splitAt(pos + 1)
 		val backward = back.reverse.tail
 
 		// Index stops position.
-		val stopIndex = stopNames.toSet[String].map{ name => (name, (forward.indexOf(name), backward.indexOf(name)))}.toMap
+		val stopIndex = stops.map{ stop => (getName(stop), backward.indexOf(stop))}.toMap
 
 		// Build folded route at last.
-		val foldedRoute = new mutable.ArrayBuffer[(String, DirectionsEx.Value)]
+		val foldedRoute = new mutable.ArrayBuffer[FoldedRouteStop[Stop]]
 		var fpos = 0 // Position of first unfolded stop in forward route.
 		var bpos = 0 // The same for backward route.
 		while (fpos < forward.length) {
 			// Take stop name from forward route.
-			val name = forward(fpos)
+			val name = getName(forward(fpos))
 			// Find the same stop in backward route.
-			val bstoppos = stopIndex(name)._2
+			val bstoppos = stopIndex(name)
 
 			if (bstoppos != -1) {
 				if (bstoppos < bpos)
 					throw new RouteFoldingException("Different order of route stops")
 
 				// Add all backward stops between bpos and bstoppos as backward-only.
-				foldedRoute ++= backward.slice(bpos, bstoppos).map((_, DirectionsEx.Backward))
-				foldedRoute += Tuple2(name, DirectionsEx.Both)
+				foldedRoute ++= backward.slice(bpos, bstoppos).map(s => FoldedRouteStop[Stop](getName(s), None, Some(s)))
+				foldedRoute += FoldedRouteStop[Stop](name, Some(forward(fpos)), Some(backward(bstoppos)))
 				bpos = bstoppos+1
 			} else {
-				foldedRoute += Tuple2(name, DirectionsEx.Forward)
+				foldedRoute += FoldedRouteStop[Stop](name, Some(forward(fpos)), None)
 			}
 
 			fpos += 1
