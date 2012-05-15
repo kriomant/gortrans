@@ -211,11 +211,11 @@ object parsing {
 				Right(parseTimes(m.group(1)))
 			},
 
-			("""Отправления с остановки <br />«%s» - <br />""" format Pattern.quote(encodedName)).r -> { m: Match =>
+			("""Отправления с остановки <br />«([^»]+)» - <br />От ост. «\1» до ост. «%s» (\d+) мин. пути.<br />""" format Pattern.quote(stopName)).r -> { m: Match =>
 				Right(Seq.empty)
 			},
 
-			("""Отправления с остановки <br />«([^»]+)» - <span class="time">([^<]+)</span><br />От ост. «\1» до ост. «%s» (\d+) мин. пути.<br />""" format Pattern.quote(encodedName)).r -> { m: Match =>
+			("""Отправления с остановки <br />«([^»]+)» - <span class="time">([^<]+)</span><br />От ост. «\1» до ост. «%s» (\d+) мин. пути.<br />""" format Pattern.quote(stopName)).r -> { m: Match =>
 				val calendar = Calendar.getInstance
 				val increment = m.group(3).toInt
 				Right(parseTimes(m.group(2)) map { time =>
