@@ -43,6 +43,8 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
 
+		setContentView(R.layout.route_info)
+
 		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 
 		// Disable list item dividers so that route stop icons
@@ -67,15 +69,20 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 		actionBar.setSubtitle(R.string.route)
 
 		val routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
-		val routeInfo = dataManager.getRoutesList().apply(vehicleType).find(r => r.id == routeId).get
+		if (routePoints.nonEmpty) {
 
-		val stopNames = routePoints.collect {
-			case RoutePoint(Some(RouteStop(name, _)), _, _) => name
+			val stopNames = routePoints.collect {
+				case RoutePoint(Some(RouteStop(name, _)), _, _) => name
+			}
+			foldedRoute = core.foldRoute(stopNames, identity)
+
+			val listAdapter = new RouteStopsAdapter(this, foldedRoute)
+			setListAdapter(listAdapter)
+		} else {
+			val view = findView(TR.error_message)
+			view.setText(R.string.no_route_points)
+			view.setVisibility(View.VISIBLE)
 		}
-		foldedRoute = core.foldRoute(stopNames, identity)
-
-		val listAdapter = new RouteStopsAdapter(this, foldedRoute)
-		setListAdapter(listAdapter)
 	}
 
 	override def onCreateOptionsMenu(menu: Menu): Boolean = {
