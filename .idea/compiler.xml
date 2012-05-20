@@ -4,6 +4,7 @@
     <option name="DEFAULT_COMPILER" value="compAPI" />
     <excludeFromCompile>
       <directory url="file://$PROJECT_DIR$/target/scala-2.8.2/src_managed/main/java" includeSubdirectories="true" />
+      <directory url="file://$PROJECT_DIR$/gen" includeSubdirectories="true" />
     </excludeFromCompile>
     <resourceExtensions />
     <wildcardResourcePatterns>

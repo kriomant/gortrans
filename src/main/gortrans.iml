@@ -24,6 +24,7 @@
         <option name="RUN_PROGUARD" value="false" />
         <option name="PROGUARD_CFG_PATH" value="/proguard.cfg" />
         <resOverlayFolders />
+        <includeSystemProguardFile>false</includeSystemProguardFile>
       </configuration>
     </facet>
   </component>
@@ -35,6 +36,7 @@
       <sourceFolder url="file://$MODULE_DIR$/../../target/scala-2.8.2/src_managed/main/java" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../target/scala-2.8.2/src_managed/main/scala" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../test/scala" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../gen" isTestSource="false" />
     </content>
     <orderEntry type="jdk" jdkName="Android 4 Google APIs" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
@@ -84,7 +86,7 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="scala-2.8.2" level="application" />
-    <orderEntry type="module-library">
+    <orderEntry type="module-library" scope="PROVIDED">
       <library>
         <CLASSES>
           <root url="jar://$USER_HOME$/dev/android-sdk-linux/add-ons/addon-google_apis-google-15/libs/maps.jar!/" />
