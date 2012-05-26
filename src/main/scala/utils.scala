@@ -2,6 +2,7 @@ package net.kriomant.gortrans
 
 import java.io.Reader
 import net.kriomant.gortrans.utils.BooleanUtils
+import java.security.Key
 
 object utils {
 	
@@ -38,4 +39,18 @@ object utils {
 	}
 	implicit def booleanUtils(b: Boolean) = new BooleanUtils(b)
 
+	class TraversableOnceUtils[T](traversable: TraversableOnce[T]) {
+		def maxBy[K](f: T => K)(implicit cmp: Ordering[K]): T = {
+			traversable.max(new Ordering[T] {
+				def compare(x: T, y: T): Int = cmp.compare(f(x), f(y))
+			})
+		}
+
+		def minBy[K](f: T => K)(implicit cmp: Ordering[K]): T = {
+			traversable.min(new Ordering[T] {
+				def compare(x: T, y: T): Int = cmp.compare(f(x), f(y))
+			})
+		}
+	}
+	implicit def traversableOnceUtils[T](traversable: TraversableOnce[T]) = new TraversableOnceUtils(traversable)
 }

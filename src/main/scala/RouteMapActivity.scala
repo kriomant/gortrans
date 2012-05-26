@@ -2,22 +2,23 @@ package net.kriomant.gortrans
 
 import android.util.Log
 import android.content.res.Resources
-import android.graphics._
-import drawable.Drawable
 import java.lang.Math
 import android.widget.CompoundButton.OnCheckedChangeListener
 import android.os.{Handler, Bundle}
 import com.google.android.maps._
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint}
-import android.widget.{ToggleButton, Toast, CompoundButton}
-import net.kriomant.gortrans.Client.RouteInfoRequest
+import android.widget.{ToggleButton, CompoundButton}
 import android.content.{Context, Intent}
-import android.location.{Location, LocationListener, LocationManager}
+import android.location.{Location}
 import android.view.View
 import android.view.View.OnClickListener
 import com.actionbarsherlock.app.SherlockMapActivity
 import com.actionbarsherlock.view.{MenuItem, Window}
-import net.kriomant.gortrans.core.{Route, DirectionsEx, Direction, VehicleType, foldRoute}
+import net.kriomant.gortrans.core.{Direction, VehicleType, foldRoute}
+import net.kriomant.gortrans.geometry.{Point => Pt, closestSegmentPoint}
+import net.kriomant.gortrans.utils.traversableOnceUtils
+import android.graphics.drawable.Drawable
+import android.graphics._
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -59,9 +60,11 @@ class RouteMapActivity extends SherlockMapActivity
 	var stopNameOverlays: Seq[Overlay] = null
   var vehiclesOverlay: ItemizedOverlay[OverlayItem] = null
 	var locationOverlay: Overlay = null
+	var realVehicleLocationOverlays: Seq[Overlay] = Seq()
 
   var updatingVehiclesLocationIsOn: Boolean = false
 
+	var routePoints: Seq[RoutePoint] = null
   var routeStops: Seq[RoutePoint] = null
 
 	def isRouteDisplayed = false
@@ -134,7 +137,7 @@ class RouteMapActivity extends SherlockMapActivity
 		actionBar.setDisplayHomeAsUpEnabled(true)
 
 		// Load route details.
-		val routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
+		routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
 		routeStops = routePoints filter(_.stop.isDefined)
 		val foldedRoute = foldRoute[RoutePoint](routeStops, _.stop.get.name)
 
@@ -190,6 +193,8 @@ class RouteMapActivity extends SherlockMapActivity
 		  overlays.add(o)
     if (vehiclesOverlay != null)
       overlays.add(vehiclesOverlay)
+	  for (o <- realVehicleLocationOverlays)
+		  overlays.add(o)
 	  if (locationOverlay != null)
 		  overlays.add(locationOverlay)
     mapView.postInvalidate()
@@ -254,14 +259,49 @@ class RouteMapActivity extends SherlockMapActivity
 		setSupportProgressBarIndeterminateVisibility(false)
 
 		vehiclesOverlay = null
+		realVehicleLocationOverlays = Seq()
 		updateOverlays()
 	}
 
-	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
-		setSupportProgressBarIndeterminateVisibility(false)
+	def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[RoutePoint]): Pt = {
+		// Dumb brute-force algorithm: enumerate all route segments for each vehicle.
+		val segments = routePoints.sliding(2).map{ case Seq(from, to) =>
+			(Pt(from.longitude, from.latitude), Pt(to.longitude, to.latitude))
+		}
+		val location = Pt(vehicle.longitude.toDouble, vehicle.latitude.toDouble)
 
-		vehiclesOverlay = new VehiclesOverlay(getResources, vehicles)
+		// Find segment closest to vehicle position.
+		val segmentsWithDistance: Iterator[(Double, (Pt, Pt), Pt)] = segments.map { case segment@(start, end) =>
+			val closestPoint = closestSegmentPoint(location, start, end)
+			val distance = location distanceTo closestPoint
+			(distance, segment, closestPoint)
+		}
+		val (distance, segment, point) = segmentsWithDistance.minBy(_._1)
+
+		// Calculate distance in meters from vehicle location to closest segment.
+		// ATTENTION: Distances below are specific to Novosibirsk:
+		// One degree of latitude contains ~111 km, one degree of longitude - ~67 km.
+		// We use approximation 100 km per degree for both directions.
+		val MAX_DISTANCE_FROM_ROUTE = 5 /* meters */
+		val MAX_DISTANCE_IN_DEGREES = MAX_DISTANCE_FROM_ROUTE / 100000.0
+
+		if (distance <= MAX_DISTANCE_IN_DEGREES)
+			point
+		else
+			location
+	}
+
+	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
+		val points = vehicles map (v => snapVehicleToRoute(v, routePoints))
+
+		val p = vehicles zip points
+		vehiclesOverlay = new VehiclesOverlay(getResources, p)
+		realVehicleLocationOverlays = p map { case (info, snapped) =>
+			new RealVehicleLocationOverlay(snapped, Pt(info.longitude, info.latitude))
+		}
 		updateOverlays()
+
+		setSupportProgressBarIndeterminateVisibility(false)
 	}
 }
 
@@ -355,7 +395,24 @@ class RouteStopNameOverlay(name: String, geoPoint: GeoPoint) extends Overlay {
 	}
 }
 
-class VehiclesOverlay(resources: Resources, infos: Seq[VehicleInfo]) extends ItemizedOverlay[OverlayItem](null) {
+// VehiclesOverlay shows vehicle locations snapped to route. This overlay
+// is used to show real vehicle location.
+class RealVehicleLocationOverlay(snapped: Pt, real: Pt) extends Overlay {
+	override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
+		if (! shadow) {
+			val realPoint = new Point
+			view.getProjection.toPixels(new GeoPoint((real.y*1e6).toInt, (real.x*1e6).toInt), realPoint)
+
+			val snappedPoint = new Point
+			view.getProjection.toPixels(new GeoPoint((snapped.y*1e6).toInt, (snapped.x*1e6).toInt), snappedPoint)
+
+			val pen = new Paint()
+			canvas.drawLine(realPoint.x, realPoint.y, snappedPoint.x, snappedPoint.y, pen)
+		}
+	}
+}
+
+class VehiclesOverlay(resources: Resources, infos: Seq[(VehicleInfo, Pt)]) extends ItemizedOverlay[OverlayItem](null) {
   def boundCenterBottom = ItemizedOverlayBridge.boundCenterBottom_(_)
 
   val vehicle_forward = boundCenterBottom(resources.getDrawable(R.drawable.vehicle_forward_marker))
@@ -368,9 +425,9 @@ class VehiclesOverlay(resources: Resources, infos: Seq[VehicleInfo]) extends Ite
 
   def createItem(pos: Int) = {
     Log.d("RouteMapActivity", "Create vehicle overlay #%d" format pos)
-    val info = infos(pos)
-    val point = new GeoPoint((info.latitude*1e6).toInt, (info.longitude*1e6).toInt)
-    val item = new OverlayItem(point, null, null)
+    val (info, point) = infos(pos)
+    val geoPoint = new GeoPoint((point.y*1e6).toInt, (point.x*1e6).toInt)
+    val item = new OverlayItem(geoPoint, null, null)
     item.setMarker(info.direction match {
       case Some(Direction.Forward) => vehicle_forward
       case Some(Direction.Backward) => vehicle_backward
