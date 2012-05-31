@@ -17,8 +17,8 @@ import com.actionbarsherlock.view.{MenuItem, Window}
 import net.kriomant.gortrans.core.{Direction, VehicleType, foldRoute}
 import net.kriomant.gortrans.geometry.{Point => Pt, closestSegmentPoint}
 import net.kriomant.gortrans.utils.traversableOnceUtils
-import android.graphics.drawable.Drawable
 import android.graphics._
+import android.graphics.drawable.{BitmapDrawable, Drawable}
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -263,7 +263,7 @@ class RouteMapActivity extends SherlockMapActivity
 		updateOverlays()
 	}
 
-	def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[RoutePoint]): Pt = {
+	def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[RoutePoint]): (Pt, Option[(Pt, Pt)]) = {
 		// Dumb brute-force algorithm: enumerate all route segments for each vehicle.
 		val segments = routePoints.sliding(2).map{ case Seq(from, to) =>
 			(Pt(from.longitude, from.latitude), Pt(to.longitude, to.latitude))
@@ -282,22 +282,28 @@ class RouteMapActivity extends SherlockMapActivity
 		// ATTENTION: Distances below are specific to Novosibirsk:
 		// One degree of latitude contains ~111 km, one degree of longitude - ~67 km.
 		// We use approximation 100 km per degree for both directions.
-		val MAX_DISTANCE_FROM_ROUTE = 5 /* meters */
+		val MAX_DISTANCE_FROM_ROUTE = 10 /* meters */
 		val MAX_DISTANCE_IN_DEGREES = MAX_DISTANCE_FROM_ROUTE / 100000.0
 
 		if (distance <= MAX_DISTANCE_IN_DEGREES)
-			point
+			(point, Some(segment))
 		else
-			location
+			(location, None)
 	}
 
 	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
-		val points = vehicles map (v => snapVehicleToRoute(v, routePoints))
+		val vehiclesPointsAndAngles = vehicles map { v =>
+			val (pt, segment) = snapVehicleToRoute(v, routePoints)
 
-		val p = vehicles zip points
-		vehiclesOverlay = new VehiclesOverlay(getResources, p)
-		realVehicleLocationOverlays = p map { case (info, snapped) =>
-			new RealVehicleLocationOverlay(snapped, Pt(info.longitude, info.latitude))
+			val angle = segment map { s =>
+				math.atan2(s._2.y - s._1.y, s._2.x - s._1.x) * 180 / math.Pi
+			}
+			(v, pt, angle)
+		}
+
+		vehiclesOverlay = new VehiclesOverlay(getResources, vehiclesPointsAndAngles)
+		realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle) =>
+			new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
 		}
 		updateOverlays()
 
@@ -412,12 +418,17 @@ class RealVehicleLocationOverlay(snapped: Pt, real: Pt) extends Overlay {
 	}
 }
 
-class VehiclesOverlay(resources: Resources, infos: Seq[(VehicleInfo, Pt)]) extends ItemizedOverlay[OverlayItem](null) {
+class VehiclesOverlay(resources: Resources, infos: Seq[(VehicleInfo, Pt, Option[Double])])
+	extends ItemizedOverlay[OverlayItem](null)
+{
   def boundCenterBottom = ItemizedOverlayBridge.boundCenterBottom_(_)
 
-  val vehicle_forward = boundCenterBottom(resources.getDrawable(R.drawable.vehicle_forward_marker))
-  val vehicle_backward = boundCenterBottom(resources.getDrawable(R.drawable.vehicle_backward_marker))
-  val vehicle_stopped = boundCenterBottom(resources.getDrawable(R.drawable.vehicle_stopped_marker))
+	val forwardArrow = BitmapFactory.decodeResource(resources, R.drawable.forward_route_arrow)
+	val backwardArrow = BitmapFactory.decodeResource(resources, R.drawable.backward_route_arrow)
+
+	val vehicleForward = BitmapFactory.decodeResource(resources, R.drawable.vehicle_forward_marker)
+	val vehicleBackward = BitmapFactory.decodeResource(resources, R.drawable.vehicle_backward_marker)
+	val vehicleUnknown = BitmapFactory.decodeResource(resources, R.drawable.vehicle_stopped_marker)
 
   populate()
 
@@ -425,14 +436,30 @@ class VehiclesOverlay(resources: Resources, infos: Seq[(VehicleInfo, Pt)]) exten
 
   def createItem(pos: Int) = {
     Log.d("RouteMapActivity", "Create vehicle overlay #%d" format pos)
-    val (info, point) = infos(pos)
+    val (info, point, angle) = infos(pos)
+
+	  val bitmap = info.direction match {
+		  case Some(dir) =>
+			  val (image, arrow) = dir match {
+					case Direction.Forward => (vehicleForward, forwardArrow)
+					case Direction.Backward => (vehicleBackward, backwardArrow)
+				}
+			  angle match {
+				  case Some(a) =>
+					  val modified = Bitmap.createBitmap(image)
+					  val canvas = new Canvas(modified)
+					  canvas.rotate(-a.toFloat, image.getWidth / 2, image.getWidth / 2)
+					  canvas.drawBitmap(arrow, (image.getWidth-arrow.getWidth)/2, (image.getWidth-arrow.getHeight)/2, new Paint)
+					  modified
+
+				  case None => image
+			  }
+
+		  case None => vehicleUnknown
+	  }
     val geoPoint = new GeoPoint((point.y*1e6).toInt, (point.x*1e6).toInt)
     val item = new OverlayItem(geoPoint, null, null)
-    item.setMarker(info.direction match {
-      case Some(Direction.Forward) => vehicle_forward
-      case Some(Direction.Backward) => vehicle_backward
-      case None => vehicle_stopped
-    })
+	  item.setMarker(boundCenterBottom(new BitmapDrawable(resources, bitmap)))
     item
   }
 }
