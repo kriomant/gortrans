@@ -55,7 +55,8 @@ class RouteMapActivity extends SherlockMapActivity
   var routeName: String = null
   var vehicleType: VehicleType.Value = null
   
-  var routeOverlay: Overlay = null
+  var forwardRouteOverlay: Overlay = null
+	var backwardRouteOverlay: Overlay = null
   var stopOverlays: Seq[Overlay] = null
 	var stopNameOverlays: Seq[Overlay] = null
   var vehiclesOverlay: ItemizedOverlay[OverlayItem] = null
@@ -65,6 +66,8 @@ class RouteMapActivity extends SherlockMapActivity
   var updatingVehiclesLocationIsOn: Boolean = false
 
 	var routePoints: Seq[RoutePoint] = null
+	var forwardRoutePoints: Seq[RoutePoint] = null
+	var backwardRoutePoints: Seq[RoutePoint] = null
   var routeStops: Seq[RoutePoint] = null
 
 	def isRouteDisplayed = false
@@ -141,6 +144,15 @@ class RouteMapActivity extends SherlockMapActivity
 		routeStops = routePoints filter(_.stop.isDefined)
 		val foldedRoute = foldRoute[RoutePoint](routeStops, _.stop.get.name)
 
+		// Split route into forward and backward parts for proper snapping of vehicle locations.
+		// Find last route stop.
+		val borderStop = (foldedRoute.last.forward orElse foldedRoute.last.backward).get
+		val borderStopIndex = routePoints.findIndexOf(_ == borderStop)
+		// Last stop is included into both forward route (as last point) and into
+		// backward route (as first point).
+		forwardRoutePoints = routePoints.slice(0, borderStopIndex+1)
+		backwardRoutePoints = routePoints.slice(borderStopIndex, routePoints.length)
+
 		// Calculate rectangle (and it's center) containing whole route.
 		val top = routeStops.map(_.latitude).min
 		val left = routeStops.map(_.longitude).min
@@ -158,8 +170,15 @@ class RouteMapActivity extends SherlockMapActivity
 		ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
 
 		// Add route markers.
-		val routeGeoPoints = routePoints map routePointToGeoPoint
-		routeOverlay = new RouteOverlay(getResources, routeGeoPoints)
+		forwardRouteOverlay = new RouteOverlay(
+			getResources, getResources.getColor(R.color.forward_route),
+			forwardRoutePoints map routePointToGeoPoint
+		)
+		backwardRouteOverlay = new RouteOverlay(
+			getResources, getResources.getColor(R.color.backward_route),
+			backwardRoutePoints map routePointToGeoPoint
+		)
+
 		stopOverlays = routeStops map { p =>
 			new RouteStopOverlay(
 				getResources,
@@ -186,7 +205,8 @@ class RouteMapActivity extends SherlockMapActivity
     Log.d("RouteMapActivity", "updateOverlays")
     val overlays = mapView.getOverlays
     overlays.clear()
-    overlays.add(routeOverlay)
+    overlays.add(forwardRouteOverlay)
+	  overlays.add(backwardRouteOverlay)
     for (o <- stopOverlays)
       overlays.add(o)
 	  for (o <- stopNameOverlays)
@@ -282,7 +302,7 @@ class RouteMapActivity extends SherlockMapActivity
 		// ATTENTION: Distances below are specific to Novosibirsk:
 		// One degree of latitude contains ~111 km, one degree of longitude - ~67 km.
 		// We use approximation 100 km per degree for both directions.
-		val MAX_DISTANCE_FROM_ROUTE = 10 /* meters */
+		val MAX_DISTANCE_FROM_ROUTE = 15 /* meters */
 		val MAX_DISTANCE_IN_DEGREES = MAX_DISTANCE_FROM_ROUTE / 100000.0
 
 		if (distance <= MAX_DISTANCE_IN_DEGREES)
@@ -293,7 +313,11 @@ class RouteMapActivity extends SherlockMapActivity
 
 	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
 		val vehiclesPointsAndAngles = vehicles map { v =>
-			val (pt, segment) = snapVehicleToRoute(v, routePoints)
+			val (pt, segment) = v.direction match {
+				case Some(Direction.Forward) => snapVehicleToRoute(v, forwardRoutePoints)
+				case Some(Direction.Backward) => snapVehicleToRoute(v, backwardRoutePoints)
+				case None => (Pt(v.longitude, v.latitude), None)
+			}
 
 			val angle = segment map { s =>
 				math.atan2(s._2.y - s._1.y, s._2.x - s._1.x) * 180 / math.Pi
@@ -333,7 +357,7 @@ class MarkerOverlay(drawable: Drawable, location: GeoPoint, anchorPosition: Poin
 	}
 }
 
-class RouteOverlay(resources: Resources, geoPoints: Seq[GeoPoint]) extends Overlay {
+class RouteOverlay(resources: Resources, color: Int, geoPoints: Seq[GeoPoint]) extends Overlay {
 	final val PHYSICAL_ROUTE_STROKE_WIDTH: Float = 3 // meters
 	final val MIN_ROUTE_STROKE_WIDTH: Float = 2 // pixels
 
@@ -350,9 +374,9 @@ class RouteOverlay(resources: Resources, geoPoints: Seq[GeoPoint]) extends Overl
 
 			path.rewind()
 
-			view.getProjection.toPixels(geoPoints.last, point)
+			view.getProjection.toPixels(geoPoints.head, point)
 			path.moveTo(point.x, point.y)
-			
+
 			for (gp <- geoPoints) {
 				view.getProjection.toPixels(gp, point)
 				path.lineTo(point.x, point.y)
@@ -365,6 +389,8 @@ class RouteOverlay(resources: Resources, geoPoints: Seq[GeoPoint]) extends Overl
 			val metersPerPixel = (40e6 / (128 * Math.pow(2, view.getZoomLevel))).toFloat
 			val strokeWidth = Math.max(PHYSICAL_ROUTE_STROKE_WIDTH / metersPerPixel, MIN_ROUTE_STROKE_WIDTH)
 			paint.setStrokeWidth(strokeWidth)
+
+			paint.setColor(color)
 
 			canvas.drawPath(path, paint)
 		}
