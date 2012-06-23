@@ -14,11 +14,11 @@ import android.view.View
 import android.view.View.OnClickListener
 import com.actionbarsherlock.app.SherlockMapActivity
 import com.actionbarsherlock.view.{MenuItem, Window}
-import net.kriomant.gortrans.core.{Direction, VehicleType, foldRoute}
 import net.kriomant.gortrans.geometry.{Point => Pt, closestSegmentPoint}
 import net.kriomant.gortrans.utils.traversableOnceUtils
 import android.graphics._
 import android.graphics.drawable.{BitmapDrawable, Drawable}
+import net.kriomant.gortrans.core.{FoldedRouteStop, Direction, VehicleType, foldRoute}
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -144,14 +144,9 @@ class RouteMapActivity extends SherlockMapActivity
 		routeStops = routePoints filter(_.stop.isDefined)
 		val foldedRoute = foldRoute[RoutePoint](routeStops, _.stop.get.name)
 
-		// Split route into forward and backward parts for proper snapping of vehicle locations.
-		// Find last route stop.
-		val borderStop = (foldedRoute.last.forward orElse foldedRoute.last.backward).get
-		val borderStopIndex = routePoints.findIndexOf(_ == borderStop)
-		// Last stop is included into both forward route (as last point) and into
-		// backward route (as first point).
-		forwardRoutePoints = routePoints.slice(0, borderStopIndex+1)
-		backwardRoutePoints = routePoints.slice(borderStopIndex, routePoints.length)
+		val (f, b) = core.splitRoute(foldedRoute, routePoints)
+		forwardRoutePoints = f
+		backwardRoutePoints = b
 
 		// Calculate rectangle (and it's center) containing whole route.
 		val top = routeStops.map(_.latitude).min
@@ -283,39 +278,11 @@ class RouteMapActivity extends SherlockMapActivity
 		updateOverlays()
 	}
 
-	def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[RoutePoint]): (Pt, Option[(Pt, Pt)]) = {
-		// Dumb brute-force algorithm: enumerate all route segments for each vehicle.
-		val segments = routePoints.sliding(2).map{ case Seq(from, to) =>
-			(Pt(from.longitude, from.latitude), Pt(to.longitude, to.latitude))
-		}
-		val location = Pt(vehicle.longitude.toDouble, vehicle.latitude.toDouble)
-
-		// Find segment closest to vehicle position.
-		val segmentsWithDistance: Iterator[(Double, (Pt, Pt), Pt)] = segments.map { case segment@(start, end) =>
-			val closestPoint = closestSegmentPoint(location, start, end)
-			val distance = location distanceTo closestPoint
-			(distance, segment, closestPoint)
-		}
-		val (distance, segment, point) = segmentsWithDistance.minBy(_._1)
-
-		// Calculate distance in meters from vehicle location to closest segment.
-		// ATTENTION: Distances below are specific to Novosibirsk:
-		// One degree of latitude contains ~111 km, one degree of longitude - ~67 km.
-		// We use approximation 100 km per degree for both directions.
-		val MAX_DISTANCE_FROM_ROUTE = 15 /* meters */
-		val MAX_DISTANCE_IN_DEGREES = MAX_DISTANCE_FROM_ROUTE / 100000.0
-
-		if (distance <= MAX_DISTANCE_IN_DEGREES)
-			(point, Some(segment))
-		else
-			(location, None)
-	}
-
 	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
 		val vehiclesPointsAndAngles = vehicles map { v =>
 			val (pt, segment) = v.direction match {
-				case Some(Direction.Forward) => snapVehicleToRoute(v, forwardRoutePoints)
-				case Some(Direction.Backward) => snapVehicleToRoute(v, backwardRoutePoints)
+				case Some(Direction.Forward) => core.snapVehicleToRoute(v, forwardRoutePoints)
+				case Some(Direction.Backward) => core.snapVehicleToRoute(v, backwardRoutePoints)
 				case None => (Pt(v.longitude, v.latitude), None)
 			}
 
