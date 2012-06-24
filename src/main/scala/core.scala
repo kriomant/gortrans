@@ -112,12 +112,11 @@ object core {
 		// Route returned by nskgortrans contains three starting stop names: first name,
 		// last name (it is the same stop on forward part) and one-before-last name (it is stop
 		// on backward part).
-		if (getName(stops.head) != getName(stops.last) || getName(stops.head) != getName(stops(stops.length-2)))
-			throw new RouteFoldingException("The first route stop is not the same as last two ones")
+		val stops_ = if (getName(stops.last) == getName(stops(stops.length-2))) stops.dropRight(1) else stops
 
 		// Last name (which is the same stop as first one) is non needed by internal
 		// algorithm, strip it.
-		foldRouteInternal(stops.dropRight(1).map(getName)).map { case (name, findex, bindex) =>
+		foldRouteInternal(stops_.map(getName)).map { case (name, findex, bindex) =>
 			FoldedRouteStop(name, findex.map(stops.apply), bindex.map(stops.apply))
 		}
 	}
