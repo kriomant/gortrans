@@ -1,5 +1,5 @@
-target
+android-app/target
 project/target
-src/main/res/values/generated.xml
-user.sbt
+android-app/src/main/res/values/generated.xml
+android-app/user.sbt
 

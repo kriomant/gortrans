@@ -76,19 +76,24 @@ object General {
 }
 
 object AndroidBuild extends Build {
-  lazy val main = Project (
-    "GorTrans",
-    file("."),
+  lazy val root = Project (
+    "root",
+    file(".")
+  ) aggregate (androidApp, androidTests)
+
+  lazy val androidApp = Project(
+    "android-app",
+    file("android-app"),
     settings = General.fullAndroidSettings
   )
 
-  lazy val tests = Project (
-    "tests",
-    file("tests"),
+  lazy val androidTests = Project (
+    "android-tests",
+    file("android-app/tests"),
     settings = General.settings ++
                AndroidTest.settings ++
                General.proguardSettings ++ Seq (
       name := "GorTransTests"
     )
-  ) dependsOn main
+  ) dependsOn androidApp
 }

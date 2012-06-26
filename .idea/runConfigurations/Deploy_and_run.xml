@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Deploy and run" type="AndroidRunConfigurationType" factoryName="Android Application">
-    <module name="gortrans" />
+    <module name="android-app" />
     <option name="ACTIVITY_CLASS" value="" />
     <option name="MODE" value="default_activity" />
     <option name="DEPLOY" value="true" />
@@ -18,7 +18,7 @@
     <ConfigurationWrapper RunnerId="Run" />
     <method>
       <option name="Make" enabled="false" />
-      <option name="SBT.BeforeRunTask" enabled="true" action="android:package-debug" runInCurrentModule="false" />
+      <option name="SBT.BeforeRunTask" enabled="true" action="android-app/android:package-debug" runInCurrentModule="false" />
     </method>
   </configuration>
 </component>
