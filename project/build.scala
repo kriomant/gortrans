@@ -47,7 +47,6 @@ object General {
     AndroidManifestGenerator.settings ++
     AndroidMarketPublish.settings ++ Seq (
       keyalias in Android := "change-me",
-      libraryDependencies += "org.scalatest" %% "scalatest" % "1.7.RC1" % "test",
       libraryDependencies += "org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
 
 			resolvers += "ActionBarSherlock" at  "http://r.jakewharton.com/maven/release/",
@@ -79,13 +78,27 @@ object AndroidBuild extends Build {
   lazy val root = Project (
     "root",
     file(".")
-  ) aggregate (androidApp, androidTests)
+  ) aggregate (core, androidApp, androidTests)
+
+	lazy val core = Project(
+	  "core",
+	  file("core"),
+	  settings = Defaults.defaultSettings ++ Seq(
+		  scalaVersion := "2.8.2",
+
+	    libraryDependencies ++= Seq(
+		    "org.json" % "json" % "20090211",
+       	"org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
+		    "org.scalatest" %% "scalatest" % "1.7.1" % "test"
+	    )
+	  )
+	)
 
   lazy val androidApp = Project(
     "android-app",
     file("android-app"),
     settings = General.fullAndroidSettings
-  )
+  ) dependsOn (core)
 
   lazy val androidTests = Project (
     "android-tests",

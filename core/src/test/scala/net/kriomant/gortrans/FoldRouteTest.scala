@@ -1,6 +1,7 @@
-package net.kriomant.gortrans.core_tests
+package net.kriomant.gortrans
 
 import org.scalatest.FunSuite
+import net.kriomant.gortrans.core
 import net.kriomant.gortrans.core._
 import net.kriomant.gortrans.core.DirectionsEx.{Forward, Backward, Both}
 
@@ -32,22 +33,22 @@ class FoldRouteTest extends FunSuite {
 		}
 		assert(error.getMessage === "End route stop is not found")
 	}
-	
+
 	test("route with identical forward and backward parts") {
 		assert(
 			foldRoute(Seq("A", "B", "C", "C", "B", "A", "A"), identity[String])
-			=== Seq(
+				=== Seq(
 				FoldedRouteStop("A", Some("A"), Some("A")),
 				FoldedRouteStop("B", Some("B"), Some("B")),
 				FoldedRouteStop("C", Some("C"), Some("C"))
 			)
 		)
 	}
-	
+
 	test("route with stop skipped on backward route part") {
 		assert(
 			foldRoute(Seq("A", "B", "C", "C", "A", "A"), identity[String])
-			=== Seq(
+				=== Seq(
 				FoldedRouteStop("A", Some("A"), Some("A")),
 				FoldedRouteStop("B", Some("B"), None),
 				FoldedRouteStop("C", Some("C"), Some("C"))
@@ -58,7 +59,7 @@ class FoldRouteTest extends FunSuite {
 	test("route with stop skipped on forward route part") {
 		assert(
 			foldRoute(Seq("A", "C", "C", "B", "A", "A"), identity[String])
-			=== Seq(
+				=== Seq(
 				FoldedRouteStop("A", Some("A"), Some("A")),
 				FoldedRouteStop("B", None, Some("B")),
 				FoldedRouteStop("C", Some("C"), Some("C"))
@@ -69,7 +70,7 @@ class FoldRouteTest extends FunSuite {
 	test("route with different stops on forward and backward route parts") {
 		assert(
 			foldRoute(Seq("A", "B", "C", "C", "D", "A", "A"), identity[String])
-			=== Seq(
+				=== Seq(
 				FoldedRouteStop("A", Some("A"), Some("A")),
 				FoldedRouteStop("B", Some("B"), None),
 				FoldedRouteStop("D", None, Some("D")),
@@ -81,7 +82,7 @@ class FoldRouteTest extends FunSuite {
 	test("route with several stops skipped on backward route part") {
 		assert(
 			foldRoute(Seq("A", "B", "C", "D", "D", "A", "A"), identity[String])
-			=== Seq(
+				=== Seq(
 				FoldedRouteStop("A", Some("A"), Some("A")),
 				FoldedRouteStop("B", Some("B"), None),
 				FoldedRouteStop("C", Some("C"), None),

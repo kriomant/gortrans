@@ -6,11 +6,16 @@ import net.kriomant.gortrans.core._
 import net.kriomant.gortrans.parsing.{RoutePoint, RoutesInfo}
 import net.kriomant.gortrans.Client.{RouteInfoRequest}
 import android.content.Context
+import android.util.Log
 
 class DataManager(context: Context) {
 	private[this] final val TAG = "DataManager"
 
-	val client = new Client
+	object AndroidLogger extends Logger {
+		def debug(msg: String) { Log.d("gortrans", msg) }
+		def verbose(msg: String) { Log.v("gortrans", msg) }
+	}
+	val client = new Client(AndroidLogger)
 	                                                           
 	def getRoutesList(): RoutesInfo = {
 		val cacheName = "routes.json"

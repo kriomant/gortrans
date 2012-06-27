@@ -4,9 +4,13 @@ import java.io.{InputStreamReader, BufferedInputStream}
 import utils.readerUtils
 import java.net.{URLEncoder, HttpURLConnection, URL}
 import net.kriomant.gortrans.core.{ScheduleType, VehicleType, Direction, DirectionsEx}
-import android.util.Log
 import scala.collection.JavaConverters._
 import org.json.{JSONObject, JSONArray}
+
+trait Logger {
+	def debug(msg: String)
+	def verbose(msg: String)
+}
 
 object Client {
 	case class RouteInfoRequest(
@@ -18,7 +22,7 @@ object Client {
 }
 /** Client for maps.nskgortrans.ru site.
 	*/
-class Client {
+class Client(logger: Logger) {
 	import Client._
 
 	final val HOST = new URL("http://nskgortrans.ru")
@@ -45,7 +49,7 @@ class Client {
 		DirectionsEx.Backward -> "B",
 		DirectionsEx.Both -> "W"
 	)
-	
+
 	def getRoutesInfo(requests: Seq[Client.RouteInfoRequest]): String = {
 		val params = requests map { r =>
 			"%d-%s-%s-%s" format (r.vehicleType.id+1, r.routeId, directionsExCodes(r.direction), r.routeName)
@@ -107,7 +111,7 @@ class Client {
 			conn.addRequestProperty("Cookie", cookie)
 			val stream = new BufferedInputStream(conn.getInputStream())
 			val content = new InputStreamReader(stream).readAll()
-			Log.v("Client", "Response from %s: %s" format(url, content))
+			logger.verbose("Response from %s: %s" format(url, content))
 			content
 		} finally {
 			conn.disconnect()
@@ -142,7 +146,7 @@ class Client {
 		}
 
 		mapsSessionId = cookies("PHPSESSID")
-		Log.d("client", "PHPSESSID: %s" format mapsSessionId)
+		logger.debug("PHPSESSID: %s" format mapsSessionId)
 	}
 
 	private def fetch(url: URL): String = {
@@ -151,7 +155,7 @@ class Client {
 			val stream = new BufferedInputStream(conn.getInputStream())
 			// TODO: Use more effective android.util.JsonReader on API level 11.
 			val content = new InputStreamReader(stream).readAll()
-			Log.v("Client", "Response from %s: %s" format (url, content))
+			logger.verbose("Response from %s: %s" format (url, content))
 			content
 		} finally {
 			conn.disconnect()

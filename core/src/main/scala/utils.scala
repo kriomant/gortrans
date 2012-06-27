@@ -5,7 +5,7 @@ import net.kriomant.gortrans.utils.BooleanUtils
 import java.security.Key
 
 object utils {
-	
+
 	class ReaderUtils(reader: Reader) {
 		def readAll(bufferSize: Int = 1024): String = {
 			val builder = new StringBuilder
@@ -20,9 +20,11 @@ object utils {
 			builder.toString
 		}
 	}
+
 	implicit def readerUtils(r: Reader) = new ReaderUtils(r)
 
 	type Closable = {def close()}
+
 	def closing[R <: Closable, T](resource: R)(block: R => T): T = {
 		try {
 			block(resource)
@@ -31,12 +33,13 @@ object utils {
 				resource.close()
 		}
 	}
-	
+
 	class BooleanUtils(value: Boolean) {
 		def ?[T](t: => T): Option[T] = {
 			if (value) Some(t) else None
 		}
 	}
+
 	implicit def booleanUtils(b: Boolean) = new BooleanUtils(b)
 
 	class TraversableOnceUtils[T](traversable: TraversableOnce[T]) {
@@ -52,5 +55,6 @@ object utils {
 			})
 		}
 	}
+
 	implicit def traversableOnceUtils[T](traversable: TraversableOnce[T]) = new TraversableOnceUtils(traversable)
 }

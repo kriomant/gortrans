@@ -1,6 +1,7 @@
 package net.kriomant.gortrans
 
 import org.scalatest.FunSuite
+import net.kriomant.gortrans.parsing
 import net.kriomant.gortrans.parsing._
 import java.util.Date
 

@@ -10,7 +10,7 @@ import android.widget.Toast
 trait VehiclesWatcher { this: Activity =>
 
 	val handler: Handler
-	val client = new Client
+	def client: Client = getApplication.asInstanceOf[CustomApplication].dataManager.client
 
 	def getVehiclesToTrack: (VehicleType.Value, String, String) // type, routeId, routeName
 	def onVehiclesLocationUpdateStarted()

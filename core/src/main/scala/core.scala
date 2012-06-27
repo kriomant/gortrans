@@ -7,6 +7,7 @@ import net.kriomant.gortrans.utils.traversableOnceUtils
 import net.kriomant.gortrans.utils.booleanUtils
 
 object core {
+
 	object VehicleType extends Enumeration {
 		val Bus = Value(0)
 		val TrolleyBus = Value(1)
@@ -71,11 +72,13 @@ object core {
 		// Find two consecutive stops with the same name - it is terminal stop.
 		// Two last stops are no compared, because they are terminal stop on forward
 		// route part and same stop on backward route part.
-		val pos = (2 to stops.length-2).find(i => stops(i-1) == stops(i)).
-			getOrElse (throw new RouteFoldingException("End route stop is not found"))
+		val pos = (2 to stops.length - 2).find(i => stops(i - 1) == stops(i)).
+			getOrElse(throw new RouteFoldingException("End route stop is not found"))
 
 		// Index backward stops positions.
-		val stopIndex = stops.view.take(pos).map{ stop => (stop, stops.indexOf(stop, pos))}.toMap
+		val stopIndex = stops.view.take(pos).map {
+			stop => (stop, stops.indexOf(stop, pos))
+		}.toMap
 
 		// Build folded route at last.
 		val foldedRoute = new mutable.ArrayBuffer[(String, Option[Int], Option[Int])]
@@ -92,9 +95,9 @@ object core {
 					throw new RouteFoldingException("Different order of route stops")
 
 				// Add all backward stops between bpos and bstoppos as backward-only.
-				foldedRoute ++= ((bstoppos+1) to bpos).reverse.map(s => (stops(s), None, Some(s)))
+				foldedRoute ++= ((bstoppos + 1) to bpos).reverse.map(s => (stops(s), None, Some(s)))
 				foldedRoute += ((name, Some(fpos), Some(bstoppos)))
-				bpos = bstoppos-1
+				bpos = bstoppos - 1
 			} else {
 				foldedRoute += ((name, Some(fpos), None))
 			}
@@ -112,18 +115,19 @@ object core {
 		// Route returned by nskgortrans contains three starting stop names: first name,
 		// last name (it is the same stop on forward part) and one-before-last name (it is stop
 		// on backward part).
-		val stops_ = if (getName(stops.last) == getName(stops(stops.length-2))) stops.dropRight(1) else stops
+		val stops_ = if (getName(stops.last) == getName(stops(stops.length - 2))) stops.dropRight(1) else stops
 
 		// Last name (which is the same stop as first one) is non needed by internal
 		// algorithm, strip it.
-		foldRouteInternal(stops_.map(getName)).map { case (name, findex, bindex) =>
-			FoldedRouteStop(name, findex.map(stops.apply), bindex.map(stops.apply))
+		foldRouteInternal(stops_.map(getName)).map {
+			case (name, findex, bindex) =>
+				FoldedRouteStop(name, findex.map(stops.apply), bindex.map(stops.apply))
 		}
 	}
 
-	/** Splits route into forward and backward parts and returns index of first route point belonging
-	  * to backward part.
-	  */
+	/**Splits route into forward and backward parts and returns index of first route point belonging
+	 * to backward part.
+	 */
 	def splitRoutePosition(foldedRoute: Seq[FoldedRouteStop[RoutePoint]], routePoints: Seq[parsing.RoutePoint]): Int = {
 		// Split route into forward and backward parts for proper snapping of vehicle locations.
 		// Find last route stop.
@@ -149,19 +153,20 @@ object core {
 		}
 	}
 
-	/** Returns distance from route start to each route point.
-	  */
+	/**Returns distance from route start to each route point.
+	 */
 	def straightenRoute(route: Seq[RoutePoint]): (Double, Seq[Double]) = {
 		assert(route.head.latitude == route.last.latitude && route.head.longitude == route.last.longitude)
 
 		var length = 0.0
-		val positions = route.sliding(2).map { case Seq(start, end) =>
-			val cur = length
-			length += math.sqrt(
-				(end.latitude-start.latitude)*(end.latitude-start.latitude) +
-				(end.longitude-start.longitude)*(end.longitude-start.longitude)
-			)
-			cur
+		val positions = route.sliding(2).map {
+			case Seq(start, end) =>
+				val cur = length
+				length += math.sqrt(
+					(end.latitude - start.latitude) * (end.latitude - start.latitude) +
+						(end.longitude - start.longitude) * (end.longitude - start.longitude)
+				)
+				cur
 		}.toArray
 
 		(length, positions)
@@ -173,17 +178,19 @@ object core {
 	 */
 	def snapVehicleToRouteInternal(vehicle: VehicleInfo, route: Seq[RoutePoint]): Option[(Int, Double)] = {
 		// Dumb brute-force algorithm: enumerate all route segments for each vehicle.
-		val segments = route.sliding(2).map{ case Seq(from, to) =>
-			(Pt(from.longitude, from.latitude), Pt(to.longitude, to.latitude))
+		val segments = route.sliding(2).map {
+			case Seq(from, to) =>
+				(Pt(from.longitude, from.latitude), Pt(to.longitude, to.latitude))
 		}
 		val location = Pt(vehicle.longitude.toDouble, vehicle.latitude.toDouble)
 
 		// Find segment closest to vehicle position.
-		val segmentsWithDistance: Iterator[(Double, Int, Double)] = segments.zipWithIndex map { case (segment@(start, end), segmentIndex) =>
-			val closestPointPos = closestSegmentPointPortion(location, start, end)
-			val closestPoint = start + (end-start) * closestPointPos
-			val distance = location distanceTo closestPoint
-			(distance, segmentIndex, closestPointPos)
+		val segmentsWithDistance: Iterator[(Double, Int, Double)] = segments.zipWithIndex map {
+			case (segment@(start, end), segmentIndex) =>
+				val closestPointPos = closestSegmentPointPortion(location, start, end)
+				val closestPoint = start + (end - start) * closestPointPos
+				val distance = location distanceTo closestPoint
+				(distance, segmentIndex, closestPointPos)
 		}
 		val (distance, segmentIndex, pointPos) = segmentsWithDistance.minBy(_._1)
 
@@ -194,15 +201,15 @@ object core {
 		val MAX_DISTANCE_FROM_ROUTE = 20 /* meters */
 		val MAX_DISTANCE_IN_DEGREES = MAX_DISTANCE_FROM_ROUTE / 100000.0
 
-		(distance <= MAX_DISTANCE_IN_DEGREES) ?  (segmentIndex, pointPos)
+		(distance <= MAX_DISTANCE_IN_DEGREES) ?(segmentIndex, pointPos)
 	}
 
 	def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[RoutePoint]): (Pt, Option[(Pt, Pt)]) = {
 		snapVehicleToRouteInternal(vehicle, route) match {
 			case Some((segmentIndex, pointPos)) => {
 				val start = Pt(route(segmentIndex).longitude, route(segmentIndex).latitude)
-				val end = Pt(route(segmentIndex+1).longitude, route(segmentIndex+1).latitude)
-				val point = start + (end-start) * pointPos
+				val end = Pt(route(segmentIndex + 1).longitude, route(segmentIndex + 1).latitude)
+				val point = start + (end - start) * pointPos
 				(point, Some((start, end)))
 			}
 			case None => (Pt(vehicle.longitude.toDouble, vehicle.latitude.toDouble), None)

@@ -1,6 +1,7 @@
 package net.kriomant.gortrans
 
 import org.scalatest.FunSuite
+import net.kriomant.gortrans.geometry
 import net.kriomant.gortrans.geometry.{Point, projectToLine}
 
 class ProjectToLineTest extends FunSuite {

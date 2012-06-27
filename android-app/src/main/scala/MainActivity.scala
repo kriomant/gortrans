@@ -8,7 +8,6 @@ import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
 import android.support.v4.app.{ListFragment, FragmentTransaction}
 import android.view.View
 import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar, SherlockActivity}
-import android.content.res.Configuration
 import android.content.{Context, Intent}
 
 object MainActivity {
