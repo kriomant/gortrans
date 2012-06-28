@@ -1,8 +1,8 @@
 package net.kriomant.gortrans
-package checker
+package explorer
 
 import org.eclipse.swt.widgets._
-import org.eclipse.swt.SWT
+import org.eclipse.swt.{widgets, SWT}
 import org.eclipse.swt.layout.{GridData, GridLayout}
 import org.eclipse.swt.events.{SelectionEvent, SelectionAdapter}
 import net.kriomant.gortrans.Client.RouteInfoRequest
@@ -10,7 +10,7 @@ import net.kriomant.gortrans.core.DirectionsEx
 
 class MainWindow(display: Display) {
 	val shell = new Shell(display)
-	shell.setText("GorTrans checker")
+	shell.setText("GorTrans explorer")
 	shell.setLayout(new GridLayout(2, false))
 
 	def withGui(block: => Unit) {
@@ -26,6 +26,8 @@ class MainWindow(display: Display) {
 			refresh()
 		}
 	})
+
+	val spacer = new Label(shell, SWT.NONE)
 
 	val routesList = new List(shell, SWT.V_SCROLL)
 	routesList.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true))

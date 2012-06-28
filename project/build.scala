@@ -78,7 +78,7 @@ object AndroidBuild extends Build {
   lazy val root = Project (
     "root",
     file(".")
-  ) aggregate (core, androidApp, androidTests, checker)
+  ) aggregate (core, androidApp, androidTests, explorer)
 
 	lazy val core = Project(
 	  "core",
@@ -110,9 +110,9 @@ object AndroidBuild extends Build {
     )
   ) dependsOn androidApp
 
-	lazy val checker = Project(
-	  "checker",
-	  file("checker"),
+	lazy val explorer = Project(
+	  "explorer",
+	  file("explorer"),
 	  settings = Defaults.defaultSettings ++ Seq(
 		  scalaVersion := "2.8.2",
 
