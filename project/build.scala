@@ -78,7 +78,7 @@ object AndroidBuild extends Build {
   lazy val root = Project (
     "root",
     file(".")
-  ) aggregate (core, androidApp, androidTests)
+  ) aggregate (core, androidApp, androidTests, checker)
 
 	lazy val core = Project(
 	  "core",
@@ -109,4 +109,23 @@ object AndroidBuild extends Build {
       name := "GorTransTests"
     )
   ) dependsOn androidApp
+
+	lazy val checker = Project(
+	  "checker",
+	  file("checker"),
+	  settings = Defaults.defaultSettings ++ Seq(
+		  scalaVersion := "2.8.2",
+
+		  libraryDependencies ++= Seq(
+			  "org.json" % "json" % "20090211"
+		  ),
+
+	    unmanagedJars in Compile ++= Seq(
+	      Attributed.blank(file("/usr/share/java/swt.jar"))
+	    ),
+
+	    fork in run := true,
+	    javaOptions in run += "-Djava.library.path=/usr/lib/jni"
+	  )
+	) dependsOn (core)
 }

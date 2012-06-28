@@ -50,7 +50,7 @@ class Client(logger: Logger) {
 		DirectionsEx.Both -> "W"
 	)
 
-	def getRoutesInfo(requests: Seq[Client.RouteInfoRequest]): String = {
+	def getRoutesInfo(requests: Traversable[Client.RouteInfoRequest]): String = {
 		val params = requests map { r =>
 			"%d-%s-%s-%s" format (r.vehicleType.id+1, r.routeId, directionsExCodes(r.direction), r.routeName)
 		} mkString "|"

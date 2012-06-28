@@ -6,7 +6,6 @@
         <option name="basePackage" value="net.kriomant.gortrans" />
         <option name="deprecationWarnings" value="true" />
         <option name="fsc" value="true" />
-        <option name="optimiseBytecode" value="true" />
         <option name="uncheckedWarnings" value="true" />
       </configuration>
     </facet>
@@ -21,6 +20,7 @@
     <orderEntry type="library" name="scala-2.8.2" level="application" />
     <orderEntry type="library" name="swt" level="application" />
     <orderEntry type="module" module-name="core" />
+    <orderEntry type="library" name="org.json:json:20090211" level="project" />
   </component>
 </module>
 
