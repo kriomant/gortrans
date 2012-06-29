@@ -78,7 +78,7 @@ object AndroidBuild extends Build {
   lazy val root = Project (
     "root",
     file(".")
-  ) aggregate (core, androidApp, androidTests, explorer)
+  ) aggregate (core, androidApp, androidTests, explorer, checker)
 
 	lazy val core = Project(
 	  "core",
@@ -127,5 +127,18 @@ object AndroidBuild extends Build {
 	    fork in run := true,
 	    javaOptions in run += "-Djava.library.path=/usr/lib/jni"
 	  )
+	) dependsOn (core)
+
+	lazy val checker = Project(
+		"checker",
+		file("checker"),
+		settings = Defaults.defaultSettings ++ Seq(
+			scalaVersion := "2.8.2",
+
+			libraryDependencies ++= Seq(
+				"org.json" % "json" % "20090211",
+				"ch.qos.logback" % "logback-classic" % "1.0.5"
+			)
+		)
 	) dependsOn (core)
 }
