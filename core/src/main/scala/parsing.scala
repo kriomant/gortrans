@@ -16,6 +16,7 @@ import java.util.{Calendar, Date}
 import util.matching.Regex.Match
 import java.util.regex.Pattern
 import net.kriomant.gortrans.core.Route
+import scala.collection.mutable
 
 object parsing {
 
@@ -144,9 +145,10 @@ object parsing {
 		val stops = new scala.collection.mutable.ArrayBuffer[StopInfo]
 
 		val parser = javax.xml.parsers.SAXParserFactory.newInstance.newSAXParser()
-		parser.parse(xml, new DefaultHandler {
+		val source = new InputSource(new StringReader(xml))
+		parser.parse(source, new DefaultHandler {
 			override def startElement(uri: String, localName: String, qName: String, attrs: Attributes) {
-				if (localName == "stop") {
+				if (qName == "stop") {
 					stops += StopInfo(attrs.getValue("id").toInt, attrs.getValue("title"))
 				}
 			}
@@ -159,9 +161,10 @@ object parsing {
 		var schedules = Map[ScheduleType.Value, String]()
 
 		val parser = javax.xml.parsers.SAXParserFactory.newInstance.newSAXParser()
-		parser.parse(xml, new DefaultHandler {
+		val source = new InputSource(new StringReader(xml))
+		parser.parse(source, new DefaultHandler {
 			override def startElement(uri: String, localName: String, qName: String, attrs: Attributes) {
-				if (localName == "schedule") {
+				if (qName == "schedule") {
 					schedules += ((ScheduleType(attrs.getValue("id").toInt), attrs.getValue("title")))
 				}
 			}
