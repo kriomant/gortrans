@@ -92,9 +92,28 @@ class FoldRouteTest extends FunSuite {
 	}
 
 	test("route with different order of stops") {
-		val error = intercept[RouteFoldingException] {
+		assert(
 			foldRoute(Seq("A", "B", "C", "D", "D", "B", "C", "A", "A"), identity[String])
-		}
-		assert(error.getMessage === "Different order of route stops")
+			=== Seq(
+				FoldedRouteStop("A", Some("A"), Some("A")),
+				FoldedRouteStop("C", None, Some("C")),
+				FoldedRouteStop("B", Some("B"), Some("B")),
+				FoldedRouteStop("C", Some("C"), None),
+				FoldedRouteStop("D", Some("D"), Some("D"))
+			)
+		)
+	}
+
+	test("duplicate stops") {
+		assert(
+			foldRoute(Seq("A", "B", "C", "B", "D", "D", "B", "C", "B", "A", "A"), identity[String])
+				=== Seq(
+				FoldedRouteStop("A", Some("A"), Some("A")),
+				FoldedRouteStop("B", Some("B"), Some("B")),
+				FoldedRouteStop("C", Some("C"), Some("C")),
+				FoldedRouteStop("B", Some("B"), Some("B")),
+				FoldedRouteStop("D", Some("D"), Some("D"))
+			)
+		)
 	}
 }

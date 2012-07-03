@@ -75,11 +75,6 @@ object core {
 		val pos = (2 to stops.length - 2).find(i => stops(i - 1) == stops(i)).
 			getOrElse(throw new RouteFoldingException("End route stop is not found"))
 
-		// Index backward stops positions.
-		val stopIndex = stops.view.take(pos).map {
-			stop => (stop, stops.indexOf(stop, pos))
-		}.toMap
-
 		// Build folded route at last.
 		val foldedRoute = new mutable.ArrayBuffer[(String, Option[Int], Option[Int])]
 		var fpos = 0 // Position of first unfolded stop in forward route.
@@ -88,12 +83,12 @@ object core {
 			// Take stop name from forward route.
 			val name = stops(fpos)
 			// Find the same stop in backward route.
-			val bstoppos = stopIndex(name)
+			val bstoppos = stops.view(pos, stops.length).lastIndexOf(name, bpos-pos) match {
+				case -1 => -1
+				case  n => n + pos
+			}
 
 			if (bstoppos != -1) {
-				if (bstoppos > bpos)
-					throw new RouteFoldingException("Different order of route stops")
-
 				// Add all backward stops between bpos and bstoppos as backward-only.
 				foldedRoute ++= ((bstoppos + 1) to bpos).reverse.map(s => (stops(s), None, Some(s)))
 				foldedRoute += ((name, Some(fpos), Some(bstoppos)))

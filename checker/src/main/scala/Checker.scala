@@ -100,7 +100,9 @@ object Checker {
 			try {
 				core.foldRoute[String](routeStops, (x => x))
 			} catch {
-				case e: core.RouteFoldingException => logger.error("Can't fold route: {}", e.getMessage)
+				case e: core.RouteFoldingException => {
+					logger.error("Can't fold route: {}\nRoute: {}", e.getMessage, routeStops.mkString(" —— "))
+				}
 			}
 		}
 	}
