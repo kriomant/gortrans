@@ -87,6 +87,14 @@ class RouteStopInfoActivity extends SherlockActivity
 
 	var periodicRefresh = new PeriodicTimer(REFRESH_PERIOD)(refreshArrivals)
 
+	override def onPrepareOptionsMenu(menu: Menu) = {
+		if (stopId == -1) {
+			menu.findItem(R.id.show_schedule).setEnabled(false)
+			menu.findItem(R.id.refresh).setEnabled(false)
+		}
+		super.onPrepareOptionsMenu(menu)
+	}
+
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
 
@@ -161,7 +169,9 @@ class RouteStopInfoActivity extends SherlockActivity
 				def onClick(p1: View) {
 					direction = Direction.inverse(direction)
 					setDirectionText()
-					refreshArrivals()
+					if (stopId != -1) {
+						refreshArrivals()
+					}
 
 					val stops = direction match {
 						case Direction.Forward  => forwardStops
@@ -171,6 +181,16 @@ class RouteStopInfoActivity extends SherlockActivity
 				}
 			})
 			toggleDirectionButton.setVisibility(View.VISIBLE)
+		}
+
+		if (stopId == -1) {
+			val list = findViewById(android.R.id.list).asInstanceOf[ListView]
+			val no_arrivals_view = findView(TR.no_arrivals)
+
+			list.setAdapter(null)
+			no_arrivals_view.setVisibility(View.VISIBLE)
+			no_arrivals_view.setText(getResources.getString(R.string.no_arrivals))
+			list.setVisibility(View.GONE)
 		}
 	}
 
@@ -203,7 +223,9 @@ class RouteStopInfoActivity extends SherlockActivity
 
 	protected override def onPause() {
 		stopUpdatingVehiclesLocation()
-		periodicRefresh.stop()
+		if (stopId != -1) {
+			periodicRefresh.stop()
+		}
 
 		super.onPause()
 	}
@@ -211,8 +233,10 @@ class RouteStopInfoActivity extends SherlockActivity
 	override def onResume() {
 		super.onResume()
 
-		refreshArrivals()
-		periodicRefresh.start()
+		if (stopId != -1) {
+			refreshArrivals()
+			periodicRefresh.start()
+		}
 		startUpdatingVehiclesLocation()
 	}
 
@@ -229,7 +253,7 @@ class RouteStopInfoActivity extends SherlockActivity
 			startActivity(intent)
 			true
 		}
-		case R.id.refresh => refreshArrivals(); true
+		case R.id.refresh => if (stopId != -1) refreshArrivals(); true
 		case R.id.show_schedule => {
 			val intent = StopScheduleActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
 			startActivity(intent)
