@@ -47,61 +47,64 @@ object Checker {
 			logger.info("Check {} {} route", route.vehicleType, route.name)
 
 			val points = routesPoints(route.id)
+			if (points.isEmpty) {
+				logger.warn("Route is empty")
+			} else {
+				logger.debug("Check stop names")
+				val routeStops = points.collect{ case RoutePoint(Some(RouteStop(name, _)), _, _) => name }
 
-			logger.debug("Check stop names")
-			val routeStops = points.collect{ case RoutePoint(Some(RouteStop(name, _)), _, _) => name }
+				var wasStopErrors = false
+				for (stopName <- routeStops.toSet[String]) {
+					if (missingStops contains (route.vehicleType, route.name, stopName)) {
+						logger.warn("Stop named '{}' is ignored", stopName)
 
-			var wasStopErrors = false
-			for (stopName <- routeStops.toSet[String]) {
-				if (missingStops contains (route.vehicleType, route.name, stopName)) {
-					logger.warn("Stop named '{}' is ignored", stopName)
-
-				} else {
-					val fixedStopName = core.stopNameFixes.get((route.vehicleType, route.name, stopName)) match {
-						case Some(n) => {
-							logger.warn("Stop name fix applied: {} -> {}", stopName, n)
-							n
+					} else {
+						val fixedStopName = core.stopNameFixes.get((route.vehicleType, route.name, stopName)) match {
+							case Some(n) => {
+								logger.warn("Stop name fix applied: {} -> {}", stopName, n)
+								n
+							}
+							case None => stopName
 						}
-						case None => stopName
-					}
 
-					if (! stops.contains(fixedStopName)) {
-						logger.error("Stop name '{}' is not known", fixedStopName)
-						wasStopErrors = true
+						if (! stops.contains(fixedStopName)) {
+							logger.error("Stop name '{}' is not known", fixedStopName)
+							wasStopErrors = true
+						}
 					}
 				}
-			}
 
-			if (wasStopErrors) {
-				val rawSchedules = client.getAvailableScheduleTypes(route.vehicleType, route.id, core.Direction.Forward)
-				val schedules = parsing.parseAvailableScheduleTypes(rawSchedules)
+				if (wasStopErrors) {
+					val rawSchedules = client.getAvailableScheduleTypes(route.vehicleType, route.id, core.Direction.Forward)
+					val schedules = parsing.parseAvailableScheduleTypes(rawSchedules)
 
-				if (schedules.nonEmpty) {
-					val rawForwardStops = client.getRouteStops(route.vehicleType, route.id, core.Direction.Forward, schedules.head._1.id)
-					val forwardStops = parsing.parseRouteStops(rawForwardStops)
+					if (schedules.nonEmpty) {
+						val rawForwardStops = client.getRouteStops(route.vehicleType, route.id, core.Direction.Forward, schedules.head._1.id)
+						val forwardStops = parsing.parseRouteStops(rawForwardStops)
 
-					val rawBackwardStops = client.getRouteStops(route.vehicleType, route.id, core.Direction.Backward, schedules.head._1.id)
-					val backwardStops = parsing.parseRouteStops(rawBackwardStops)
+						val rawBackwardStops = client.getRouteStops(route.vehicleType, route.id, core.Direction.Backward, schedules.head._1.id)
+						val backwardStops = parsing.parseRouteStops(rawBackwardStops)
 
-					logger.info(
-						"\nForward route stops: {}\n\nBackward route stops: {}\n\nStops from route points:{}\n",
-						Array[AnyRef](
-							forwardStops.map(_.name).mkString(" —— "),
-							backwardStops.map(_.name).mkString(" —— "),
-							routeStops.mkString(" —— ")
+						logger.info(
+							"\nForward route stops: {}\n\nBackward route stops: {}\n\nStops from route points:{}\n",
+							Array[AnyRef](
+								forwardStops.map(_.name).mkString(" —— "),
+								backwardStops.map(_.name).mkString(" —— "),
+								routeStops.mkString(" —— ")
+							)
 						)
-					)
-				} else {
-					logger.warn("There are no schedule types")
+					} else {
+						logger.warn("There are no schedule types")
+					}
 				}
-			}
 
-			logger.debug("Check route is foldable")
-			try {
-				core.foldRoute[String](routeStops, (x => x))
-			} catch {
-				case e: core.RouteFoldingException => {
-					logger.error("Can't fold route: {}\nRoute: {}", e.getMessage, routeStops.mkString(" —— "))
+				logger.debug("Check route is foldable")
+				try {
+					core.foldRoute[String](routeStops, (x => x))
+				} catch {
+					case e: core.RouteFoldingException => {
+						logger.error("Can't fold route: {}\nRoute: {}", e.getMessage, routeStops.mkString(" —— "))
+					}
 				}
 			}
 		}
