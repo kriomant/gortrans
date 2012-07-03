@@ -70,10 +70,9 @@ object core {
 			throw new RouteFoldingException("The first route stop is not the same as last two ones")
 
 		// Find two consecutive stops with the same name - it is terminal stop.
-		// Two last stops are no compared, because they are terminal stop on forward
-		// route part and same stop on backward route part.
-		val pos = (2 to stops.length - 2).find(i => stops(i - 1) == stops(i)).
-			getOrElse(throw new RouteFoldingException("End route stop is not found"))
+		// If terminal stop is not found, it may be one-way circular route,
+		// just split it in the middle.
+		val pos = (2 to stops.length - 2).find(i => stops(i - 1) == stops(i)).getOrElse(stops.length/2)
 
 		// Build folded route at last.
 		val foldedRoute = new mutable.ArrayBuffer[(String, Option[Int], Option[Int])]
@@ -99,6 +98,8 @@ object core {
 
 			fpos += 1
 		}
+
+		foldedRoute ++= (pos to bpos).reverse.map(s => (stops(s), None, Some(s)))
 
 		foldedRoute
 	}

@@ -27,11 +27,15 @@ class FoldRouteTest extends FunSuite {
 		assert(error.getMessage === "The first route stop is not the same as last two ones")
 	}
 
-	test("exception is thrown if there are no two identical consequtive stops in route") {
-		val error = intercept[RouteFoldingException] {
+	test("route without two identical consequtive stops is folded in the middle") {
+		assert(
 			foldRoute(Seq("A", "B", "C", "A", "A"), identity[String])
-		}
-		assert(error.getMessage === "End route stop is not found")
+				=== Seq(
+				FoldedRouteStop("A", Some("A"), Some("A")),
+				FoldedRouteStop("B", Some("B"), None),
+				FoldedRouteStop("C", None, Some("C"))
+			)
+		)
 	}
 
 	test("route with identical forward and backward parts") {
