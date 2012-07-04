@@ -103,6 +103,21 @@ object Checker {
 						logger.error("Can't fold route: {}\nRoute: {}", e.getMessage, routeStops.mkString(" —— "))
 					}
 				}
+
+				logger.debug("Check route straightening")
+				val (totalLength, positions) = core.straightenRoute(points)
+				logger.info("points length: {}, positions length: {}", points.length, positions.length)
+
+				val straightenedStops = ((positions ++ Seq(totalLength)) zip points).collect {
+					case (pos, RoutePoint(Some(RouteStop(name, _)), _, _)) => (pos.toFloat, name)
+				}
+				try {
+					core.foldRouteInternal(straightenedStops.map(_._2))
+				} catch {
+					case e: core.RouteFoldingException => {
+						logger.error("Can't fold straightened route: {}\nRoute: {}", e.getMessage, straightenedStops.map(_._2).mkString(" —— "))
+					}
+				}
 			}
 		}
 	}

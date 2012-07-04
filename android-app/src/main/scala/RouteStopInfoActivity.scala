@@ -147,7 +147,7 @@ class RouteStopInfoActivity extends SherlockActivity
 		val (totalLength, positions) = core.straightenRoute(routePoints)
 		pointPositions = positions
 
-		val straightenedStops = (positions zip routePoints).collect {
+		val straightenedStops = ((positions ++ Seq(totalLength)) zip routePoints).collect {
 			case (pos, RoutePoint(Some(RouteStop(name, _)), _, _)) => (pos.toFloat, name)
 		}
 		val folded = core.foldRouteInternal(straightenedStops.map(_._2))
