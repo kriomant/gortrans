@@ -1,7 +1,6 @@
 package net.kriomant.gortrans
 
 import org.scalatest.FunSuite
-import net.kriomant.gortrans.core
 import net.kriomant.gortrans.core._
 import net.kriomant.gortrans.core.DirectionsEx.{Forward, Backward, Both}
 

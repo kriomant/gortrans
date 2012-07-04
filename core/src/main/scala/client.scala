@@ -54,11 +54,11 @@ class Client(logger: Logger) {
 		val params = requests map { r =>
 			"%d-%s-%s-%s" format (r.vehicleType.id+1, r.routeId, directionsExCodes(r.direction), r.routeName)
 		} mkString "|"
-		fetch(new URL(MAPS_HOST, "gsearch.php?r=" + URLEncoder.encode(params)))
+		fetch(new URL(MAPS_HOST, "gsearch.php?r=" + URLEncoder.encode(params, "UTF-8")))
 	}
 
 	def getStopsList(query: String = ""): String = {
-		fetch(new URL(HOST, "components/com_planrasp/helpers/grasp.php?q=%s&typeview=stops" format URLEncoder.encode(query)))
+		fetch(new URL(HOST, "components/com_planrasp/helpers/grasp.php?q=%s&typeview=stops" format URLEncoder.encode(query, "UTF-8")))
 	}
 
 	def getAvailableScheduleTypes(vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value): String = {
@@ -93,7 +93,7 @@ class Client(logger: Logger) {
 			r =>
 				"%d-%s-%s-%s" format(r.vehicleType.id + 1, r.routeId, directionsExCodes(r.direction), r.routeName)
 		} mkString "|"
-		val url = new URL(MAPS_HOST, "markers.php?r=%s" format URLEncoder.encode(params))
+		val url = new URL(MAPS_HOST, "markers.php?r=%s" format URLEncoder.encode(params, "UTF-8"))
 
 		val conn = url.openConnection().asInstanceOf[HttpURLConnection]
 		try {
@@ -113,7 +113,7 @@ class Client(logger: Logger) {
 					"latlng" -> "(55.0,83.0)"
 				).asJava)
 			).asJavaCollection)
-			val cookie = "PHPSESSID=%s; value=%s" format(mapsSessionId, URLEncoder.encode(watchList.toString))
+			val cookie = "PHPSESSID=%s; value=%s" format(mapsSessionId, URLEncoder.encode(watchList.toString, "UTF-8"))
 			conn.addRequestProperty("X-Requested-With", "XMLHttpRequest")
 			conn.addRequestProperty("Cookie", cookie)
 			val stream = new BufferedInputStream(conn.getInputStream())

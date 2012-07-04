@@ -187,6 +187,7 @@ class RouteMapActivity extends SherlockMapActivity
 				case (Some(f), Some(b)) => if (f.longitude > b.longitude) f else b
 				case (Some(f), None) => f
 				case (None, Some(b)) => b
+				case (None, None) => throw new AssertionError
 			}
 			new RouteStopNameOverlay(
 				p.name,

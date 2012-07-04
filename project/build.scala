@@ -85,6 +85,7 @@ object AndroidBuild extends Build {
 	  file("core"),
 	  settings = Defaults.defaultSettings ++ Seq(
 		  scalaVersion := "2.8.2",
+		  scalacOptions += "-deprecation",
 
 	    libraryDependencies ++= Seq(
 		    "org.json" % "json" % "20090211",
@@ -97,7 +98,9 @@ object AndroidBuild extends Build {
   lazy val androidApp = Project(
     "android-app",
     file("android-app"),
-    settings = General.fullAndroidSettings
+    settings = General.fullAndroidSettings ++ Seq(
+	    scalacOptions += "-deprecation"
+    )
   ) dependsOn (core)
 
   lazy val androidTests = Project (
@@ -115,6 +118,7 @@ object AndroidBuild extends Build {
 	  file("explorer"),
 	  settings = Defaults.defaultSettings ++ Seq(
 		  scalaVersion := "2.8.2",
+	    scalacOptions += "-deprecation",
 
 		  libraryDependencies ++= Seq(
 			  "org.json" % "json" % "20090211"
@@ -134,6 +138,7 @@ object AndroidBuild extends Build {
 		file("checker"),
 		settings = Defaults.defaultSettings ++ Seq(
 			scalaVersion := "2.8.2",
+			scalacOptions += "-deprecation",
 
 			libraryDependencies ++= Seq(
 				"org.json" % "json" % "20090211",

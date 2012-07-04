@@ -47,6 +47,7 @@ object core {
 			case (Some(_), Some(_)) => DirectionsEx.Both
 			case (Some(_), None) => DirectionsEx.Forward
 			case (None, Some(_)) => DirectionsEx.Backward
+			case (None, None) => throw new AssertionError
 		}
 	}
 
@@ -128,7 +129,7 @@ object core {
 		// Split route into forward and backward parts for proper snapping of vehicle locations.
 		// Find last route stop.
 		val borderStop = (foldedRoute.last.forward orElse foldedRoute.last.backward).get
-		routePoints.findIndexOf(_ == borderStop) + 1
+		routePoints.indexOf(borderStop) + 1
 	}
 
 	def splitRoute(foldedRoute: Seq[FoldedRouteStop[RoutePoint]], routePoints: Seq[parsing.RoutePoint]): (scala.Seq[RoutePoint], scala.Seq[RoutePoint]) = {
