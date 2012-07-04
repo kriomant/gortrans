@@ -110,7 +110,7 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 		val stopName = foldedRoute(position).name
 		val stopsMap = dataManager.getStopsList()
 
-		val fixedStopName = core.stopNameFixes.getOrElse((vehicleType, routeName, stopName), stopName)
+		val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
 		val stopId = stopsMap.getOrElse(fixedStopName, -1)
 
 		val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)

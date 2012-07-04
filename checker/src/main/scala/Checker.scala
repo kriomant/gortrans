@@ -59,12 +59,9 @@ object Checker {
 						logger.warn("Stop named '{}' is ignored", stopName)
 
 					} else {
-						val fixedStopName = core.stopNameFixes.get((route.vehicleType, route.name, stopName)) match {
-							case Some(n) => {
-								logger.warn("Stop name fix applied: {} -> {}", stopName, n)
-								n
-							}
-							case None => stopName
+						val fixedStopName = core.fixStopName(route.vehicleType, route.name, stopName)
+						if (fixedStopName != stopName) {
+								logger.warn("Stop name fix applied: {} -> {}", stopName, fixedStopName)
 						}
 
 						if (! stops.contains(fixedStopName)) {
