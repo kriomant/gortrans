@@ -440,7 +440,7 @@ class VehiclesOverlay(resources: Resources, infos: Seq[(VehicleInfo, Pt, Option[
 				}
 			  angle match {
 				  case Some(a) =>
-					  val modified = Bitmap.createBitmap(image)
+					  val modified = image.copy(image.getConfig, true)
 					  val canvas = new Canvas(modified)
 					  canvas.rotate(-a.toFloat, image.getWidth / 2, image.getWidth / 2)
 					  canvas.drawBitmap(arrow, (image.getWidth-arrow.getWidth)/2, (image.getWidth-arrow.getHeight)/2, new Paint)
