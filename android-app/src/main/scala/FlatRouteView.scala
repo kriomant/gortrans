@@ -116,6 +116,7 @@ class FlatRouteView(context: Context, attributes: AttributeSet) extends View(con
 			}
 
 			case MotionEvent.ACTION_UP => true
+			case _ => false
 		}
 
 		def cancel() {
