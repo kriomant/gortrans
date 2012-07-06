@@ -85,7 +85,7 @@ class Client(logger: Logger) {
 		)
 	}
 
-	def getVehiclesLocation(requests: Seq[Client.RouteInfoRequest]) = {
+	def getVehiclesLocation(requests: Iterable[Client.RouteInfoRequest]) = {
 		if (mapsSessionId == null)
 			updateSessionId()
 
@@ -140,7 +140,8 @@ class Client(logger: Logger) {
 		val cookies = {
 			val conn = MAPS_HOST.openConnection().asInstanceOf[HttpURLConnection]
 			try {
-				val cookieHeaders = Option(conn.getHeaderFields().get("set-cookie").asInstanceOf[java.util.List[String]]).getOrElse(new java.util.ArrayList[String])
+				println(conn.getHeaderFields)
+				val cookieHeaders = Option(conn.getHeaderFields().get("Set-Cookie")).getOrElse(new java.util.ArrayList[String])
 				cookieHeaders.asScala.map {
 					header =>
 						val text = header.takeWhile(_ != ';')
