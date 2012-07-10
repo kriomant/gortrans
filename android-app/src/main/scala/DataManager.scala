@@ -43,58 +43,11 @@ class DataManager(context: Context) {
 	 */
 	def requestRoutesList(getConsumer: DataConsumer[RoutesInfo], updateConsumer: DataConsumer[RoutesInfo]) {
 		val MAX_ROUTES_LIST_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
-
-		def fetch(consumer: DataConsumer[RoutesInfo]) {
-			val task = new AsyncTaskBridge[Unit, Option[RoutesInfo]] {
-				override def onPreExecute() {
-					consumer.startFetch()
-				}
-
-				protected def doInBackgroundBridge(): Option[RoutesInfo] = {
-					val optData = try {
-						Log.v(TAG, "Fetch data")
-						val rawData = client.getRoutesList()
-						Log.v(TAG, "Data is successfully fetched")
-						Some(rawData)
-					} catch {
-						case _: UnknownHostException | _: ConnectException => {
-							Log.v(TAG, "Network failure during data fetching")
-							None
-						}
-					}
-
-					optData map { rawData =>
-						val newData = parsing.parseRoutesJson(rawData)
-						writeToCache("routes.json", rawData)
-						newData
-					}
-				}
-
-				override def onPostExecute(result: Option[RoutesInfo]) {
-					consumer.stopFetch()
-					result match {
-						case Some(routesInfo) => consumer.onData(routesInfo)
-						case None => consumer.onError()
-					}
-				}
-			}
-
-			task.execute()
-		}
-
-		readFromCacheWithTimestamp("routes.json") match {
-			case Some((cachedData, modificationTime)) => {
-				val data = parsing.parseRoutesJson(cachedData)
-				getConsumer.onData(data)
-
-				if (modificationTime + MAX_ROUTES_LIST_AGE < (new util.Date).getTime) {
-					// Cache is out of date.
-					fetch(updateConsumer)
-				}
-			}
-
-			case None => fetch(getConsumer)
-		}
+		requestData(
+			"routes.json", MAX_ROUTES_LIST_AGE,
+			client.getRoutesList, parsing.parseRoutesJson,
+			getConsumer, updateConsumer
+		)
 	}
 
 	def getStopsList(): Map[String, Int] = {
@@ -174,5 +127,66 @@ class DataManager(context: Context) {
 			writeToCache(cacheName, data)
 
 		parsed
+	}
+
+	/**
+	 * @note Must be called from UI thread only.
+	 */
+	def requestData[T](
+		cacheName: String, updatePeriod: Int,
+		fetch: => String, parse: String => T,
+		getConsumer: DataConsumer[T], updateConsumer: DataConsumer[T]
+	) {
+		def fetchData(consumer: DataConsumer[T]) {
+			val task = new AsyncTaskBridge[Unit, Option[T]] {
+				override def onPreExecute() {
+					consumer.startFetch()
+				}
+
+				protected def doInBackgroundBridge(): Option[T] = {
+					val optData = try {
+						Log.v(TAG, "Fetch data")
+						val rawData = fetch
+						Log.v(TAG, "Data is successfully fetched")
+						Some(rawData)
+					} catch {
+						case _: UnknownHostException | _: ConnectException => {
+							Log.v(TAG, "Network failure during data fetching")
+							None
+						}
+					}
+
+					optData map { rawData =>
+						val newData = parse(rawData)
+						writeToCache(cacheName, rawData)
+						newData
+					}
+				}
+
+				override def onPostExecute(result: Option[T]) {
+					consumer.stopFetch()
+					result match {
+						case Some(data) => consumer.onData(data)
+						case None => consumer.onError()
+					}
+				}
+			}
+
+			task.execute()
+		}
+
+		readFromCacheWithTimestamp(cacheName) match {
+			case Some((cachedData, modificationTime)) => {
+				val data = parse(cachedData)
+				getConsumer.onData(data)
+
+				if (modificationTime + updatePeriod < (new util.Date).getTime) {
+					// Cache is out of date.
+					fetchData(updateConsumer)
+				}
+			}
+
+			case None => fetchData(getConsumer)
+		}
 	}
 }
