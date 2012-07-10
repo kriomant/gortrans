@@ -2,20 +2,21 @@ package net.kriomant.gortrans;
 
 import android.os.AsyncTask;
 
-/** Bridge class to work around Scala bug
+/** Bridge class to work around Scala bugs
  * https://issues.scala-lang.org/browse/SI-1459
+ * https://issues.scala-lang.org/browse/SI-5703
  */
-public abstract class AsyncTaskBridge<Params, Progress, Result> extends AsyncTask<Params, Progress, Result> {
+public abstract class AsyncTaskBridge<Progress, Result> extends AsyncTask<Void, Progress, Result> {
 	@Override
-	public Result doInBackground(Params... params) {
-		return doInBackgroundBridge(params);
+	public Result doInBackground(Void... params) {
+		return doInBackgroundBridge();
 	}
 
 	@Override
 	public void onProgressUpdate(Progress... values) {
-		onProgressUpdateBridge(values);
+		onProgressUpdateBridge(values[0]);
 	}
 
-	protected abstract Result doInBackgroundBridge(Params[] params);
-	protected void onProgressUpdateBridge(Progress[] progresses) {}
+	protected abstract Result doInBackgroundBridge();
+	protected void onProgressUpdateBridge(Progress progress) {}
 }

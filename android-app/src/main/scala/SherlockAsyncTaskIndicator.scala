@@ -11,7 +11,7 @@ trait SherlockAsyncTaskIndicator extends SherlockActivity { activity: SherlockAc
 		super.onCreate(savedInstanceState)
 	}
 
-	trait AsyncProcessIndicator[Param, Progress, Result] extends AsyncTaskBridge[Param, Progress, Result] {
+	trait AsyncProcessIndicator[Progress, Result] extends AsyncTaskBridge[Progress, Result] {
 		override def onPreExecute() {
 			activity.setSupportProgressBarIndeterminateVisibility(true)
 			super.onPreExecute()

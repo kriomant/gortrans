@@ -56,11 +56,10 @@ class RouteStopInfoActivity extends SherlockActivity
 {
 	import RouteStopInfoActivity._
 
-	class RefreshArrivalsTask extends AsyncTaskBridge[Object, Object, Either[String, Seq[Date]]]
-		with AsyncProcessIndicator[Object, Object, Either[String, Seq[Date]]]
+	class RefreshArrivalsTask extends AsyncTaskBridge[Unit, Either[String, Seq[Date]]]
+		with AsyncProcessIndicator[Unit, Either[String, Seq[Date]]]
 	{
-		// "Object with Object" is workaround for some strange Scala bug.
-		override def doInBackgroundBridge(params: Array[Object]) = {
+		override def doInBackgroundBridge() = {
 			val response = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
 			parsing.parseExpectedArrivals(response, stopName, new Date)
 		}

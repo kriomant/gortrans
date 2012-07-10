@@ -45,12 +45,12 @@ class DataManager(context: Context) {
 		val MAX_ROUTES_LIST_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
 
 		def fetch(consumer: DataConsumer[RoutesInfo]) {
-			val task = new AsyncTaskBridge[AnyRef, AnyRef, Option[RoutesInfo]] {
+			val task = new AsyncTaskBridge[Unit, Option[RoutesInfo]] {
 				override def onPreExecute() {
 					consumer.startFetch()
 				}
 
-				protected def doInBackgroundBridge(params: Array[AnyRef]): Option[RoutesInfo] = {
+				protected def doInBackgroundBridge(): Option[RoutesInfo] = {
 					val optData = try {
 						Log.v(TAG, "Fetch data")
 						val rawData = client.getRoutesList()

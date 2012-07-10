@@ -28,7 +28,7 @@ trait VehiclesWatcher { this: Activity =>
 
 	def updateVehiclesLocation() {
 		val task = new TrackVehiclesTask
-		task.execute(Unit)
+		task.execute()
 	}
 
 	def startUpdatingVehiclesLocation() {
@@ -43,12 +43,12 @@ trait VehiclesWatcher { this: Activity =>
 		onVehiclesLocationUpdateCancelled()
 	}
 
-	class TrackVehiclesTask extends AsyncTaskBridge[Object, Object, Seq[VehicleInfo]] {
+	class TrackVehiclesTask extends AsyncTaskBridge[Unit, Seq[VehicleInfo]] {
 		override def onPreExecute() {
 			onVehiclesLocationUpdateStarted()
 		}
 
-		override def doInBackgroundBridge(param: Array[Object]): Seq[VehicleInfo] = {
+		override def doInBackgroundBridge(): Seq[VehicleInfo] = {
 			val (vehicleType, routeId, routeName) = getVehiclesToTrack
 			val request = new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
 			val json = client.getVehiclesLocation(Seq(request))
