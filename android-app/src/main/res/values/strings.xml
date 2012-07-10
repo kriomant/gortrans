@@ -46,4 +46,14 @@
 		<string name="refresh_arrivals">Обновить</string>
 		<string name="show_schedule">Показать расписание</string>
 		<string name="refresh">Обновить</string>
+
+		<string name="loading">Загружаю...</string>
+		<string name="wait_please">Подождите, пожалуйста.</string>
+		<string name="cant_load">Ошибка</string>
+		<string name="loading_failure">Не удалось получить данные с сервера</string>
+		<string name="retry">Попробуй ещё раз</string>
+		<string name="abort">Ну и ладно</string>
+		<string name="background_update_started">Обновление данных...</string>
+		<string name="background_update_stopped">Данные обновлены</string>
+		<string name="background_update_error">Не удалось обновить данные</string>
 </resources>

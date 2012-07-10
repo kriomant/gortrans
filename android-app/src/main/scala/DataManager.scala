@@ -7,8 +7,24 @@ import net.kriomant.gortrans.parsing.{RoutePoint, RoutesInfo}
 import net.kriomant.gortrans.Client.{RouteInfoRequest}
 import android.content.Context
 import android.util.Log
+import java.util
+import java.net.{UnknownHostException, ConnectException}
+
+object DataManager {
+	final val TAG = "DataManager"
+
+	trait DataConsumer[T] {
+		def startFetch()
+		def stopFetch()
+
+		def onData(data: T)
+		def onError()
+	}
+}
 
 class DataManager(context: Context) {
+	import DataManager._
+
 	private[this] final val TAG = "DataManager"
 
 	object AndroidLogger extends Logger {
@@ -20,6 +36,65 @@ class DataManager(context: Context) {
 	def getRoutesList(): RoutesInfo = {
 		val cacheName = "routes.json"
 		getCachedOrFetch(cacheName, () => client.getRoutesList(), parsing.parseRoutesJson(_))
+	}
+
+	/**
+	 * @note Must be called from UI thread only.
+	 */
+	def requestRoutesList(getConsumer: DataConsumer[RoutesInfo], updateConsumer: DataConsumer[RoutesInfo]) {
+		val MAX_ROUTES_LIST_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
+
+		def fetch(consumer: DataConsumer[RoutesInfo]) {
+			val task = new AsyncTaskBridge[AnyRef, AnyRef, Option[RoutesInfo]] {
+				override def onPreExecute() {
+					consumer.startFetch()
+				}
+
+				protected def doInBackgroundBridge(params: Array[AnyRef]): Option[RoutesInfo] = {
+					val optData = try {
+						Log.v(TAG, "Fetch data")
+						val rawData = client.getRoutesList()
+						Log.v(TAG, "Data is successfully fetched")
+						Some(rawData)
+					} catch {
+						case _: UnknownHostException | _: ConnectException => {
+							Log.v(TAG, "Network failure during data fetching")
+							None
+						}
+					}
+
+					optData map { rawData =>
+						val newData = parsing.parseRoutesJson(rawData)
+						writeToCache("routes.json", rawData)
+						newData
+					}
+				}
+
+				override def onPostExecute(result: Option[RoutesInfo]) {
+					consumer.stopFetch()
+					result match {
+						case Some(routesInfo) => consumer.onData(routesInfo)
+						case None => consumer.onError()
+					}
+				}
+			}
+
+			task.execute()
+		}
+
+		readFromCacheWithTimestamp("routes.json") match {
+			case Some((cachedData, modificationTime)) => {
+				val data = parsing.parseRoutesJson(cachedData)
+				getConsumer.onData(data)
+
+				if (modificationTime + MAX_ROUTES_LIST_AGE < (new util.Date).getTime) {
+					// Cache is out of date.
+					fetch(updateConsumer)
+				}
+			}
+
+			case None => fetch(getConsumer)
+		}
 	}
 
 	def getStopsList(): Map[String, Int] = {
@@ -60,12 +135,14 @@ class DataManager(context: Context) {
 		)
 	}
 
-	def readFromCache(relPath: String): Option[String] = {
+	def readFromCache(relPath: String): Option[String] = readFromCacheWithTimestamp(relPath) map (_._1)
+
+	def readFromCacheWithTimestamp(relPath: String): Option[(String, Long)] = {
 		try {
 			val path = new File(context.getCacheDir, relPath)
 			closing(new FileInputStream(path)) { s =>
 				closing(new InputStreamReader(s)) { r =>
-					Some(r.readAll())
+					Some(r.readAll(), path.lastModified())
 				}
 			}
 		} catch {

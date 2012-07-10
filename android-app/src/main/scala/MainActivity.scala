@@ -7,8 +7,11 @@ import android.widget._
 import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
 import android.support.v4.app.{ListFragment, FragmentTransaction}
 import android.view.View
-import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar, SherlockActivity}
-import android.content.{Context, Intent}
+import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar}
+import com.actionbarsherlock.view.Window
+import android.content.{DialogInterface, Context, Intent}
+import net.kriomant.gortrans.DataManager.DataConsumer
+import android.app.{AlertDialog, ProgressDialog}
 
 object MainActivity {
 	def createIntent(caller: Context): Intent = {
@@ -22,28 +25,44 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
 
+	  setContentView(R.layout.main_activity)
+
 	  val actionBar = getSupportActionBar
 	  actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS)
 	  actionBar.setDisplayShowTitleEnabled(false)
 	  actionBar.setDisplayShowHomeEnabled(false)
 
-	  val vehicleTypeNames = Map(
-		  VehicleType.Bus -> R.string.bus,
-		  VehicleType.TrolleyBus -> R.string.trolleybus,
-		  VehicleType.TramWay -> R.string.tramway,
-		  VehicleType.MiniBus -> R.string.minibus
-	  ).mapValues(getString)
+	  if (bundle != null) {
+		  // Restore index of currently selected tab.
+		  actionBar.setSelectedNavigationItem(bundle.getInt("tabIndex"))
+	  }
+  }
 
-	  val vehicleTypeDrawables = Map(
-		  VehicleType.Bus -> R.drawable.tab_bus,
+	override def onStart() {
+		super.onStart()
+
+		loadRoutes()
+	}
+
+	def updateRoutesList(routes: parsing.RoutesInfo) {
+		val vehicleTypeNames = Map(
+			VehicleType.Bus -> R.string.bus,
+			VehicleType.TrolleyBus -> R.string.trolleybus,
+			VehicleType.TramWay -> R.string.tramway,
+			VehicleType.MiniBus -> R.string.minibus
+		).mapValues(getString)
+
+		val vehicleTypeDrawables = Map(
+			VehicleType.Bus -> R.drawable.tab_bus,
 			VehicleType.TrolleyBus -> R.drawable.tab_trolleybus,
 			VehicleType.TramWay -> R.drawable.tab_tram,
 			VehicleType.MiniBus -> R.drawable.tab_minibus
-	  ).mapValues(getResources.getDrawable(_))
+		).mapValues(getResources.getDrawable(_))
 
-	  val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+		val actionBar = getSupportActionBar
+		actionBar.removeAllTabs()
 
-		val tabs = dataManager.getRoutesList().map { p =>
+		val tabs = routes.map { p =>
 			val (vehicleType, routes) = p
 
 			val fragment = new RoutesListFragment(vehicleType)
@@ -51,23 +70,86 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 			val tab = actionBar.newTab
 				.setIcon(vehicleTypeDrawables(vehicleType))
 				.setTabListener(new TabListener {
-					def onTabSelected(tab: Tab, ft: FragmentTransaction) {
-						ft.replace(android.R.id.content, fragment)
-					}
-					def onTabReselected(tab: Tab, ft: FragmentTransaction) {}
-					def onTabUnselected(tab: Tab, ft: FragmentTransaction) {}
-				})
+				def onTabSelected(tab: Tab, ft: FragmentTransaction) {
+					ft.replace(R.id.tab_host, fragment)
+				}
+				def onTabReselected(tab: Tab, ft: FragmentTransaction) {}
+				def onTabUnselected(tab: Tab, ft: FragmentTransaction) {}
+			})
 
 			tab
 		}
-	  
-	  tabs.foreach(actionBar.addTab(_))
 
-	  if (bundle != null) {
-		  // Restore index of currently selected tab.
-		  actionBar.setSelectedNavigationItem(bundle.getInt("tabIndex"))
-	  }
-  }
+		tabs.foreach(actionBar.addTab(_))
+	}
+
+	def loadRoutes() {
+		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+		val progressBar = findView(TR.progress_bar)
+
+		dataManager.requestRoutesList(
+			new DataConsumer[parsing.RoutesInfo] {
+				val progressDialog = {
+					val d = new ProgressDialog(MainActivity.this)
+					d.setTitle(R.string.loading)
+					d.setMessage(getString(R.string.wait_please))
+					d
+				}
+
+				def startFetch() {
+					progressDialog.show()
+				}
+
+				def stopFetch() {
+					progressDialog.dismiss()
+				}
+
+				def onData(data: parsing.RoutesInfo) {
+					updateRoutesList(data)
+				}
+
+				def onError() {
+					(new AlertDialog.Builder(MainActivity.this)
+						.setTitle(R.string.cant_load)
+						.setMessage(R.string.loading_failure)
+
+						.setPositiveButton(R.string.retry, new DialogInterface.OnClickListener {
+							def onClick(p1: DialogInterface, p2: Int) {
+								p1.dismiss()
+								loadRoutes()
+							}
+						})
+
+						.setNegativeButton(R.string.abort, new DialogInterface.OnClickListener {
+							def onClick(p1: DialogInterface, p2: Int) {
+								p1.dismiss()
+								finish()
+							}
+						})
+					).create().show()
+				}
+			},
+			new DataConsumer[parsing.RoutesInfo] {
+				def startFetch() {
+					Toast.makeText(MainActivity.this, R.string.background_update_started, Toast.LENGTH_SHORT).show()
+					progressBar.setVisibility(View.VISIBLE)
+				}
+
+				def stopFetch() {
+					progressBar.setVisibility(View.INVISIBLE)
+				}
+
+				def onData(data: parsing.RoutesInfo) {
+					updateRoutesList(data)
+					Toast.makeText(MainActivity.this, R.string.background_update_stopped, Toast.LENGTH_SHORT).show()
+				}
+
+				def onError() {
+					Toast.makeText(MainActivity.this, R.string.background_update_error, Toast.LENGTH_SHORT).show()
+				}
+			}
+		)
+	}
 
 	override def onSaveInstanceState(outState: Bundle) {
 		// Save index of currently selected tab.
