@@ -12,6 +12,7 @@ import com.actionbarsherlock.view.Window
 import android.content.{DialogInterface, Context, Intent}
 import net.kriomant.gortrans.DataManager.DataConsumer
 import android.app.{AlertDialog, ProgressDialog}
+import android.util.Log
 
 object MainActivity {
 	def createIntent(caller: Context): Intent = {
@@ -22,6 +23,8 @@ object MainActivity {
 class MainActivity extends SherlockFragmentActivity with TypedActivity {
 	private[this] final val TAG = "MainActivity"
 
+	var tabFragments: Map[VehicleType.Value, RoutesListFragment] = null
+
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
 
@@ -31,6 +34,32 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 	  actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS)
 	  actionBar.setDisplayShowTitleEnabled(false)
 	  actionBar.setDisplayShowHomeEnabled(false)
+
+	  val vehicleTypeDrawables = Map(
+		  VehicleType.Bus -> R.drawable.tab_bus,
+		  VehicleType.TrolleyBus -> R.drawable.tab_trolleybus,
+		  VehicleType.TramWay -> R.drawable.tab_tram,
+		  VehicleType.MiniBus -> R.drawable.tab_minibus
+	  ).mapValues(getResources.getDrawable(_))
+
+	  tabFragments = vehicleTypeDrawables.mapValues { icon =>
+		  val fragment = new RoutesListFragment
+
+		  val tab = actionBar.newTab
+			  .setIcon(icon)
+			  .setTabListener(new TabListener {
+					def onTabSelected(tab: Tab, ft: FragmentTransaction) {
+						ft.replace(R.id.tab_host, fragment)
+					}
+					def onTabReselected(tab: Tab, ft: FragmentTransaction) {}
+					def onTabUnselected(tab: Tab, ft: FragmentTransaction) {}
+				})
+
+		  actionBar.addTab(tab)
+		  Log.d(TAG, "Tab added")
+
+		  fragment
+	  }.toMap
 
 	  if (bundle != null) {
 		  // Restore index of currently selected tab.
@@ -52,35 +81,10 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 			VehicleType.MiniBus -> R.string.minibus
 		).mapValues(getString)
 
-		val vehicleTypeDrawables = Map(
-			VehicleType.Bus -> R.drawable.tab_bus,
-			VehicleType.TrolleyBus -> R.drawable.tab_trolleybus,
-			VehicleType.TramWay -> R.drawable.tab_tram,
-			VehicleType.MiniBus -> R.drawable.tab_minibus
-		).mapValues(getResources.getDrawable(_))
-
-		val actionBar = getSupportActionBar
-		actionBar.removeAllTabs()
-
-		val tabs = routes.map { p =>
-			val (vehicleType, routes) = p
-
-			val fragment = new RoutesListFragment(vehicleType)
-
-			val tab = actionBar.newTab
-				.setIcon(vehicleTypeDrawables(vehicleType))
-				.setTabListener(new TabListener {
-				def onTabSelected(tab: Tab, ft: FragmentTransaction) {
-					ft.replace(R.id.tab_host, fragment)
-				}
-				def onTabReselected(tab: Tab, ft: FragmentTransaction) {}
-				def onTabUnselected(tab: Tab, ft: FragmentTransaction) {}
-			})
-
-			tab
+		routes foreach {case (vehicleType, routesList) =>
+			val fragment = tabFragments(vehicleType)
+			fragment.setRoutes(routesList)
 		}
-
-		tabs.foreach(actionBar.addTab(_))
 	}
 
 	def loadRoutes() {
@@ -158,27 +162,14 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 }
 
 class RoutesListFragment extends ListFragment {
-	var routes: Seq[core.Route] = null
-
-	def this(vehicleType: VehicleType.Value) = {
-		this()
-
-		val args = new Bundle
-		args.putInt("vehicleTypeId", vehicleType.id)
-		setArguments(args)
-	}
+	var routes: Seq[core.Route] = Seq()
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
 
-		val vehicleTypeId = getArguments.getInt("vehicleTypeId")
-
-		val dataManager = getActivity.getApplication.asInstanceOf[CustomApplication].dataManager
-		routes = dataManager.getRoutesList()(VehicleType(vehicleTypeId))
-
-		val listAdapter = new ListAdapter with EasyAdapter with SeqAdapter {
+		val listAdapter = new SeqAdapter with ListAdapter with EasyAdapter {
 			val context = getActivity
-			val items = routes
+			def items = routes
 			val itemLayout = R.layout.routes_list_item
 			case class SubViews(number: TextView, begin: TextView, end: TextView)
 
@@ -201,6 +192,13 @@ class RoutesListFragment extends ListFragment {
 		if (savedInstanceState != null) {
 			getListView.onRestoreInstanceState(savedInstanceState.getParcelable("list"))
 		}
+	}
+
+	def setRoutes(newRoutes: Seq[core.Route]) {
+		routes = newRoutes
+		val adapter = getListAdapter.asInstanceOf[BaseAdapter]
+		if (adapter != null)
+			adapter.notifyDataSetChanged()
 	}
 
 	override def onListItemClick(l: ListView, v: View, position: Int, id: Long) {

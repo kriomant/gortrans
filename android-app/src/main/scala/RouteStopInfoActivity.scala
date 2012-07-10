@@ -311,7 +311,7 @@ class RouteStopInfoActivity extends SherlockActivity
 }
 
 class ArrivalsListAdapter(val context: Context, val items: Seq[Date])
-	extends ListAdapter with EasyAdapter with SeqAdapter
+	extends SeqAdapter with ListAdapter with EasyAdapter
 {
 	case class SubViews(interval: TextView, time: TextView)
 

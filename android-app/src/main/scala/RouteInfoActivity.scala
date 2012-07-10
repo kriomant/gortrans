@@ -119,7 +119,7 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 }
 
 class RouteStopsAdapter(val context: Context, foldedRoute: Seq[FoldedRouteStop[String]])
-	extends ListAdapter with EasyAdapter with SeqAdapter {
+	extends SeqAdapter with ListAdapter with EasyAdapter {
 
 	val items = foldedRoute
 	val itemLayout = R.layout.route_info_item

@@ -2,9 +2,9 @@ package net.kriomant.gortrans
 
 import android.content.Context
 import android.view.{LayoutInflater, ViewGroup, View}
-import android.widget.Adapter
+import android.widget.ListAdapter
 
-trait EasyAdapter extends Adapter {
+trait EasyAdapter extends ListAdapter {
 	type SubViews
 	val context: Context
 	val itemLayout: Int
@@ -13,13 +13,13 @@ trait EasyAdapter extends Adapter {
 	def adjustItem(position: Int, views: SubViews)
 
 
-	def getItem(position: Int): AnyRef = null
+	override def getItem(position: Int): AnyRef = null
 
-	def getItemId(position: Int): Long = 0L
+	override def getItemId(position: Int): Long = 0L
 
-	def hasStableIds: Boolean = false
+	override def hasStableIds: Boolean = false
 
-	def getView(position: Int, convertView: View, parent: ViewGroup): View = {
+	override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
 		val (view, subViews) = if (convertView == null) {
 			val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
 			val view = inflater.inflate(itemLayout, parent, false)
@@ -35,11 +35,11 @@ trait EasyAdapter extends Adapter {
 		view
 	}
 
-	def getItemViewType(p1: Int): Int = 0
+	override def getItemViewType(p1: Int): Int = 0
 
-	def getViewTypeCount: Int = 1
+	override def getViewTypeCount: Int = 1
 
-	def areAllItemsEnabled(): Boolean = true
+	override def areAllItemsEnabled(): Boolean = true
 
-	def isEnabled(position: Int): Boolean = true
+	override def isEnabled(position: Int): Boolean = true
 }
