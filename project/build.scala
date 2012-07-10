@@ -36,7 +36,8 @@ object General {
   )
 
   val proguardSettings = Seq (
-    useProguard in Android := true
+    useProguard in Android := true,
+	  proguardOption in Android ~= { _ + " -dontnote scala.** " }
   )
 
   lazy val fullAndroidSettings =
@@ -53,7 +54,7 @@ object General {
 			libraryDependencies += "com.actionbarsherlock" % "library" % "4.0.2" artifacts(Artifact("library", "apklib", "apklib")),
 	    libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.0.0",
       // Prevent ProGuard from stripping ActionBarSherlock implementation classes which are used through reflection.
-      proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
+      proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep class android.support.v4.content.Loader* -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
 
       googleMapsJar <<= (sdkPath in Android, apiLevel in Android) { (path, apiLevel) =>
           (path / "add-ons" / "addon-google_apis-google-%d".format(apiLevel)
