@@ -10,7 +10,7 @@ import android.view.View
 import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar}
 import com.actionbarsherlock.view.Window
 import android.content.{DialogInterface, Context, Intent}
-import net.kriomant.gortrans.DataManager.DataConsumer
+import net.kriomant.gortrans.DataManager.ProcessIndicator
 import android.app.{AlertDialog, ProgressDialog}
 import android.util.Log
 
@@ -91,68 +91,27 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 		val progressBar = findView(TR.progress_bar)
 
-		dataManager.requestRoutesList(
-			new DataConsumer[parsing.RoutesInfo] {
-				val progressDialog = {
-					val d = new ProgressDialog(MainActivity.this)
-					d.setTitle(R.string.loading)
-					d.setMessage(getString(R.string.wait_please))
-					d
-				}
-
-				def startFetch() {
-					progressDialog.show()
-				}
-
-				def stopFetch() {
-					progressDialog.dismiss()
-				}
-
-				def onData(data: parsing.RoutesInfo) {
-					updateRoutesList(data)
-				}
-
-				def onError() {
-					(new AlertDialog.Builder(MainActivity.this)
-						.setTitle(R.string.cant_load)
-						.setMessage(R.string.loading_failure)
-
-						.setPositiveButton(R.string.retry, new DialogInterface.OnClickListener {
-							def onClick(p1: DialogInterface, p2: Int) {
-								p1.dismiss()
-								loadRoutes()
-							}
-						})
-
-						.setNegativeButton(R.string.abort, new DialogInterface.OnClickListener {
-							def onClick(p1: DialogInterface, p2: Int) {
-								p1.dismiss()
-								finish()
-							}
-						})
-					).create().show()
-				}
-			},
-			new DataConsumer[parsing.RoutesInfo] {
-				def startFetch() {
-					Toast.makeText(MainActivity.this, R.string.background_update_started, Toast.LENGTH_SHORT).show()
-					progressBar.setVisibility(View.VISIBLE)
-				}
-
-				def stopFetch() {
-					progressBar.setVisibility(View.INVISIBLE)
-				}
-
-				def onData(data: parsing.RoutesInfo) {
-					updateRoutesList(data)
-					Toast.makeText(MainActivity.this, R.string.background_update_stopped, Toast.LENGTH_SHORT).show()
-				}
-
-				def onError() {
-					Toast.makeText(MainActivity.this, R.string.background_update_error, Toast.LENGTH_SHORT).show()
-				}
+		val foregroundProcessIndicator = new ForegroundProcessIndicator(this, loadRoutes)
+		val backgroundProcessIndicator = new ProcessIndicator {
+			def startFetch() {
+				Toast.makeText(MainActivity.this, R.string.background_update_started, Toast.LENGTH_SHORT).show()
+				progressBar.setVisibility(View.VISIBLE)
 			}
-		)
+
+			def stopFetch() {
+				progressBar.setVisibility(View.INVISIBLE)
+			}
+
+			def onSuccess() {
+				Toast.makeText(MainActivity.this, R.string.background_update_stopped, Toast.LENGTH_SHORT).show()
+			}
+
+			def onError() {
+				Toast.makeText(MainActivity.this, R.string.background_update_error, Toast.LENGTH_SHORT).show()
+			}
+		}
+
+		dataManager.requestRoutesList(foregroundProcessIndicator, backgroundProcessIndicator)(updateRoutesList)
 	}
 
 	override def onSaveInstanceState(outState: Bundle) {

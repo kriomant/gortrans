@@ -2,15 +2,14 @@ package net.kriomant.gortrans
 
 import _root_.android.os.Bundle
 
-import android.app.ListActivity
 import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint}
-import android.view.View.OnClickListener
 import android.view.View
 import android.content.{Context, Intent}
-import android.widget.{ListView, TextView, ListAdapter}
+import android.widget.{AdapterView, ListView, TextView, ListAdapter}
 import net.kriomant.gortrans.core._
-import com.actionbarsherlock.app.SherlockListActivity
+import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.{MenuItem, Menu}
+import android.widget.AdapterView.OnItemClickListener
 
 object RouteInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -28,13 +27,15 @@ object RouteInfoActivity {
 	}
 }
 
-class RouteInfoActivity extends SherlockListActivity with TypedActivity {
+class RouteInfoActivity extends SherlockActivity with TypedActivity {
 	import RouteInfoActivity._
 
 	private[this] final val TAG = "RouteInfoActivity"
 
+	private[this] var listView: ListView = null
 	private[this] var dataManager: DataManager = null
 
+	private[this] var stopsMap: Map[String, Int] = null
 	private[this] var foldedRoute: Seq[FoldedRouteStop[String]] = null
 	private[this] var routeId: String = null
 	private[this] var routeName: String = null
@@ -45,11 +46,16 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 
 		setContentView(R.layout.route_info)
 
-		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+		listView = findViewById(android.R.id.list).asInstanceOf[ListView]
+		listView.setOnItemClickListener(new OnItemClickListener {
+			def onItemClick(p1: AdapterView[_], p2: View, p3: Int, p4: Long) {
+				onListItemClick(p1, p2, p3, p4)
+			}
+		})
 
 		// Disable list item dividers so that route stop icons
 		// together look like solid route line.
-		getListView.setDivider(null)
+		listView.setDivider(null)
 
 		val intent = getIntent
 		routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
@@ -67,22 +73,41 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 		actionBar.setDisplayHomeAsUpEnabled(true)
 		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
 		actionBar.setSubtitle(R.string.route)
+	}
 
-		val routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
-		if (routePoints.nonEmpty) {
+	override def onStart() {
+		super.onStart()
+		loadData()
+	}
 
-			val stopNames = routePoints.collect {
-				case RoutePoint(Some(RouteStop(name, _)), _, _) => name
+	def loadData() {
+		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+
+		dataManager.requestRoutePoints(
+			vehicleType, routeId, routeName,
+			new ForegroundProcessIndicator(this, loadData),
+			new ActionBarProcessIndicator(this)
+		) { routePoints =>
+			if (routePoints.nonEmpty) {
+
+				val stopNames = routePoints.collect {
+					case RoutePoint(Some(RouteStop(name, _)), _, _) => name
+				}
+				foldedRoute = core.foldRoute(stopNames, identity)
+
+				val listAdapter = new RouteStopsAdapter(this, foldedRoute)
+				listView.setAdapter(listAdapter)
+			} else {
+				val view = findView(TR.error_message)
+				view.setText(R.string.no_route_points)
+				view.setVisibility(View.VISIBLE)
 			}
-			foldedRoute = core.foldRoute(stopNames, identity)
-
-			val listAdapter = new RouteStopsAdapter(this, foldedRoute)
-			setListAdapter(listAdapter)
-		} else {
-			val view = findView(TR.error_message)
-			view.setText(R.string.no_route_points)
-			view.setVisibility(View.VISIBLE)
 		}
+
+		dataManager.requestStopsList(
+			new ForegroundProcessIndicator(this, loadData),
+			new ActionBarProcessIndicator(this)
+		) { stopsMap = _ }
 	}
 
 	override def onCreateOptionsMenu(menu: Menu): Boolean = {
@@ -106,9 +131,8 @@ class RouteInfoActivity extends SherlockListActivity with TypedActivity {
 		case _ => false
 	}
 
-	override def onListItemClick(l: ListView, v: View, position: Int, id: Long) {
+	def onListItemClick(l: AdapterView[_], v: View, position: Int, id: Long) {
 		val stopName = foldedRoute(position).name
-		val stopsMap = dataManager.getStopsList()
 
 		val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
 		val stopId = stopsMap.getOrElse(fixedStopName, -1)

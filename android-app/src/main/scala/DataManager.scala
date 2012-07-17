@@ -13,11 +13,10 @@ import java.net.{UnknownHostException, ConnectException}
 object DataManager {
 	final val TAG = "DataManager"
 
-	trait DataConsumer[T] {
+	trait ProcessIndicator {
 		def startFetch()
 		def stopFetch()
-
-		def onData(data: T)
+		def onSuccess()
 		def onError()
 	}
 }
@@ -41,12 +40,12 @@ class DataManager(context: Context) {
 	/**
 	 * @note Must be called from UI thread only.
 	 */
-	def requestRoutesList(getConsumer: DataConsumer[RoutesInfo], updateConsumer: DataConsumer[RoutesInfo]) {
+	def requestRoutesList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: RoutesInfo => Unit) {
 		val MAX_ROUTES_LIST_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
 		requestData(
 			"routes.json", MAX_ROUTES_LIST_AGE,
 			client.getRoutesList, parsing.parseRoutesJson,
-			getConsumer, updateConsumer
+			getIndicator, updateIndicator, f
 		)
 	}
 
@@ -59,6 +58,17 @@ class DataManager(context: Context) {
 		)
 	}
 
+	def requestStopsList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: Map[String, Int] => Unit) {
+		val MAX_STOPS_LIST_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
+		requestData(
+			"stops.txt",
+			MAX_STOPS_LIST_AGE,
+			client.getStopsList(""),
+			parsing.parseStopsList(_),
+			getIndicator, updateIndicator, f
+		)
+	}
+
 	def getRoutePoints(vehicleType: VehicleType.Value, routeId: String, routeName: String): Seq[RoutePoint] = {
 		val cacheName = "points/%s-%s.json".format(vehicleType.toString, routeId)
 		getCachedOrFetch(
@@ -68,12 +78,40 @@ class DataManager(context: Context) {
 		)
 	}
 
+	def requestRoutePoints(
+		vehicleType: VehicleType.Value, routeId: String, routeName: String,
+		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
+	)(f: Seq[RoutePoint] => Unit) {
+		val MAX_ROUTE_POINTS_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
+		requestData(
+			"points/%s-%s.json" format (vehicleType.toString, routeId),
+			MAX_ROUTE_POINTS_AGE,
+			client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both))),
+			json => parsing.parseRoutesPoints(json)(routeId),
+			getIndicator, updateIndicator, f
+		)
+	}
+
 	def getAvailableRouteScheduleTypes(vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value): Map[ScheduleType.Value, String] = {
 		val cacheName = "route-schedule-types/%d-%s-%s.xml" format (vehicleType.id, routeId, direction.toString)
 		getCachedOrFetch(
 			cacheName,
 			() => client.getAvailableScheduleTypes(vehicleType, routeId, direction),
 			parsing.parseAvailableScheduleTypes(_)
+		)
+	}
+
+	def requestAvailableRouteScheduleTypes(
+		vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value,
+		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
+	)(f: Map[ScheduleType.Value, String] => Unit) {
+		val MAX_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
+		requestData(
+			"route-schedule-types/%d-%s-%s.xml" format (vehicleType.id, routeId, direction.toString),
+			MAX_AGE,
+			client.getAvailableScheduleTypes(vehicleType, routeId, direction),
+			parsing.parseAvailableScheduleTypes,
+			getIndicator, updateIndicator, f
 		)
 	}
 
@@ -135,12 +173,13 @@ class DataManager(context: Context) {
 	def requestData[T](
 		cacheName: String, updatePeriod: Int,
 		fetch: => String, parse: String => T,
-		getConsumer: DataConsumer[T], updateConsumer: DataConsumer[T]
+		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator,
+		f: T => Unit
 	) {
-		def fetchData(consumer: DataConsumer[T]) {
+		def fetchData(indicator: ProcessIndicator) {
 			val task = new AsyncTaskBridge[Unit, Option[T]] {
 				override def onPreExecute() {
-					consumer.startFetch()
+					indicator.startFetch()
 				}
 
 				protected def doInBackgroundBridge(): Option[T] = {
@@ -164,10 +203,10 @@ class DataManager(context: Context) {
 				}
 
 				override def onPostExecute(result: Option[T]) {
-					consumer.stopFetch()
+					indicator.stopFetch()
 					result match {
-						case Some(data) => consumer.onData(data)
-						case None => consumer.onError()
+						case Some(data) => indicator.onSuccess(); f(data)
+						case None => indicator.onError()
 					}
 				}
 			}
@@ -178,15 +217,15 @@ class DataManager(context: Context) {
 		readFromCacheWithTimestamp(cacheName) match {
 			case Some((cachedData, modificationTime)) => {
 				val data = parse(cachedData)
-				getConsumer.onData(data)
+				f(data)
 
 				if (modificationTime + updatePeriod < (new util.Date).getTime) {
 					// Cache is out of date.
-					fetchData(updateConsumer)
+					fetchData(updateIndicator)
 				}
 			}
 
-			case None => fetchData(getConsumer)
+			case None => fetchData(getIndicator)
 		}
 	}
 }

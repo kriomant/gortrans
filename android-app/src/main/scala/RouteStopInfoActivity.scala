@@ -7,7 +7,7 @@ import android.view.View.OnClickListener
 import android.view.View
 import android.util.Log
 import android.content.{Intent, Context}
-import android.widget.{ListView, ListAdapter, TextView}
+import android.widget.{Toast, ListView, ListAdapter, TextView}
 import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.{Window, MenuItem, Menu}
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint, RouteStop}
@@ -19,6 +19,7 @@ import scala.Some
 import net.kriomant.gortrans.parsing.RouteStop
 import scala.Left
 import net.kriomant.gortrans.parsing.VehicleInfo
+import net.kriomant.gortrans.DataManager.ProcessIndicator
 
 object RouteStopInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteStopInfoActivity].getName
@@ -114,10 +115,6 @@ class RouteStopInfoActivity extends SherlockActivity
 		stopId = intent.getIntExtra(EXTRA_STOP_ID, -1)
 		stopName = intent.getStringExtra(EXTRA_STOP_NAME)
 
-		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
-		route = dataManager.getRoutesList()(vehicleType).view.filter(_.id == routeId).head
-		routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
-
 		// Set title.
 		val routeNameFormatByVehicleType = Map(
 			VehicleType.Bus -> R.string.bus_n,
@@ -131,57 +128,6 @@ class RouteStopInfoActivity extends SherlockActivity
 		actionBar.setSubtitle(stopName)
 		actionBar.setDisplayHomeAsUpEnabled(true)
 
-		// Get available directions.
-		val stopPoints: Seq[RoutePoint] = routePoints.filter(_.stop.isDefined)
-		foldedRoute = core.foldRoute[RoutePoint](stopPoints, _.stop.get.name)
-		availableDirections = foldedRoute.find(s => s.name == stopName).get.directions
-
-		direction = availableDirections match {
-			case DirectionsEx.Backward => Direction.Backward
-			case _ => Direction.Forward
-		}
-
-		setDirectionText()
-
-		val (totalLength, positions) = core.straightenRoute(routePoints)
-		pointPositions = positions
-
-		val straightenedStops = ((positions ++ Seq(totalLength)) zip routePoints).collect {
-			case (pos, RoutePoint(Some(RouteStop(name, _)), _, _)) => (pos.toFloat, name)
-		}
-		val folded = core.foldRouteInternal(straightenedStops.map(_._2))
-
-		// Create maps from stop name to index separately for forward and backward route parts.
-		val forwardStops  = folded.collect{case (name, Some(i), _) => (name, i)}.toMap
-		val backwardStops = folded.collect{case (name, _, Some(i)) => (name, i)}.toMap
-		val stops = direction match {
-			case Direction.Forward  => forwardStops
-			case Direction.Backward => backwardStops
-		}
-
-		val flatRoute = findView(TR.flat_route)
-		flatRoute.setStops(totalLength.toFloat, straightenedStops, stops(stopName))
-
-		if (availableDirections == DirectionsEx.Both) {
-			val toggleDirectionButton = findView(TR.toggle_direction)
-			toggleDirectionButton.setOnClickListener(new OnClickListener {
-				def onClick(p1: View) {
-					direction = Direction.inverse(direction)
-					setDirectionText()
-					if (stopId != -1) {
-						refreshArrivals()
-					}
-
-					val stops = direction match {
-						case Direction.Forward  => forwardStops
-						case Direction.Backward => backwardStops
-					}
-					flatRoute.setStops(totalLength.toFloat, straightenedStops, stops(stopName))
-				}
-			})
-			toggleDirectionButton.setVisibility(View.VISIBLE)
-		}
-
 		if (stopId == -1) {
 			val list = findViewById(android.R.id.list).asInstanceOf[ListView]
 			val no_arrivals_view = findView(TR.no_arrivals)
@@ -190,6 +136,31 @@ class RouteStopInfoActivity extends SherlockActivity
 			no_arrivals_view.setVisibility(View.VISIBLE)
 			no_arrivals_view.setText(getResources.getString(R.string.no_arrivals))
 			list.setVisibility(View.GONE)
+		}
+	}
+
+	override def onStart() {
+		super.onStart()
+		loadData()
+	}
+
+	def loadData() {
+		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+		dataManager.requestRoutesList(
+			new ForegroundProcessIndicator(this, loadData),
+			new ActionBarProcessIndicator(this)
+		) { routes =>
+			route = routes(vehicleType).view.filter(_.id == routeId).head
+			setDirectionText()
+		}
+
+		dataManager.requestRoutePoints(
+			vehicleType, routeId, routeName,
+			new ForegroundProcessIndicator(this, loadData),
+			new ActionBarProcessIndicator(this)
+		) { points =>
+			routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
+			routePointsUpdated()
 		}
 	}
 
@@ -247,7 +218,7 @@ class RouteStopInfoActivity extends SherlockActivity
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case android.R.id.home => {
-			val intent = RouteInfoActivity.createIntent(this, route.id, route.name, route.vehicleType)
+			val intent = RouteInfoActivity.createIntent(this, routeId, routeName, vehicleType)
 			intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 			startActivity(intent)
 			true
@@ -262,11 +233,13 @@ class RouteStopInfoActivity extends SherlockActivity
 	}
 
 	def setDirectionText() {
-		val fmt = direction match {
-			case Direction.Forward => "%1$s ⇒ %2$s"
-			case Direction.Backward => "%2$s ⇒ %1$s"
+		if (direction != null && route != null) {
+			val fmt = direction match {
+				case Direction.Forward => "%1$s ⇒ %2$s"
+				case Direction.Backward => "%2$s ⇒ %1$s"
+			}
+			findView(TR.direction_text).setText(fmt format (route.begin, route.end))
 		}
-		findView(TR.direction_text).setText(fmt format (route.begin, route.end))
 	}
 
 	def getShortcutNameAndIcon: (String, Int) = {
@@ -306,6 +279,60 @@ class RouteStopInfoActivity extends SherlockActivity
 				no_arrivals_view.setText(getResources.getString(R.string.cant_get_arrivals, message))
 				list.setVisibility(View.GONE)
 		}
+	}
+
+	def routePointsUpdated() {
+		// Get available directions.
+		val stopPoints: Seq[RoutePoint] = routePoints.filter(_.stop.isDefined)
+		foldedRoute = core.foldRoute[RoutePoint](stopPoints, _.stop.get.name)
+		availableDirections = foldedRoute.find(s => s.name == stopName).get.directions
+
+		direction = availableDirections match {
+			case DirectionsEx.Backward => Direction.Backward
+			case _ => Direction.Forward
+		}
+
+		setDirectionText()
+
+		val (totalLength, positions) = core.straightenRoute(routePoints)
+		pointPositions = positions
+
+		val straightenedStops = ((positions ++ Seq(totalLength)) zip routePoints).collect {
+			case (pos, RoutePoint(Some(RouteStop(name, _)), _, _)) => (pos.toFloat, name)
+		}
+		val folded = core.foldRouteInternal(straightenedStops.map(_._2))
+
+		// Create maps from stop name to index separately for forward and backward route parts.
+		val forwardStops  = folded.collect{case (name, Some(i), _) => (name, i)}.toMap
+		val backwardStops = folded.collect{case (name, _, Some(i)) => (name, i)}.toMap
+		val stops = direction match {
+			case Direction.Forward  => forwardStops
+			case Direction.Backward => backwardStops
+		}
+
+		val flatRoute = findView(TR.flat_route)
+		flatRoute.setStops(totalLength.toFloat, straightenedStops, stops(stopName))
+
+		if (availableDirections == DirectionsEx.Both) {
+			val toggleDirectionButton = findView(TR.toggle_direction)
+			toggleDirectionButton.setOnClickListener(new OnClickListener {
+				def onClick(p1: View) {
+					direction = Direction.inverse(direction)
+					setDirectionText()
+					if (stopId != -1) {
+						refreshArrivals()
+					}
+
+					val stops = direction match {
+						case Direction.Forward  => forwardStops
+						case Direction.Backward => backwardStops
+					}
+					flatRoute.setStops(totalLength.toFloat, straightenedStops, stops(stopName))
+				}
+			})
+			toggleDirectionButton.setVisibility(View.VISIBLE)
+		}
+
 	}
 }
 

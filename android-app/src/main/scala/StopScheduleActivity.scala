@@ -69,15 +69,29 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 		actionBar.setTitle(stopScheduleFormatByVehicleType(vehicleType).format(routeName, stopName))
 		actionBar.setSubtitle(stopName)
 		actionBar.setDisplayHomeAsUpEnabled(true)
+	}
 
-		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
-		val scheduleTypes = dataManager.getAvailableRouteScheduleTypes(vehicleType, routeId, Direction.Forward)
-		val schedules = scheduleTypes.toSeq.map{ case (scheduleType, scheduleName) =>
-			(scheduleName, dataManager.getStopSchedule(stopId, vehicleType, routeId, Direction.Forward, scheduleType))
-		}
+	override def onStart() {
+		super.onStart()
+		loadData()
+	}
 
-		val viewPager = findView(TR.schedule_tabs)
-		viewPager.setAdapter(new SchedulePagesAdapter(this, schedules))
+	def loadData() {
+		new AsyncTaskBridge[Unit, Seq[(String, Seq[(Int, Seq[Int])])]] {
+			override def doInBackgroundBridge() = {
+				val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+
+				val scheduleTypes = dataManager.getAvailableRouteScheduleTypes(vehicleType, routeId, Direction.Forward)
+				scheduleTypes.toSeq.map{ case (scheduleType, scheduleName) =>
+					(scheduleName, dataManager.getStopSchedule(stopId, vehicleType, routeId, Direction.Forward, scheduleType))
+				}
+			}
+
+			override def onPostExecute(schedules: Seq[(String, Seq[(Int, Seq[Int])])]) {
+				val viewPager = findView(TR.schedule_tabs)
+				viewPager.setAdapter(new SchedulePagesAdapter(StopScheduleActivity.this, schedules))
+			}
+		}.execute()
 	}
 
 	class SchedulePagesAdapter(context: Context, schedules: Seq[(String, Seq[(Int, Seq[Int])])]) extends PagerAdapter {
