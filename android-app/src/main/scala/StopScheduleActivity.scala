@@ -11,6 +11,7 @@ import android.widget.{SimpleAdapter, ListView}
 import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.MenuItem
 import android.content.{Intent, Context}
+import java.util.Calendar
 
 object StopScheduleActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -77,19 +78,34 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 	}
 
 	def loadData() {
-		new AsyncTaskBridge[Unit, Seq[(String, Seq[(Int, Seq[Int])])]] {
+		new AsyncTaskBridge[Unit, Map[core.ScheduleType.Value, (String, Seq[(Int, Seq[Int])])]] {
 			override def doInBackgroundBridge() = {
 				val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 
 				val scheduleTypes = dataManager.getAvailableRouteScheduleTypes(vehicleType, routeId, Direction.Forward)
-				scheduleTypes.toSeq.map{ case (scheduleType, scheduleName) =>
-					(scheduleName, dataManager.getStopSchedule(stopId, vehicleType, routeId, Direction.Forward, scheduleType))
+				scheduleTypes.map { case (scheduleType, scheduleName) =>
+					scheduleType -> (scheduleName, dataManager.getStopSchedule(stopId, vehicleType, routeId, Direction.Forward, scheduleType))
 				}
 			}
 
-			override def onPostExecute(schedules: Seq[(String, Seq[(Int, Seq[Int])])]) {
+			override def onPostExecute(schedulesMap: Map[core.ScheduleType.Value, (String, Seq[(Int, Seq[Int])])]) {
+				// Schedules are presented as map, it is needed to order them somehow.
+				// I assume 'keys' and 'values' traverse items in the same order.
+				val schedules = schedulesMap.values.toSeq
+				val typeToIndex = schedulesMap.keys.zipWithIndex.toMap
+
+				// Display schedule.
 				val viewPager = findView(TR.schedule_tabs)
 				viewPager.setAdapter(new SchedulePagesAdapter(StopScheduleActivity.this, schedules))
+
+				// Select page corresponding to current day of week.
+				val dayOfWeek = Calendar.getInstance.get(Calendar.DAY_OF_WEEK)
+				val optIndex = (dayOfWeek match {
+					case Calendar.SATURDAY | Calendar.SUNDAY => typeToIndex.get(core.ScheduleType.Holidays)
+					case _ => typeToIndex.get(core.ScheduleType.Workdays)
+				}).orElse(typeToIndex.get(core.ScheduleType.Daily))
+
+				optIndex map { index => viewPager.setCurrentItem(index) }
 			}
 		}.execute()
 	}
