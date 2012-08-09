@@ -112,8 +112,10 @@ class RouteMapActivity extends SherlockMapActivity
 		showMyLocationButton.setOnClickListener(new OnClickListener {
 			def onClick(view: View) {
 				val location = currentLocation
-				val ctrl = mapView.getController
-				ctrl.animateTo(new GeoPoint((location.getLatitude * 1e6).toInt, (location.getLongitude * 1e6).toInt))
+				if (location != null) {
+					val ctrl = mapView.getController
+					ctrl.animateTo(new GeoPoint((location.getLatitude * 1e6).toInt, (location.getLongitude * 1e6).toInt))
+				}
 			}
 		})
 		onNewIntent(getIntent)
