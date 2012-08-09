@@ -27,6 +27,7 @@
     <string name="routes_list">Список маршрутов</string>
     <string name="show_route_map">Показать маршрут на карте</string>
     <string name="stop_schedule">Расписание для остановки</string>
+		<string name="no_schedules">Сервер не предоставляет расписание</string>
 	
     <string name="vehicles_tracking_turned_on">Включено отслеживание положения транспорта</string>
     <string name="vehicles_tracking_turned_off">Выключено отслеживание положения транспорта</string>
