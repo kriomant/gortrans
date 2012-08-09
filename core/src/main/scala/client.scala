@@ -140,9 +140,14 @@ class Client(logger: Logger) {
 		val cookies = {
 			val conn = MAPS_HOST.openConnection().asInstanceOf[HttpURLConnection]
 			try {
-				println(conn.getHeaderFields)
-				val cookieHeaders = Option(conn.getHeaderFields().get("Set-Cookie")).getOrElse(new java.util.ArrayList[String])
-				cookieHeaders.asScala.map {
+				val headers = conn.getHeaderFields
+				logger.verbose("Headers: %s" format headers)
+
+				val cookieHeaders = headers.asScala.flatMap{
+					case (name, value) if name equalsIgnoreCase "Set-Cookie" => value.asScala
+					case _ => Seq()
+				}
+				cookieHeaders.map {
 					header =>
 						val text = header.takeWhile(_ != ';')
 						val parts = text.split("=", 2)
