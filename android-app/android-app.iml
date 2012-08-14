@@ -42,9 +42,6 @@
       <sourceFolder url="file://$MODULE_DIR$/target/scala-2.8.2/src_managed/main/java" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/gen" isTestSource="false" />
     </content>
-    <content url="file://$MODULE_DIR$/../../target/scala-2.8.2/src_managed/main/java">
-      <sourceFolder url="file://$MODULE_DIR$/../../target/scala-2.8.2/src_managed/main/java" isTestSource="false" />
-    </content>
     <orderEntry type="jdk" jdkName="Android 4 Google APIs" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module-library">
