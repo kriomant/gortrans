@@ -5,7 +5,7 @@ import _root_.android.os.Bundle
 import net.kriomant.gortrans.core.VehicleType
 import android.widget._
 import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
-import android.support.v4.app.{ListFragment, FragmentTransaction}
+import android.support.v4.app.{FragmentPagerAdapter, ListFragment, FragmentTransaction}
 import android.view.{ViewGroup, LayoutInflater, View}
 import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar}
 import com.actionbarsherlock.view.Window
@@ -13,6 +13,7 @@ import android.content.{DialogInterface, Context, Intent}
 import net.kriomant.gortrans.DataManager.ProcessIndicator
 import android.app.{AlertDialog, ProgressDialog}
 import android.util.Log
+import android.support.v4.view.ViewPager.OnPageChangeListener
 
 object MainActivity {
 	def createIntent(caller: Context): Intent = {
@@ -23,7 +24,7 @@ object MainActivity {
 class MainActivity extends SherlockFragmentActivity with TypedActivity {
 	private[this] final val TAG = "MainActivity"
 
-	var tabFragments: Map[VehicleType.Value, RoutesListFragment] = null
+	var tabFragmentsMap: Map[VehicleType.Value, RoutesListFragment] = null
 
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
@@ -42,24 +43,42 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 		  VehicleType.MiniBus -> R.drawable.tab_minibus
 	  ).mapValues(getResources.getDrawable(_))
 
-	  tabFragments = vehicleTypeDrawables.mapValues { icon =>
-		  val fragment = new RoutesListFragment
+	  val tabPager = findView(TR.tab_pager)
 
-		  val tab = actionBar.newTab
-			  .setIcon(icon)
-			  .setTabListener(new TabListener {
+	  // Fix tabs order.
+	  val tabsOrder = Seq(VehicleType.Bus, VehicleType.TrolleyBus, VehicleType.TramWay, VehicleType.MiniBus)
+	  val tabFragments = Seq.fill(tabsOrder.size) { new RoutesListFragment }
+	  tabFragmentsMap = tabsOrder.zip(tabFragments).toMap
+
+	  tabsOrder.zipWithIndex foreach { case (vehicleType, i) =>
+		  val fragment = tabFragments(i)
+		  val icon = vehicleTypeDrawables(vehicleType)
+
+			val tab = actionBar.newTab
+				.setIcon(icon)
+				.setTabListener(new TabListener {
 					def onTabSelected(tab: Tab, ft: FragmentTransaction) {
-						ft.replace(R.id.tab_host, fragment)
+						tabPager.setCurrentItem(i)
 					}
 					def onTabReselected(tab: Tab, ft: FragmentTransaction) {}
 					def onTabUnselected(tab: Tab, ft: FragmentTransaction) {}
 				})
 
-		  actionBar.addTab(tab)
-		  Log.d(TAG, "Tab added")
+			actionBar.addTab(tab)
+		}
 
-		  fragment
-	  }.toMap
+	  tabPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager) {
+		  def getCount = tabFragments.size
+		  def getItem(pos: Int) = tabFragments(pos)
+	  })
+	  tabPager.setOnPageChangeListener(new OnPageChangeListener {
+		  def onPageScrolled(p1: Int, p2: Float, p3: Int) {}
+		  def onPageScrollStateChanged(p1: Int) {}
+
+		  def onPageSelected(pos: Int) {
+			  actionBar.setSelectedNavigationItem(pos)
+		  }
+	  })
 
 	  if (bundle != null) {
 		  // Restore index of currently selected tab.
@@ -82,7 +101,7 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 		).mapValues(getString)
 
 		routes foreach {case (vehicleType, routesList) =>
-			val fragment = tabFragments(vehicleType)
+			val fragment = tabFragmentsMap(vehicleType)
 			fragment.setRoutes(routesList)
 		}
 	}
