@@ -144,6 +144,7 @@ class Client(logger: Logger) {
 				logger.verbose("Headers: %s" format headers)
 
 				val cookieHeaders = headers.asScala.flatMap{
+					case (null, _) => Seq() // HTTP response status is stored with `null` key.
 					case (name, value) if name equalsIgnoreCase "Set-Cookie" => value.asScala
 					case _ => Seq()
 				}
