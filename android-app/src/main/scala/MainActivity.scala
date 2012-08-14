@@ -6,7 +6,7 @@ import net.kriomant.gortrans.core.VehicleType
 import android.widget._
 import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
 import android.support.v4.app.{ListFragment, FragmentTransaction}
-import android.view.View
+import android.view.{ViewGroup, LayoutInflater, View}
 import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar}
 import com.actionbarsherlock.view.Window
 import android.content.{DialogInterface, Context, Intent}
@@ -122,6 +122,10 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 
 class RoutesListFragment extends ListFragment {
 	var routes: Seq[core.Route] = Seq()
+
+	override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle) = {
+		inflater.inflate(R.layout.routes_list_tab, container, false)
+	}
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
