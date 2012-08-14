@@ -66,7 +66,7 @@ class FlatRouteView(context: Context, attributes: AttributeSet) extends View(con
 		val startX = _fixedStopX - (_stops(_fixedStopIndex)._1 * scale).toInt
 
 		val y = vehicleIcon.getIntrinsicHeight
-		canvas.drawLine(_padding, y, getWidth - _padding, y, paint)
+		canvas.drawLine(0, y, getWidth, y, paint)
 
 		// Draw fixed stop double.
 		locally {
