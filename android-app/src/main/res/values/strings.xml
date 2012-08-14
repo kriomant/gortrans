@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GorTrans</string>
+    <string name="app_name">Транспорт Новосибирска</string>
     <string name="route_points">Маршрут</string>
     
     <string name="bus">Автобус</string>
