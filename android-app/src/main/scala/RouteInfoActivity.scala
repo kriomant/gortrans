@@ -123,7 +123,7 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 			true
 		}
 		case android.R.id.home => {
-			val intent = MainActivity.createIntent(this)
+			val intent = MainActivity.createIntent(this, vehicleType)
 			intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 			startActivity(intent)
 			true

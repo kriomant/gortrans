@@ -16,12 +16,18 @@ import android.util.Log
 import android.support.v4.view.ViewPager.OnPageChangeListener
 
 object MainActivity {
-	def createIntent(caller: Context): Intent = {
-		new Intent(caller, classOf[MainActivity])
+	val EXTRA_VEHICLE_TYPE = "vehicleType"
+
+	def createIntent(caller: Context, vehicleType: VehicleType.Value = VehicleType.Bus): Intent = {
+		val intent = new Intent(caller, classOf[MainActivity])
+		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
+		intent
 	}
 }
 
 class MainActivity extends SherlockFragmentActivity with TypedActivity {
+	import MainActivity._
+
 	private[this] final val TAG = "MainActivity"
 
 	var tabFragmentsMap: Map[VehicleType.Value, RoutesListFragment] = null
@@ -83,6 +89,9 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 	  if (bundle != null) {
 		  // Restore index of currently selected tab.
 		  actionBar.setSelectedNavigationItem(bundle.getInt("tabIndex"))
+	  } else {
+		  val vehicleType = VehicleType(getIntent.getIntExtra(EXTRA_VEHICLE_TYPE, VehicleType.Bus.id))
+		  actionBar.setSelectedNavigationItem(tabsOrder.indexOf(vehicleType))
 	  }
   }
 
