@@ -62,7 +62,7 @@ class RouteStopInfoActivity extends SherlockActivity
 	{
 		override def doInBackgroundBridge() = {
 			val response = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
-			parsing.parseExpectedArrivals(response, stopName, new Date)
+			parsing.parseExpectedArrivals(response, core.fixStopName(vehicleType, routeName, stopName), new Date)
 		}
 
 		override def onPostExecute(arrivals: Either[String, Seq[Date]]) {
