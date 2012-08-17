@@ -3,6 +3,7 @@ package net.kriomant.gortrans
 import _root_.android.os.Bundle
 
 import net.kriomant.gortrans.core.VehicleType
+import android.support.v4.widget.CursorAdapter
 import android.widget._
 import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
 import android.support.v4.app.{FragmentPagerAdapter, ListFragment, FragmentTransaction}
@@ -53,7 +54,7 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 
 	  // Fix tabs order.
 	  val tabsOrder = Seq(VehicleType.Bus, VehicleType.TrolleyBus, VehicleType.TramWay, VehicleType.MiniBus)
-	  val tabFragments = Seq.fill(tabsOrder.size) { new RoutesListFragment }
+	  val tabFragments = tabsOrder map { vehicleType => new RoutesListFragment(vehicleType) }
 	  tabFragmentsMap = tabsOrder.zip(tabFragments).toMap
 
 	  tabsOrder.zipWithIndex foreach { case (vehicleType, i) =>
@@ -101,18 +102,8 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 		loadRoutes()
 	}
 
-	def updateRoutesList(routes: parsing.RoutesInfo) {
-		val vehicleTypeNames = Map(
-			VehicleType.Bus -> R.string.bus,
-			VehicleType.TrolleyBus -> R.string.trolleybus,
-			VehicleType.TramWay -> R.string.tramway,
-			VehicleType.MiniBus -> R.string.minibus
-		).mapValues(getString)
-
-		routes foreach {case (vehicleType, routesList) =>
-			val fragment = tabFragmentsMap(vehicleType)
-			fragment.setRoutes(routesList)
-		}
+	def updateRoutesList() {
+		tabFragmentsMap.values.foreach { _.refresh() }
 	}
 
 	def loadRoutes() {
@@ -139,7 +130,9 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 			}
 		}
 
-		dataManager.requestRoutesList(foregroundProcessIndicator, backgroundProcessIndicator)(updateRoutesList)
+		dataManager.requestRoutesList(foregroundProcessIndicator, backgroundProcessIndicator) {
+			updateRoutesList()
+		}
 	}
 
 	override def onSaveInstanceState(outState: Bundle) {
@@ -149,7 +142,19 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 }
 
 class RoutesListFragment extends ListFragment {
-	var routes: Seq[core.Route] = Seq()
+	private[this] final val ARGUMENT_VEHICLE_TYPE = "vehicleType"
+
+	def this(vehicleType: VehicleType.Value) {
+		this()
+
+		val arguments = new Bundle
+		arguments.putInt(ARGUMENT_VEHICLE_TYPE, vehicleType.id)
+		setArguments(arguments)
+	}
+
+	private[this] def vehicleType = VehicleType(getArguments.getInt(ARGUMENT_VEHICLE_TYPE))
+
+	var cursor: Database.RoutesTable.Cursor = null
 
 	override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle) = {
 		inflater.inflate(R.layout.routes_list_tab, container, false)
@@ -158,9 +163,15 @@ class RoutesListFragment extends ListFragment {
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
 
-		val listAdapter = new SeqAdapter with ListAdapter with EasyAdapter {
+		val database = getActivity.getApplication.asInstanceOf[CustomApplication].database
+		cursor = database.fetchRoutes(vehicleType)
+		getActivity.startManagingCursor(cursor)
+
+		val listAdapter = new CursorAdapter(getActivity, cursor)
+			with ListAdapter
+			with EasyCursorAdapter[Database.RoutesTable.Cursor]
+		{
 			val context = getActivity
-			def items = routes
 			val itemLayout = R.layout.routes_list_item
 			case class SubViews(number: TextView, begin: TextView, end: TextView)
 
@@ -170,11 +181,10 @@ class RoutesListFragment extends ListFragment {
 				view.findViewById(R.id.end_stop_name).asInstanceOf[TextView]
 			)
 
-			def adjustItem(position: Int, views: SubViews) {
-				val route = routes(position)
-				views.number.setText(route.name)
-				views.begin.setText(route.begin)
-				views.end.setText(route.end)
+			def adjustItem(cursor: Database.RoutesTable.Cursor, views: SubViews) {
+				views.number.setText(cursor.name)
+				views.begin.setText(cursor.firstStopName)
+				views.end.setText(cursor.lastStopName)
 			}
 		}
 
@@ -185,17 +195,15 @@ class RoutesListFragment extends ListFragment {
 		}
 	}
 
-	def setRoutes(newRoutes: Seq[core.Route]) {
-		routes = newRoutes
-		val adapter = getListAdapter.asInstanceOf[BaseAdapter]
-		if (adapter != null)
-			adapter.notifyDataSetChanged()
+	def refresh() {
+		if (cursor != null)
+			cursor.requery()
 	}
 
 	override def onListItemClick(l: ListView, v: View, position: Int, id: Long) {
-		val route = routes(position)
+		cursor.moveToPosition(position)
 
-		val intent = RouteInfoActivity.createIntent(getActivity, route.id, route.name, route.vehicleType)
+		val intent = RouteInfoActivity.createIntent(getActivity, cursor.externalId, cursor.name, cursor.vehicleType)
 		startActivity(intent)
 	}
 

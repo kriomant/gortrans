@@ -3,6 +3,8 @@ package net.kriomant.gortrans
 import android.content.Context
 import android.view.{LayoutInflater, ViewGroup, View}
 import android.widget.ListAdapter
+import android.support.v4.widget.CursorAdapter
+import android.database.Cursor
 
 trait EasyAdapter extends ListAdapter {
 	type SubViews
@@ -43,3 +45,27 @@ trait EasyAdapter extends ListAdapter {
 
 	override def isEnabled(position: Int): Boolean = true
 }
+
+trait EasyCursorAdapter[CustomCursor <: android.database.Cursor] extends CursorAdapter {
+	type SubViews
+	val context: Context
+	val itemLayout: Int
+
+	def newView(context: Context, cursor: Cursor, parent: ViewGroup): View = {
+		val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
+		val view = inflater.inflate(itemLayout, parent, false)
+		val subViews = findSubViews(view)
+		view.setTag(subViews)
+		adjustItem(cursor.asInstanceOf[CustomCursor], subViews)
+		view
+	}
+
+	def bindView(view: View, context: Context, cursor: Cursor) {
+		val subViews = view.getTag.asInstanceOf[SubViews]
+		adjustItem(cursor.asInstanceOf[CustomCursor], subViews)
+	}
+
+	def findSubViews(view: View): SubViews
+	def adjustItem(cursor: CustomCursor, views: SubViews)
+}
+

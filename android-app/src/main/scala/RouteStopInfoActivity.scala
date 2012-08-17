@@ -12,6 +12,7 @@ import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.{Window, MenuItem, Menu}
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint, RouteStop}
 import net.kriomant.gortrans.core._
+import net.kriomant.gortrans.utils.closing
 import net.kriomant.gortrans.parsing.RoutePoint
 import scala.Right
 import net.kriomant.gortrans.core.Route
@@ -19,7 +20,6 @@ import scala.Some
 import net.kriomant.gortrans.parsing.RouteStop
 import scala.Left
 import net.kriomant.gortrans.parsing.VehicleInfo
-import net.kriomant.gortrans.DataManager.ProcessIndicator
 
 object RouteStopInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteStopInfoActivity].getName
@@ -156,8 +156,11 @@ class RouteStopInfoActivity extends SherlockActivity
 		dataManager.requestRoutesList(
 			new ForegroundProcessIndicator(this, loadData),
 			new ActionBarProcessIndicator(this)
-		) { routes =>
-			route = routes(vehicleType).view.filter(_.id == routeId).head
+		) {
+			val db = getApplication.asInstanceOf[CustomApplication].database
+			route = closing(db.fetchRoute(vehicleType, routeId)) { cursor =>
+				new Route(vehicleType, routeId, cursor.name, cursor.firstStopName, cursor.lastStopName)
+			}
 			setDirectionText()
 		}
 

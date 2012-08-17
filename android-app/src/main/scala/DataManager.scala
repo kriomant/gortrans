@@ -9,6 +9,7 @@ import android.content.Context
 import android.util.Log
 import java.util
 import java.net.{SocketException, UnknownHostException, ConnectException}
+import scala.collection.mutable
 
 object DataManager {
 	final val TAG = "DataManager"
@@ -19,9 +20,47 @@ object DataManager {
 		def onSuccess()
 		def onError()
 	}
+
+	trait Source[Data, Cursor] {
+		val name: String
+		val maxAge: Long
+
+		def fetch(client: Client): Data
+		def update(db: Database, old: Boolean, fresh: Data)
+	}
+
+	object RoutesListSource extends Source[RoutesInfo, Database.RoutesTable.Cursor] {
+		val name = "routes"
+		val maxAge = 4 * 24 * 60 * 60 * 1000l /* ms = 4 days */
+
+		def load(db: Database) = db.fetchRoutes()
+
+		def fetch(client: Client): RoutesInfo = {
+			parsing.parseRoutesJson(client.getRoutesList())
+		}
+
+		def update(db: Database, old: Boolean, fresh: RoutesInfo) {
+			// Collect known routes.
+			val known = mutable.Set[(VehicleType.Value, String)]()
+			if (old) {
+				closing(db.fetchRoutes()) { cursor =>
+					while (cursor.moveToNext())
+						known.add((cursor.vehicleType, cursor.externalId))
+				}
+			}
+
+			val routes = fresh.values.flatten[Route].toSeq
+			routes.foreach { route =>
+				db.addOrUpdateRoute(route.vehicleType, route.id, route.name, route.begin, route.end)
+			}
+
+			val obsolete = known -- routes.map(r => (r.vehicleType, r.id)).toSet
+			obsolete.foreach { case (vehicleType, id) => db.deleteRoute(vehicleType, id) }
+		}
+	}
 }
 
-class DataManager(context: Context) {
+class DataManager(context: Context, db: Database) {
 	import DataManager._
 
 	private[this] final val TAG = "DataManager"
@@ -40,13 +79,8 @@ class DataManager(context: Context) {
 	/**
 	 * @note Must be called from UI thread only.
 	 */
-	def requestRoutesList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: RoutesInfo => Unit) {
-		val MAX_ROUTES_LIST_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
-		requestData(
-			"routes.json", MAX_ROUTES_LIST_AGE,
-			client.getRoutesList, parsing.parseRoutesJson,
-			getIndicator, updateIndicator, f
-		)
+	def requestRoutesList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: => Unit) {
+		requestDatabaseData(RoutesListSource,	 getIndicator, updateIndicator, f)
 	}
 
 	def getStopsList(): Map[String, Int] = {
@@ -226,6 +260,72 @@ class DataManager(context: Context) {
 			}
 
 			case None => fetchData(getIndicator)
+		}
+	}
+
+	/**
+	 * @note Must be called from UI thread only.
+	 */
+	def requestDatabaseData[T, Cursor](
+		source: Source[T, Cursor],
+		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator,
+		f: => Unit
+	) {
+
+		def fetchData(old: Boolean, indicator: ProcessIndicator) {
+			val task = new AsyncTaskBridge[Unit, Boolean] {
+				override def onPreExecute() {
+					indicator.startFetch()
+				}
+
+				protected def doInBackgroundBridge(): Boolean = {
+					val optData = try {
+						Log.v(TAG, "Fetch data")
+						val rawData = source.fetch(client)
+						Log.v(TAG, "Data is successfully fetched")
+						Some(rawData)
+					} catch {
+						case ex @ (_: UnknownHostException | _: ConnectException | _: SocketException | _: EOFException) => {
+							Log.v(TAG, "Network failure during data fetching", ex)
+							None
+						}
+					}
+
+					optData map { rawData =>
+						db.transaction {
+							source.update(db, old, rawData)
+							db.updateLastUpdateTime(source.name, new util.Date)
+						}
+					}
+
+					optData.isDefined
+				}
+
+				override def onPostExecute(success: Boolean) {
+					indicator.stopFetch()
+					if (success) {
+						indicator.onSuccess()
+						f
+					} else {
+						indicator.onError()
+					}
+				}
+			}
+
+			task.execute()
+		}
+
+		db.getLastUpdateTime(source.name) match {
+			case Some(modificationTime) => {
+				f
+
+				if (modificationTime.getTime() + source.maxAge < (new util.Date).getTime) {
+					// Cache is out of date.
+					fetchData(true, updateIndicator)
+				}
+			}
+
+			case None => fetchData(false, getIndicator)
 		}
 	}
 }
