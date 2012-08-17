@@ -6,7 +6,7 @@
       <directory url="file://$PROJECT_DIR$/target/scala-2.8.2/src_managed/main/java" includeSubdirectories="true" />
       <directory url="file://$PROJECT_DIR$/gen" includeSubdirectories="true" />
       <directory url="file://$PROJECT_DIR$/android-app/gen" includeSubdirectories="true" />
-      <directory url="file://$PROJECT_DIR$/../target/scala-2.8.2/src_managed/main/java" includeSubdirectories="true" />
+      <directory url="file://$PROJECT_DIR$/android-app/target/scala-2.8.2/src_managed/main/java" includeSubdirectories="true" />
     </excludeFromCompile>
     <resourceExtensions />
     <wildcardResourcePatterns>
