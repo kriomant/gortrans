@@ -70,6 +70,14 @@ object Database {
 			def lastStopName = cursor.getString(LAST_STOP_NAME_COLUMN_INDEX)
 		}
 	}
+
+	def escapeLikeArgument(arg: String, escapeChar: Char): String = {
+		(arg
+			.replace(escapeChar.toString, escapeChar.toString+escapeChar.toString)
+			.replace("%", escapeChar.toString+"%")
+			.replace("_", escapeChar.toString+"_")
+		)
+	}
 }
 
 class Database(db: SQLiteDatabase) {
@@ -118,6 +126,16 @@ class Database(db: SQLiteDatabase) {
 		db.delete(RoutesTable.NAME, "vehicleType=? AND externalId=?", Array(vehicleType.id.toString, externalId))
 	}
 
+	def searchRoutes(query: String): RoutesTable.Cursor = {
+		new RoutesTable.Cursor(db.query(
+			RoutesTable.NAME, RoutesTable.ALL_COLUMNS,
+
+			RoutesTable.NAME_COLUMN formatted "%s LIKE ? ESCAPE '~'",
+			Array("%%%s%%" format escapeLikeArgument(query, '~')),
+
+			null, null, RoutesTable.NAME_COLUMN formatted "CAST(%s AS INTEGER)"
+		))
+	}
 
 	def getLastUpdateTime(code: String): Option[util.Date] = {
 		closing(db.query("updateTimes", Array("lastUpdateTime"), "code=?", Array(code), null, null, null)) { cursor =>

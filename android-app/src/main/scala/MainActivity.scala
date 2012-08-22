@@ -9,7 +9,7 @@ import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
 import android.support.v4.app.{FragmentPagerAdapter, ListFragment, FragmentTransaction}
 import android.view.{ViewGroup, LayoutInflater, View}
 import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar}
-import com.actionbarsherlock.view.Window
+import com.actionbarsherlock.view.{MenuItem, Menu, Window}
 import android.content.{DialogInterface, Context, Intent}
 import net.kriomant.gortrans.DataManager.ProcessIndicator
 import android.app.{AlertDialog, ProgressDialog}
@@ -40,8 +40,6 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 
 	  val actionBar = getSupportActionBar
 	  actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS)
-	  actionBar.setDisplayShowTitleEnabled(false)
-	  actionBar.setDisplayShowHomeEnabled(false)
 
 	  val vehicleTypeDrawables = Map(
 		  VehicleType.Bus -> R.drawable.tab_bus,
@@ -100,6 +98,22 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 		super.onStart()
 
 		loadRoutes()
+	}
+
+
+	override def onCreateOptionsMenu(menu: Menu): Boolean = {
+		super.onCreateOptionsMenu(menu)
+		getSupportMenuInflater.inflate(R.menu.route_list_menu, menu)
+		true
+	}
+
+
+	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+		case R.id.search =>
+			onSearchRequested()
+			true
+
+		case _ => super.onOptionsItemSelected(item)
 	}
 
 	def updateRoutesList() {

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+>
+	<ImageView
+		android:id="@+id/vehicle_type_icon"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+	/>
+	<TextView
+		android:id="@+id/route_name"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:minWidth="65sp"
+		android:textColor="?android:textColorPrimary"
+		android:textAppearance="?android:attr/textAppearanceMedium"
+	  android:layout_below="@id/vehicle_type_icon"
+	  android:layout_alignRight="@id/vehicle_type_icon"
+	  android:gravity="right"
+	  android:includeFontPadding="false"
+	/>
+	<TextView
+		android:id="@+id/start_stop_name"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_toRightOf="@id/vehicle_type_icon"
+		android:layout_alignParentTop="true"
+	  android:layout_marginLeft="4dp"
+	/>
+	<TextView
+		android:id="@+id/end_stop_name"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_below="@id/start_stop_name"
+		android:layout_alignLeft="@id/start_stop_name"
+	/>
+</RelativeLayout>
+
