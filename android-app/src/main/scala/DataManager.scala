@@ -3,7 +3,7 @@ package net.kriomant.gortrans
 import java.io._
 import net.kriomant.gortrans.utils.{closing, readerUtils}
 import net.kriomant.gortrans.core._
-import net.kriomant.gortrans.parsing.{RoutePoint, RoutesInfo}
+import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint, RoutesInfo}
 import net.kriomant.gortrans.Client.{RouteInfoRequest}
 import android.content.Context
 import android.util.Log
@@ -58,6 +58,42 @@ object DataManager {
 			obsolete.foreach { case (vehicleType, id) => db.deleteRoute(vehicleType, id) }
 		}
 	}
+
+	case class RoutePointsListSource(vehicleType: VehicleType.Value, routeId: String, routeName: String)
+		extends Source[Seq[RoutePoint], Unit]
+	{
+		val name = "route-%d-%s" format (vehicleType.id, routeId)
+		val maxAge = 2 * 24 * 60 * 60 * 1000l /* ms = 2 days */
+
+		def load(db: Database) = db.fetchRoutes()
+
+		def fetch(client: Client): Seq[RoutePoint] = {
+			val response = client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)))
+			parsing.parseRoutesPoints(response)(routeId)
+		}
+
+		def update(db: Database, old: Boolean, routePoints: Seq[RoutePoint]) {
+			val dbRouteId = db.findRoute(vehicleType, routeId)
+
+			db.clearStopsAndPoints(dbRouteId)
+
+			if (routePoints.nonEmpty) {
+				for ((point, index) <- routePoints.zipWithIndex) {
+					db.addRoutePoint(dbRouteId, index, point)
+				}
+
+				// Get stop names and corresponding point indices.
+				val stops = routePoints.zipWithIndex.collect {
+					case (RoutePoint(Some(RouteStop(name, _)), _, _), index) => (name, index)
+				}
+				val folded = core.foldRoute[(String, Int)](stops, _._1)
+
+				for ((stop, index) <- folded.zipWithIndex) {
+					db.addRouteStop(dbRouteId, stop.name, index, stop.forward.map(_._2), stop.backward.map(_._2))
+				}
+			}
+		}
+	}
 }
 
 class DataManager(context: Context, db: Database) {
@@ -103,27 +139,11 @@ class DataManager(context: Context, db: Database) {
 		)
 	}
 
-	def getRoutePoints(vehicleType: VehicleType.Value, routeId: String, routeName: String): Seq[RoutePoint] = {
-		val cacheName = "points/%s-%s.json".format(vehicleType.toString, routeId)
-		getCachedOrFetch(
-			cacheName,
-			() => client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both))),
-			json => parsing.parseRoutesPoints(json)(routeId)
-		)
-	}
-
 	def requestRoutePoints(
 		vehicleType: VehicleType.Value, routeId: String, routeName: String,
 		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
-	)(f: Seq[RoutePoint] => Unit) {
-		val MAX_ROUTE_POINTS_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
-		requestData(
-			"points/%s-%s.json" format (vehicleType.toString, routeId),
-			MAX_ROUTE_POINTS_AGE,
-			client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both))),
-			json => parsing.parseRoutesPoints(json)(routeId),
-			getIndicator, updateIndicator, f
-		)
+	)(f: => Unit) {
+		requestDatabaseData(RoutePointsListSource(vehicleType, routeId, routeName), getIndicator, updateIndicator, f)
 	}
 
 	def getAvailableRouteScheduleTypes(vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value): Map[ScheduleType.Value, String] = {

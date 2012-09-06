@@ -10,6 +10,7 @@ import net.kriomant.gortrans.core._
 import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.{MenuItem, Menu}
 import android.widget.AdapterView.OnItemClickListener
+import android.support.v4.widget.CursorAdapter
 
 object RouteInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -32,11 +33,12 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 
 	private[this] final val TAG = "RouteInfoActivity"
 
+	private[this] var stopsCursor: Database.FoldedRouteStopsTable.Cursor = null
+
 	private[this] var listView: ListView = null
 	private[this] var dataManager: DataManager = null
 
 	private[this] var stopsMap: Map[String, Int] = null
-	private[this] var foldedRoute: Seq[FoldedRouteStop[String]] = null
 	private[this] var routeId: String = null
 	private[this] var routeName: String = null
 	private[this] var vehicleType: VehicleType.Value = null
@@ -87,20 +89,28 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 			vehicleType, routeId, routeName,
 			new ForegroundProcessIndicator(this, loadData),
 			new ActionBarProcessIndicator(this)
-		) { routePoints =>
-			if (routePoints.nonEmpty) {
+		) {
+			if (stopsCursor == null) {
+				val db = getApplication.asInstanceOf[CustomApplication].database
 
-				val stopNames = routePoints.collect {
-					case RoutePoint(Some(RouteStop(name, _)), _, _) => name
-				}
-				foldedRoute = core.foldRoute(stopNames, identity)
+				stopsCursor = db.fetchRouteStops(vehicleType, routeId)
+				startManagingCursor(stopsCursor)
 
-				val listAdapter = new RouteStopsAdapter(this, foldedRoute)
+				val listAdapter = new RouteStopsAdapter(this, stopsCursor)
 				listView.setAdapter(listAdapter)
+
+			} else {
+				stopsCursor.requery()
+			}
+
+			if (stopsCursor.getCount != 0) {
+				findView(TR.error_message).setVisibility(View.GONE)
+				listView.setVisibility(View.VISIBLE)
 			} else {
 				val view = findView(TR.error_message)
 				view.setText(R.string.no_route_points)
 				view.setVisibility(View.VISIBLE)
+				listView.setVisibility(View.GONE)
 			}
 		}
 
@@ -132,7 +142,8 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 	}
 
 	def onListItemClick(l: AdapterView[_], v: View, position: Int, id: Long) {
-		val stopName = foldedRoute(position).name
+		stopsCursor.moveToPosition(position)
+		val stopName = stopsCursor.name
 
 		val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
 		val stopId = stopsMap.getOrElse(fixedStopName, -1)
@@ -142,10 +153,11 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 	}
 }
 
-class RouteStopsAdapter(val context: Context, foldedRoute: Seq[FoldedRouteStop[String]])
-	extends SeqAdapter with ListAdapter with EasyAdapter {
-
-	val items = foldedRoute
+class RouteStopsAdapter(val context: Context, cursor: Database.FoldedRouteStopsTable.Cursor)
+	extends CursorAdapter(context, cursor)
+	with EasyCursorAdapter[Database.FoldedRouteStopsTable.Cursor]
+	with ListAdapter
+{
 	val itemLayout = R.layout.route_info_item
 	case class SubViews(icon: View, name: TextView)
 
@@ -154,16 +166,16 @@ class RouteStopsAdapter(val context: Context, foldedRoute: Seq[FoldedRouteStop[S
 		name = view.findViewById(R.id.route_stop_name).asInstanceOf[TextView]
 	)
 
-	def adjustItem(position: Int, views: SubViews) {
-		views.icon.setBackgroundResource(position match {
+	def adjustItem(cursor: Database.FoldedRouteStopsTable.Cursor, views: SubViews) {
+		views.icon.setBackgroundResource(cursor.getPosition match {
 			case 0 => R.drawable.first_stop
-			case x if x == foldedRoute.length-1 => R.drawable.last_stop
-			case x => foldedRoute(x).directions match {
+			case x if x == cursor.getCount-1 => R.drawable.last_stop
+			case x => cursor.directions match {
 				case DirectionsEx.Forward => R.drawable.forth_only_stop
 				case DirectionsEx.Backward => R.drawable.back_only_stop
 				case DirectionsEx.Both => R.drawable.back_and_forth_stop
 			}
 		})
-		views.name.setText(foldedRoute(position).name)
+		views.name.setText(cursor.name)
 	}
 }

@@ -168,8 +168,9 @@ class RouteStopInfoActivity extends SherlockActivity
 			vehicleType, routeId, routeName,
 			new ForegroundProcessIndicator(this, loadData),
 			new ActionBarProcessIndicator(this)
-		) { points =>
-			routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
+		) {
+			val db = getApplication.asInstanceOf[CustomApplication].database
+			routePoints = db.fetchLegacyRoutePoints(vehicleType, routeId)
 			routePointsUpdated()
 		}
 	}

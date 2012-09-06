@@ -45,6 +45,9 @@ class FlatRouteView(context: Context, attributes: AttributeSet) extends View(con
 	}
 
 	override def onDraw(canvas: Canvas) {
+		if (_stops.isEmpty)
+			return
+
 		def drawCentered(drawable: Drawable, x: Int, y: Int) {
 			val left = x - drawable.getIntrinsicWidth / 2
 			val top = y - drawable.getIntrinsicHeight / 2
@@ -168,10 +171,15 @@ class FlatRouteView(context: Context, attributes: AttributeSet) extends View(con
 	def calculateScaleBounds() {
 		val effectiveWidth = getWidth - 2*_padding
 
-		// At least one previous stop must be shown.
-		_maxScale = effectiveWidth / distanceToPreviousStop(_fixedStopIndex)
-		// Whole route to the left of fixed stop may be shown.
-		_minScale = effectiveWidth / _totalLength
+		if (_stops.nonEmpty) {
+			// At least one previous stop must be shown.
+			_maxScale = effectiveWidth / distanceToPreviousStop(_fixedStopIndex)
+			// Whole route to the left of fixed stop may be shown.
+			_minScale = effectiveWidth / _totalLength
+		} else {
+			_maxScale = 0
+			_minScale = 0
+		}
 	}
 
 	def distanceToPreviousStop(stopIndex: Int): Float = stopIndex match {

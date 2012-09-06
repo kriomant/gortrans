@@ -141,62 +141,73 @@ class RouteMapActivity extends SherlockMapActivity
 		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
 		actionBar.setDisplayHomeAsUpEnabled(true)
 
+		loadData()
+	}
+
+	def loadData() {
 		// Load route details.
-		routePoints = dataManager.getRoutePoints(vehicleType, routeId, routeName)
-		routeStops = routePoints filter(_.stop.isDefined)
-		val foldedRoute = foldRoute[RoutePoint](routeStops, _.stop.get.name)
+		dataManager.requestRoutePoints(
+			vehicleType, routeId, routeName,
+			new ForegroundProcessIndicator(this, loadData),
+			new MapActionBarProcessIndicator(this)
+		) {
+			val db = getApplication.asInstanceOf[CustomApplication].database
+			routePoints = db.fetchLegacyRoutePoints(vehicleType, routeId)
+			routeStops = routePoints filter(_.stop.isDefined)
+			val foldedRoute = foldRoute[RoutePoint](routeStops, _.stop.get.name)
 
-		val (f, b) = core.splitRoute(foldedRoute, routePoints)
-		forwardRoutePoints = f
-		backwardRoutePoints = b
+			val (f, b) = core.splitRoute(foldedRoute, routePoints)
+			forwardRoutePoints = f
+			backwardRoutePoints = b
 
-		// Calculate rectangle (and it's center) containing whole route.
-		val top = routeStops.map(_.latitude).min
-		val left = routeStops.map(_.longitude).min
-		val bottom = routeStops.map(_.latitude).max
-		val right = routeStops.map(_.longitude).max
-		val longitude = (left + right) / 2
-		val latitude = (top + bottom) / 2
+			// Calculate rectangle (and it's center) containing whole route.
+			val top = routeStops.map(_.latitude).min
+			val left = routeStops.map(_.longitude).min
+			val bottom = routeStops.map(_.latitude).max
+			val right = routeStops.map(_.longitude).max
+			val longitude = (left + right) / 2
+			val latitude = (top + bottom) / 2
 
-		def routePointToGeoPoint(p: RoutePoint): GeoPoint =
-			new GeoPoint((p.latitude * 1e6).toInt, (p.longitude * 1e6).toInt)
-
-		// Navigate to show full route.
-		val ctrl = mapView.getController
-		ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
-		ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
-
-		// Add route markers.
-		forwardRouteOverlay = new RouteOverlay(
-			getResources, getResources.getColor(R.color.forward_route),
-			forwardRoutePoints map routePointToGeoPoint
-		)
-		backwardRouteOverlay = new RouteOverlay(
-			getResources, getResources.getColor(R.color.backward_route),
-			backwardRoutePoints map routePointToGeoPoint
-		)
-
-		stopOverlays = routeStops map { p =>
-			new RouteStopOverlay(
-				getResources,
+			def routePointToGeoPoint(p: RoutePoint): GeoPoint =
 				new GeoPoint((p.latitude * 1e6).toInt, (p.longitude * 1e6).toInt)
+
+			// Navigate to show full route.
+			val ctrl = mapView.getController
+			ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
+			ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
+
+			// Add route markers.
+			forwardRouteOverlay = new RouteOverlay(
+				getResources, getResources.getColor(R.color.forward_route),
+				forwardRoutePoints map routePointToGeoPoint
 			)
-		}
-		// Display stop name next to one of folded stops.
-		stopNameOverlays = foldedRoute map { p =>
-			// Find stop which is to the east of another.
-			val stop = (p.forward, p.backward) match {
-				case (Some(f), Some(b)) => if (f.longitude > b.longitude) f else b
-				case (Some(f), None) => f
-				case (None, Some(b)) => b
-				case (None, None) => throw new AssertionError
+			backwardRouteOverlay = new RouteOverlay(
+				getResources, getResources.getColor(R.color.backward_route),
+				backwardRoutePoints map routePointToGeoPoint
+			)
+
+			stopOverlays = routeStops map { p =>
+				new RouteStopOverlay(
+					getResources,
+					new GeoPoint((p.latitude * 1e6).toInt, (p.longitude * 1e6).toInt)
+				)
 			}
-			new RouteStopNameOverlay(
-				p.name,
-				new GeoPoint((stop.latitude * 1e6).toInt, (stop.longitude * 1e6).toInt)
-			)
+			// Display stop name next to one of folded stops.
+			stopNameOverlays = foldedRoute map { p =>
+				// Find stop which is to the east of another.
+				val stop = (p.forward, p.backward) match {
+					case (Some(f), Some(b)) => if (f.longitude > b.longitude) f else b
+					case (Some(f), None) => f
+					case (None, Some(b)) => b
+					case (None, None) => throw new AssertionError
+				}
+				new RouteStopNameOverlay(
+					p.name,
+					new GeoPoint((stop.latitude * 1e6).toInt, (stop.longitude * 1e6).toInt)
+				)
+			}
+			updateOverlays()
 		}
-    updateOverlays()
 	}
 
   def updateOverlays() {
