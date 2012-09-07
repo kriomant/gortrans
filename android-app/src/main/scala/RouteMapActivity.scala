@@ -295,8 +295,8 @@ class RouteMapActivity extends SherlockMapActivity
 	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
 		val vehiclesPointsAndAngles = vehicles map { v =>
 			val (pt, segment) = v.direction match {
-				case Some(Direction.Forward) => core.snapVehicleToRoute(v, forwardRoutePoints)
-				case Some(Direction.Backward) => core.snapVehicleToRoute(v, backwardRoutePoints)
+				case Some(Direction.Forward) => core.snapVehicleToRoute(v, forwardRoutePoints.map(p => Pt(p.longitude, p.latitude)))
+				case Some(Direction.Backward) => core.snapVehicleToRoute(v, backwardRoutePoints.map(p => Pt(p.longitude, p.latitude)))
 				case None => (Pt(v.longitude, v.latitude), None)
 			}
 

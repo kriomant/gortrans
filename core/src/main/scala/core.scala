@@ -152,16 +152,16 @@ object core {
 
 	/**Returns distance from route start to each route point.
 	 */
-	def straightenRoute(route: Seq[RoutePoint]): (Double, Seq[Double]) = {
-		assert(route.head.latitude == route.last.latitude && route.head.longitude == route.last.longitude)
+	def straightenRoute(route: Seq[Pt]): (Double, Seq[Double]) = {
+		assert(route.head.x == route.last.x && route.head.y == route.last.y)
 
 		var length = 0.0
 		val positions = route.sliding(2).map {
 			case Seq(start, end) =>
 				val cur = length
 				length += math.sqrt(
-					(end.latitude - start.latitude) * (end.latitude - start.latitude) +
-						(end.longitude - start.longitude) * (end.longitude - start.longitude)
+					(end.x - start.x) * (end.x - start.x) +
+						(end.y - start.y) * (end.y - start.y)
 				)
 				cur
 		}.toArray
@@ -173,11 +173,10 @@ object core {
 	 * Snap vehicle to route.
 	 * @returns `Some((segment_index, segment_part))` if vehicle is successfully snapped, `None` otherwise.
 	 */
-	def snapVehicleToRouteInternal(vehicle: VehicleInfo, route: Seq[RoutePoint]): Option[(Int, Double)] = {
+	def snapVehicleToRouteInternal(vehicle: VehicleInfo, route: Seq[Pt]): Option[(Int, Double)] = {
 		// Dumb brute-force algorithm: enumerate all route segments for each vehicle.
 		val segments = route.sliding(2).map {
-			case Seq(from, to) =>
-				(Pt(from.longitude, from.latitude), Pt(to.longitude, to.latitude))
+			case Seq(from, to) => (from, to)
 		}
 		val location = Pt(vehicle.longitude.toDouble, vehicle.latitude.toDouble)
 
@@ -198,14 +197,14 @@ object core {
 		val MAX_DISTANCE_FROM_ROUTE = 20 /* meters */
 		val MAX_DISTANCE_IN_DEGREES = MAX_DISTANCE_FROM_ROUTE / 100000.0
 
-		(distance <= MAX_DISTANCE_IN_DEGREES) ?(segmentIndex, pointPos)
+		(distance <= MAX_DISTANCE_IN_DEGREES) ? (segmentIndex, pointPos)
 	}
 
-	def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[RoutePoint]): (Pt, Option[(Pt, Pt)]) = {
+	def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[Pt]): (Pt, Option[(Pt, Pt)]) = {
 		snapVehicleToRouteInternal(vehicle, route) match {
 			case Some((segmentIndex, pointPos)) => {
-				val start = Pt(route(segmentIndex).longitude, route(segmentIndex).latitude)
-				val end = Pt(route(segmentIndex + 1).longitude, route(segmentIndex + 1).latitude)
+				val start = route(segmentIndex)
+				val end = route(segmentIndex + 1)
 				val point = start + (end - start) * pointPos
 				(point, Some((start, end)))
 			}

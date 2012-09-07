@@ -4,6 +4,7 @@ package checker
 import org.slf4j.LoggerFactory
 import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint}
 import net.kriomant.gortrans.core.VehicleType
+import net.kriomant.gortrans.geometry.Point
 
 object Checker {
 	val logger = LoggerFactory.getLogger(getClass)
@@ -106,7 +107,7 @@ object Checker {
 
 				logger.debug("Check route straightening")
 				try {
-					val (totalLength, positions) = core.straightenRoute(points)
+					val (totalLength, positions) = core.straightenRoute(points.map(p => Point(p.longitude, p.latitude)))
 
 					val straightenedStops = ((positions ++ Seq(totalLength)) zip points).collect {
 						case (pos, RoutePoint(Some(RouteStop(name, _)), _, _)) => (pos.toFloat, name)

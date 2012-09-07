@@ -21,10 +21,11 @@ object StopScheduleActivity {
 	private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
 	private final val EXTRA_STOP_ID = CLASS_NAME + ".STOP_ID"
 	private final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
+	private final val EXTRA_FOLDED_STOP_INDEX = CLASS_NAME + ".FOLDED_STOP_INDEX"
 
 	def createIntent(
 		caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value,
-		stopId: Int, stopName: String
+		stopId: Int, stopName: String, foldedStopIndex: Int
 	): Intent = {
 		val intent = new Intent(caller, classOf[StopScheduleActivity])
 		intent.putExtra(EXTRA_ROUTE_ID, routeId)
@@ -32,6 +33,7 @@ object StopScheduleActivity {
 		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
 		intent.putExtra(EXTRA_STOP_ID, stopId)
 		intent.putExtra(EXTRA_STOP_NAME, stopName)
+		intent.putExtra(EXTRA_FOLDED_STOP_INDEX, foldedStopIndex)
 		intent
 	}
 }
@@ -46,6 +48,7 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 	private var vehicleType: VehicleType.Value = null
 	private var stopId: Int = -1
 	private var stopName: String = null
+	private var foldedStopIndex: Int = -1
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
@@ -58,6 +61,7 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 		vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
 		stopId = intent.getIntExtra(EXTRA_STOP_ID, -1)
 		stopName = intent.getStringExtra(EXTRA_STOP_NAME)
+		foldedStopIndex = intent.getIntExtra(EXTRA_FOLDED_STOP_INDEX, -1)
 
 		val stopScheduleFormatByVehicleType = Map(
 			VehicleType.Bus -> R.string.bus_n,
@@ -151,7 +155,7 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case android.R.id.home => {
-			val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
+			val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName, foldedStopIndex)
 			startActivity(intent)
 			true
 		}
