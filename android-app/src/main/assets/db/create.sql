@@ -36,7 +36,7 @@ CREATE TABLE routePoints (
 CREATE TABLE foldedRouteStops (
 	 _id INTEGER PRIMARY KEY AUTOINCREMENT
 	, routeId INTEGER NOT NULL REFERENCES routes(_id) ON DELETE CASCADE
-	, name TEXT NOT NULL,
+	, name TEXT NOT NULL
 	, idx INTEGER NOT NULL -- 0-based point index within route
 	, forwardPointIndex INTEGER
 	, backwardPointIndex INTEGER
