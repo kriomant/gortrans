@@ -167,14 +167,19 @@ class RouteStopsAdapter(val context: Context, cursor: Database.FoldedRouteStopsT
 	)
 
 	def adjustItem(cursor: Database.FoldedRouteStopsTable.Cursor, views: SubViews) {
-		views.icon.setBackgroundResource(cursor.getPosition match {
-			case 0 => R.drawable.first_stop
-			case x if x == cursor.getCount-1 => R.drawable.last_stop
-			case x => cursor.directions match {
-				case DirectionsEx.Forward => R.drawable.forth_only_stop
-				case DirectionsEx.Backward => R.drawable.back_only_stop
-				case DirectionsEx.Both => R.drawable.back_and_forth_stop
-			}
+		val LAST = cursor.getCount-1
+		views.icon.setBackgroundResource((cursor.getPosition, cursor.directions) match {
+			case (0, DirectionsEx.Forward) => R.drawable.first_forth_only_stop
+			case (0, DirectionsEx.Backward) => R.drawable.first_back_only_stop
+			case (0, DirectionsEx.Both) => R.drawable.first_back_and_forth_stop
+
+			case (LAST, DirectionsEx.Forward) => R.drawable.last_forth_only_stop
+			case (LAST, DirectionsEx.Backward) => R.drawable.last_back_only_stop
+			case (LAST, DirectionsEx.Both) => R.drawable.last_back_and_forth_stop
+
+			case (_, DirectionsEx.Forward) => R.drawable.forth_only_stop
+			case (_, DirectionsEx.Backward) => R.drawable.back_only_stop
+			case (_, DirectionsEx.Both) => R.drawable.back_and_forth_stop
 		})
 		views.name.setText(cursor.name)
 	}
