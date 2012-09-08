@@ -78,12 +78,16 @@ object DataManager {
 			db.clearStopsAndPoints(dbRouteId)
 
 			if (routePoints.nonEmpty) {
-				for ((point, index) <- routePoints.zipWithIndex) {
+				// First point is always a stop and last point is just duplicate of the first one.
+				assume(routePoints.head.stop.isDefined && routePoints.head == routePoints.last)
+				val points = routePoints.dropRight(1)
+
+				for ((point, index) <- points.zipWithIndex) {
 					db.addRoutePoint(dbRouteId, index, point)
 				}
 
 				// Get stop names and corresponding point indices.
-				val stops = routePoints.zipWithIndex.collect {
+				val stops = points.zipWithIndex.collect {
 					case (RoutePoint(Some(RouteStop(name, _)), _, _), index) => (name, index)
 				}
 				val folded = core.foldRoute[(String, Int)](stops, _._1)

@@ -66,10 +66,6 @@ object core {
 		if (stops.length < 3)
 			throw new RouteFoldingException("Less than 3 stops in route")
 
-		// First and last route stops are the same stop on forward and backward parts.
-		if (stops.head != stops.last)
-			throw new RouteFoldingException("The first route stop is not the same as last two ones")
-
 		// Find two consecutive stops with the same name - it is terminal stop.
 		// If terminal stop is not found, it may be one-way circular route,
 		// just split it in the middle.
@@ -109,14 +105,9 @@ object core {
 		if (stops.length < 3)
 			throw new RouteFoldingException("Less than 3 stops in route")
 
-		// Route returned by nskgortrans contains three starting stop names: first name,
-		// last name (it is the same stop on forward part) and one-before-last name (it is stop
-		// on backward part).
-		val stops_ = if (getName(stops.last) == getName(stops(stops.length - 2))) stops.dropRight(1) else stops
-
 		// Last name (which is the same stop as first one) is non needed by internal
 		// algorithm, strip it.
-		foldRouteInternal(stops_.map(getName)).map {
+		foldRouteInternal(stops.map(getName)).map {
 			case (name, findex, bindex) =>
 				FoldedRouteStop(name, findex.map(stops.apply), bindex.map(stops.apply))
 		}
@@ -153,20 +144,14 @@ object core {
 	/**Returns distance from route start to each route point.
 	 */
 	def straightenRoute(route: Seq[Pt]): (Double, Seq[Double]) = {
-		assert(route.head.x == route.last.x && route.head.y == route.last.y)
-
 		var length = 0.0
-		val positions = route.sliding(2).map {
-			case Seq(start, end) =>
-				val cur = length
-				length += math.sqrt(
-					(end.x - start.x) * (end.x - start.x) +
-						(end.y - start.y) * (end.y - start.y)
-				)
-				cur
+		val positions = (route :+ route.head).sliding(2).map { case Seq(start, end) =>
+			val cur = length
+			length += start distanceTo end
+			cur
 		}.toArray
 
-		(length, positions)
+		(length, positions.ensuring(_.length == route.length))
 	}
 
 	/**
@@ -194,7 +179,7 @@ object core {
 		// ATTENTION: Distances below are specific to Novosibirsk:
 		// One degree of latitude contains ~111 km, one degree of longitude - ~67 km.
 		// We use approximation 100 km per degree for both directions.
-		val MAX_DISTANCE_FROM_ROUTE = 20 /* meters */
+		val MAX_DISTANCE_FROM_ROUTE = 30 /* meters */
 		val MAX_DISTANCE_IN_DEGREES = MAX_DISTANCE_FROM_ROUTE / 100000.0
 
 		(distance <= MAX_DISTANCE_IN_DEGREES) ? (segmentIndex, pointPos)

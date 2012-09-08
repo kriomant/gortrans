@@ -309,12 +309,11 @@ class RouteStopInfoActivity extends SherlockActivity
 
 		// Split points into forward and backward parts. They will be used
 		// for snapping vehicle position to route.
-		assert(points.head == points.last)
 		val firstBackwardStop = stops.reverseIterator.find(_.backward.isDefined).get
 		val firstBackwardPointIndex = firstBackwardStop.backward.get
 		val (fwdp, bwdp) = points.splitAt(firstBackwardStop.backward.get)
 		forwardPoints = points.slice(0, firstBackwardPointIndex+1)
-		backwardPoints = points.slice(firstBackwardPointIndex, points.length)
+		backwardPoints = points.slice(firstBackwardPointIndex, points.length) :+ points.head
 		assert(forwardPoints.last == backwardPoints.head)
 		assert(backwardPoints.last == forwardPoints.head)
 
