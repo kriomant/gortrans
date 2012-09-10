@@ -327,25 +327,6 @@ class Database(db: SQLiteDatabase) {
 	def fetchRoutePoints(vehicleType: VehicleType.Value, externalRouteId: String): RoutePointsTable.Cursor =
 		fetchRoutePoints(findRoute(vehicleType, externalRouteId))
 
-	def fetchLegacyRoutePoints(vehicleType: VehicleType.Value, externalRouteId: String): Seq[RoutePoint] = {
-		val routeId = findRoute(vehicleType, externalRouteId)
-
-		val pointIndexToStopName = new mutable.HashMap[Int, RouteStop]
-		closing(fetchRouteStops(routeId)) { cursor =>
-			while (cursor.moveToNext()) {
-				cursor.forwardPointIndex.foreach(idx => pointIndexToStopName(idx) = RouteStop(cursor.name, 0))
-				cursor.backwardPointIndex.foreach(idx => pointIndexToStopName(idx) = RouteStop(cursor.name, 0))
-			}
-		}
-
-		import CursorIterator.cursorUtils
-		val points = closing(fetchRoutePoints(routeId)) { cursor =>
-			cursor.map(c => RoutePoint(pointIndexToStopName.get(c.index), c.latitude, c.longitude)).toIndexedSeq
-		}
-
-		points :+ points.head
-	}
-
 	def close() { db.close() }
 
 	def transaction[T](f: => T) {

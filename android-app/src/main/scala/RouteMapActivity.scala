@@ -14,11 +14,13 @@ import android.view.View
 import android.view.View.OnClickListener
 import com.actionbarsherlock.app.SherlockMapActivity
 import com.actionbarsherlock.view.{MenuItem, Window}
-import net.kriomant.gortrans.geometry.{Point => Pt, closestSegmentPoint}
-import net.kriomant.gortrans.utils.traversableOnceUtils
 import android.graphics._
 import android.graphics.drawable.{BitmapDrawable, Drawable}
-import net.kriomant.gortrans.core.{FoldedRouteStop, Direction, VehicleType, foldRoute}
+import net.kriomant.gortrans.core.{FoldedRouteStop, Direction, VehicleType}
+import android.graphics.Point
+import net.kriomant.gortrans.geometry.{Point => Pt}
+import net.kriomant.gortrans.CursorIterator.cursorUtils
+import utils.closing
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -66,9 +68,8 @@ class RouteMapActivity extends SherlockMapActivity
   var updatingVehiclesLocationIsOn: Boolean = false
 
 	var routePoints: Seq[RoutePoint] = null
-	var forwardRoutePoints: Seq[RoutePoint] = null
-	var backwardRoutePoints: Seq[RoutePoint] = null
-  var routeStops: Seq[RoutePoint] = null
+	var forwardRoutePoints: Seq[Pt] = null
+	var backwardRoutePoints: Seq[Pt] = null
 
 	def isRouteDisplayed = false
 	override def isLocationDisplayed = false
@@ -152,24 +153,35 @@ class RouteMapActivity extends SherlockMapActivity
 			new MapActionBarProcessIndicator(this)
 		) {
 			val db = getApplication.asInstanceOf[CustomApplication].database
-			routePoints = db.fetchLegacyRoutePoints(vehicleType, routeId)
-			routeStops = routePoints filter(_.stop.isDefined)
-			val foldedRoute = foldRoute[RoutePoint](routeStops, _.stop.get.name)
 
-			val (f, b) = core.splitRoute(foldedRoute, routePoints)
-			forwardRoutePoints = f
-			backwardRoutePoints = b
+			// Load route data from database.
+			val points = closing(db.fetchRoutePoints(vehicleType, routeId)) { cursor =>
+				cursor.map(c => Pt(c.longitude, c.latitude)).toIndexedSeq
+			}
+			val stops = closing(db.fetchRouteStops(vehicleType, routeId)) {
+				_.map(c => FoldedRouteStop[Int](c.name, c.forwardPointIndex, c.backwardPointIndex)).toIndexedSeq
+			}
+
+			// Split points into forward and backward parts. They will be used
+			// for snapping vehicle position to route.
+			val firstBackwardStop = stops.reverseIterator.find(_.backward.isDefined).get
+			val firstBackwardPointIndex = firstBackwardStop.backward.get
+			val (fwdp, bwdp) = points.splitAt(firstBackwardStop.backward.get)
+			forwardRoutePoints = points.slice(0, firstBackwardPointIndex+1)
+			backwardRoutePoints = points.slice(firstBackwardPointIndex, points.length) :+ points.head
+			assert(forwardRoutePoints.last == backwardRoutePoints.head)
+			assert(backwardRoutePoints.last == forwardRoutePoints.head)
 
 			// Calculate rectangle (and it's center) containing whole route.
-			val top = routeStops.map(_.latitude).min
-			val left = routeStops.map(_.longitude).min
-			val bottom = routeStops.map(_.latitude).max
-			val right = routeStops.map(_.longitude).max
+			val top = points.map(_.y).min
+			val left = points.map(_.x).min
+			val bottom = points.map(_.y).max
+			val right = points.map(_.x).max
 			val longitude = (left + right) / 2
 			val latitude = (top + bottom) / 2
 
-			def routePointToGeoPoint(p: RoutePoint): GeoPoint =
-				new GeoPoint((p.latitude * 1e6).toInt, (p.longitude * 1e6).toInt)
+			def routePointToGeoPoint(p: Pt): GeoPoint =
+				new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
 
 			// Navigate to show full route.
 			val ctrl = mapView.getController
@@ -186,25 +198,24 @@ class RouteMapActivity extends SherlockMapActivity
 				backwardRoutePoints map routePointToGeoPoint
 			)
 
-			stopOverlays = routeStops map { p =>
-				new RouteStopOverlay(
-					getResources,
-					new GeoPoint((p.latitude * 1e6).toInt, (p.longitude * 1e6).toInt)
-				)
+			// Unfold route.
+			val routeStops =
+				stops.collect { case FoldedRouteStop(name, Some(pos), _) => (points(pos), name) } ++
+				stops.reverse.collect { case FoldedRouteStop(name, _, Some(pos)) => (points(pos), name) }
+
+			stopOverlays = routeStops map { case (point, name) =>
+				new RouteStopOverlay(getResources, routePointToGeoPoint(point))
 			}
 			// Display stop name next to one of folded stops.
-			stopNameOverlays = foldedRoute map { p =>
+			stopNameOverlays = stops map { p =>
 				// Find stop which is to the east of another.
 				val stop = (p.forward, p.backward) match {
-					case (Some(f), Some(b)) => if (f.longitude > b.longitude) f else b
+					case (Some(f), Some(b)) => if (points(f).x > points(b).x) f else b
 					case (Some(f), None) => f
 					case (None, Some(b)) => b
 					case (None, None) => throw new AssertionError
 				}
-				new RouteStopNameOverlay(
-					p.name,
-					new GeoPoint((stop.latitude * 1e6).toInt, (stop.longitude * 1e6).toInt)
-				)
+				new RouteStopNameOverlay(p.name, routePointToGeoPoint(points(stop)))
 			}
 			updateOverlays()
 		}
@@ -295,8 +306,8 @@ class RouteMapActivity extends SherlockMapActivity
 	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
 		val vehiclesPointsAndAngles = vehicles map { v =>
 			val (pt, segment) = v.direction match {
-				case Some(Direction.Forward) => core.snapVehicleToRoute(v, forwardRoutePoints.map(p => Pt(p.longitude, p.latitude)))
-				case Some(Direction.Backward) => core.snapVehicleToRoute(v, backwardRoutePoints.map(p => Pt(p.longitude, p.latitude)))
+				case Some(Direction.Forward) => core.snapVehicleToRoute(v, forwardRoutePoints)
+				case Some(Direction.Backward) => core.snapVehicleToRoute(v, backwardRoutePoints)
 				case None => (Pt(v.longitude, v.latitude), None)
 			}
 
