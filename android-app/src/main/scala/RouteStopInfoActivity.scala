@@ -189,7 +189,7 @@ class RouteStopInfoActivity extends SherlockActivity
 				case Some(d) => {
 					val (routePart, offset) = d match {
 						case Direction.Forward => (forwardPoints, 0)
-						case Direction.Backward => (backwardPoints, forwardPoints.length)
+						case Direction.Backward => (backwardPoints, forwardPoints.length-1)
 					}
 					snapVehicleToRouteInternal(v, routePart) map { case (segmentIndex, pointPos) =>
 						pointPositions(offset+segmentIndex) + pointPos * (pointPositions(offset+segmentIndex+1) - pointPositions(offset+segmentIndex))
@@ -319,7 +319,7 @@ class RouteStopInfoActivity extends SherlockActivity
 
 		// Convert point position to distance from route start to point.
 		val (totalLength, positions) = core.straightenRoute(points)
-		pointPositions = positions
+		pointPositions = positions :+ totalLength
 
 		// Convert point indices in stop data to point distance.
 		val straightenedStops = stops.map { s =>
