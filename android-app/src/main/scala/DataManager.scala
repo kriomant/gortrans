@@ -79,7 +79,13 @@ object DataManager {
 
 			if (routePoints.nonEmpty) {
 				// First point is always a stop and last point is just duplicate of the first one.
-				assume(routePoints.head.stop.isDefined && routePoints.head == routePoints.last)
+				// But it may mave different 'length' field value so stops cannot be compared directly.
+				assume(
+					routePoints.head.stop.isDefined &&
+					routePoints.head.stop.get.name == routePoints.last.stop.get.name &&
+					routePoints.head.latitude == routePoints.last.latitude &&
+					routePoints.head.longitude == routePoints.last.longitude
+				)
 				val points = routePoints.dropRight(1)
 
 				for ((point, index) <- points.zipWithIndex) {
