@@ -6,17 +6,16 @@ import android.content.{ContentValues, Context}
 import utils.closing
 import android.util.Log
 import android.database.{Cursor, CursorWrapper}
-import net.kriomant.gortrans.core.{DirectionsEx, VehicleType}
+import net.kriomant.gortrans.core.{ScheduleType, Direction, DirectionsEx, VehicleType}
 import java.util
 import utils.booleanUtils
-import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint}
-import scala.collection.mutable
+import net.kriomant.gortrans.parsing.RoutePoint
 
 object Database {
 	val TAG = getClass.getName
 
 	val NAME = "gortrans"
-	val VERSION = 2
+	val VERSION = 3
 
 	class Helper(context: Context) extends SQLiteOpenHelper(context, NAME, null, VERSION) {
 		def onCreate(db: SQLiteDatabase) {
@@ -165,6 +164,44 @@ object Database {
 				case (None, Some(_)) => DirectionsEx.Backward
 				case (None, None) => throw new AssertionError
 			}
+		}
+	}
+
+	object SchedulesTable {
+		val NAME = "stopSchedules"
+
+		val ID_COLUMN = "_id"
+		val ROUTE_ID_COLUMN = "routeId"
+		val SCHEDULE_TYPE_COLUMN = "scheduleType"
+		val SCHEDULE_NAME_COLUMN = "scheduleName"
+		val DIRECTION_COLUMN = "direction"
+		val STOP_ID_COLUMN = "stopId"
+		val SCHEDULE_COLUMN = "schedule"
+
+		val ALL_COLUMNS = Array(
+			ID_COLUMN, ROUTE_ID_COLUMN, SCHEDULE_TYPE_COLUMN, SCHEDULE_NAME_COLUMN, DIRECTION_COLUMN,
+			STOP_ID_COLUMN, SCHEDULE_COLUMN
+		)
+
+		val ID_COLUMN_INDEX = 0
+		val ROUTE_ID_COLUMN_INDEX = 1
+		val SCHEDULE_TYPE_COLUMN_INDEX = 2
+		val SCHEDULE_NAME_COLUMN_INDEX = 3
+		val DIRECTION_COLUMN_INDEX = 4
+		val STOP_ID_COLUMN_INDEX = 5
+		val SCHEDULE_COLUMN_INDEX = 6
+
+		class Cursor(cursor: android.database.Cursor) extends CursorWrapper(cursor) {
+			def id = cursor.getLong(ID_COLUMN_INDEX)
+			def routeId = cursor.getLong(ROUTE_ID_COLUMN_INDEX)
+			def scheduleType = ScheduleType(cursor.getInt(SCHEDULE_TYPE_COLUMN_INDEX))
+			def scheduleName = cursor.getString(SCHEDULE_NAME_COLUMN_INDEX)
+			def direction = Direction(cursor.getInt(DIRECTION_COLUMN_INDEX))
+			def stopId = cursor.getInt(STOP_ID_COLUMN_INDEX)
+			def schedule = cursor.getString(SCHEDULE_COLUMN_INDEX).split(",").map { s =>
+				val Array(hour, minute) = s.split(":", 2).map(_.toInt)
+				(hour, minute)
+			}.toSeq
 		}
 	}
 
@@ -326,6 +363,41 @@ class Database(db: SQLiteDatabase) {
 
 	def fetchRoutePoints(vehicleType: VehicleType.Value, externalRouteId: String): RoutePointsTable.Cursor =
 		fetchRoutePoints(findRoute(vehicleType, externalRouteId))
+
+	def fetchSchedules(dbRouteId: Long, stopId: Int, direction: Direction.Value): SchedulesTable.Cursor = {
+		new SchedulesTable.Cursor(db.query(
+			SchedulesTable.NAME, SchedulesTable.ALL_COLUMNS,
+
+			"routeId=? AND stopId=? AND direction=?",
+			Array(dbRouteId.toString, stopId.toString, direction.id.toString),
+
+			null, null, null
+		))
+	}
+
+	def clearSchedules(dbRouteId: Long, stopId: Int, direction: Direction.Value) {
+		db.delete(SchedulesTable.NAME, "routeId=? AND stopId=? AND direction=?", Array(dbRouteId.toString, stopId.toString, direction.id.toString))
+	}
+
+	def addSchedule(dbRouteId: Long, stopId: Int, direction: Direction.Value, scheduleType: ScheduleType.Value, scheduleName: String, schedule: Seq[(Int, Int)]) {
+		val values = new ContentValues
+		values.put(SchedulesTable.ROUTE_ID_COLUMN, dbRouteId.asInstanceOf[java.lang.Long])
+		values.put(SchedulesTable.STOP_ID_COLUMN, stopId.asInstanceOf[java.lang.Integer])
+		values.put(SchedulesTable.DIRECTION_COLUMN, direction.id.asInstanceOf[java.lang.Integer])
+		values.put(SchedulesTable.SCHEDULE_TYPE_COLUMN, scheduleType.id.asInstanceOf[java.lang.Integer])
+		values.put(SchedulesTable.SCHEDULE_NAME_COLUMN, scheduleName)
+		values.put(SchedulesTable.SCHEDULE_COLUMN, schedule.map{case (hour, minute) => "%d:%d" format (hour, minute)}.mkString(","))
+		db.insertOrThrow(SchedulesTable.NAME, null, values)
+	}
+
+	def fetchOne[C <: Cursor, T](cursor: C)(f: C => T): T = {
+		closing(cursor) { _ =>
+			if (cursor.moveToNext())
+				f(cursor)
+			else
+				throw new Exception("Row not found")
+		}
+	}
 
 	def close() { db.close() }
 

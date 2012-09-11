@@ -12,6 +12,7 @@ import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.MenuItem
 import android.content.{Intent, Context}
 import java.util.Calendar
+import CursorIterator.cursorUtils
 
 object StopScheduleActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -21,11 +22,12 @@ object StopScheduleActivity {
 	private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
 	private final val EXTRA_STOP_ID = CLASS_NAME + ".STOP_ID"
 	private final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
+	private final val EXTRA_DIRECTION = CLASS_NAME + ".DIRECTION"
 	private final val EXTRA_FOLDED_STOP_INDEX = CLASS_NAME + ".FOLDED_STOP_INDEX"
 
 	def createIntent(
 		caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value,
-		stopId: Int, stopName: String, foldedStopIndex: Int
+		stopId: Int, stopName: String, foldedStopIndex: Int, direction: Direction.Value
 	): Intent = {
 		val intent = new Intent(caller, classOf[StopScheduleActivity])
 		intent.putExtra(EXTRA_ROUTE_ID, routeId)
@@ -33,6 +35,7 @@ object StopScheduleActivity {
 		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
 		intent.putExtra(EXTRA_STOP_ID, stopId)
 		intent.putExtra(EXTRA_STOP_NAME, stopName)
+		intent.putExtra(EXTRA_DIRECTION, direction.id)
 		intent.putExtra(EXTRA_FOLDED_STOP_INDEX, foldedStopIndex)
 		intent
 	}
@@ -49,6 +52,7 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 	private var stopId: Int = -1
 	private var stopName: String = null
 	private var foldedStopIndex: Int = -1
+	private var direction: Direction.Value = null
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
@@ -61,6 +65,7 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 		vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
 		stopId = intent.getIntExtra(EXTRA_STOP_ID, -1)
 		stopName = intent.getStringExtra(EXTRA_STOP_NAME)
+		direction = Direction(intent.getIntExtra(EXTRA_DIRECTION, -1))
 		foldedStopIndex = intent.getIntExtra(EXTRA_FOLDED_STOP_INDEX, -1)
 
 		val stopScheduleFormatByVehicleType = Map(
@@ -82,43 +87,47 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 	}
 
 	def loadData() {
-		new AsyncTaskBridge[Unit, Map[core.ScheduleType.Value, (String, Seq[(Int, Seq[Int])])]] {
-			override def doInBackgroundBridge() = {
-				val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 
-				val scheduleTypes = dataManager.getAvailableRouteScheduleTypes(vehicleType, routeId, Direction.Forward)
-				scheduleTypes.map { case (scheduleType, scheduleName) =>
-					scheduleType -> (scheduleName, dataManager.getStopSchedule(stopId, vehicleType, routeId, Direction.Forward, scheduleType))
-				}
+		dataManager.requestStopSchedules(
+			vehicleType, routeId, stopId, direction,
+			new ForegroundProcessIndicator(this, loadData),
+			new ActionBarProcessIndicator(this)
+		) {
+			val database = getApplication.asInstanceOf[CustomApplication].database
+
+			val dbRouteId = database.findRoute(vehicleType, routeId)
+			val cursor = database.fetchSchedules(dbRouteId, stopId, direction)
+
+			val schedulesMap = cursor.map { c =>
+				c.scheduleType -> ((c.scheduleName, c.schedule.groupBy(_._1).mapValues(_.map(_._2)).toSeq.sortBy(_._1)))
+			}.toMap
+
+			if (schedulesMap nonEmpty) {
+				// Schedules are presented as map, it is needed to order them somehow.
+				// I assume 'keys' and 'values' traverse items in the same order.
+				val schedules = schedulesMap.values.toSeq
+				val typeToIndex = schedulesMap.keys.zipWithIndex.toMap
+
+				// Display schedule.
+				val viewPager = findView(TR.schedule_tabs)
+				viewPager.setAdapter(new SchedulePagesAdapter(StopScheduleActivity.this, schedules))
+
+				// Select page corresponding to current day of week.
+				val dayOfWeek = Calendar.getInstance.get(Calendar.DAY_OF_WEEK)
+				val optIndex = (dayOfWeek match {
+					case Calendar.SATURDAY | Calendar.SUNDAY => typeToIndex.get(core.ScheduleType.Holidays)
+					case _ => typeToIndex.get(core.ScheduleType.Workdays)
+				}).orElse(typeToIndex.get(core.ScheduleType.Daily))
+
+				optIndex map { index => viewPager.setCurrentItem(index) }
+
+				viewPager.setVisibility(View.VISIBLE)
+
+			} else {
+				findView(TR.no_schedules).setVisibility(View.VISIBLE)
 			}
-
-			override def onPostExecute(schedulesMap: Map[core.ScheduleType.Value, (String, Seq[(Int, Seq[Int])])]) {
-				if (schedulesMap nonEmpty) {
-					// Schedules are presented as map, it is needed to order them somehow.
-					// I assume 'keys' and 'values' traverse items in the same order.
-					val schedules = schedulesMap.values.toSeq
-					val typeToIndex = schedulesMap.keys.zipWithIndex.toMap
-
-					// Display schedule.
-					val viewPager = findView(TR.schedule_tabs)
-					viewPager.setAdapter(new SchedulePagesAdapter(StopScheduleActivity.this, schedules))
-
-					// Select page corresponding to current day of week.
-					val dayOfWeek = Calendar.getInstance.get(Calendar.DAY_OF_WEEK)
-					val optIndex = (dayOfWeek match {
-						case Calendar.SATURDAY | Calendar.SUNDAY => typeToIndex.get(core.ScheduleType.Holidays)
-						case _ => typeToIndex.get(core.ScheduleType.Workdays)
-					}).orElse(typeToIndex.get(core.ScheduleType.Daily))
-
-					optIndex map { index => viewPager.setCurrentItem(index) }
-
-					viewPager.setVisibility(View.VISIBLE);
-
-				} else {
-					findView(TR.no_schedules).setVisibility(View.VISIBLE)
-				}
-			}
-		}.execute()
+		}
 	}
 
 	class SchedulePagesAdapter(context: Context, schedules: Seq[(String, Seq[(Int, Seq[Int])])]) extends PagerAdapter {

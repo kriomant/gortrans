@@ -33,8 +33,6 @@ object DataManager {
 		val name = "routes"
 		val maxAge = 4 * 24 * 60 * 60 * 1000l /* ms = 4 days */
 
-		def load(db: Database) = db.fetchRoutes()
-
 		def fetch(client: Client): RoutesInfo = {
 			parsing.parseRoutesJson(client.getRoutesList())
 		}
@@ -64,8 +62,6 @@ object DataManager {
 	{
 		val name = "route-%d-%s" format (vehicleType.id, routeId)
 		val maxAge = 2 * 24 * 60 * 60 * 1000l /* ms = 2 days */
-
-		def load(db: Database) = db.fetchRoutes()
 
 		def fetch(client: Client): Seq[RoutePoint] = {
 			val response = client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)))
@@ -101,6 +97,33 @@ object DataManager {
 				for ((stop, index) <- folded.zipWithIndex) {
 					db.addRouteStop(dbRouteId, stop.name, index, stop.forward.map(_._2), stop.backward.map(_._2))
 				}
+			}
+		}
+	}
+
+	case class RouteSchedulesSource(vehicleType: VehicleType.Value, routeId: String, stopId: Int, direction: Direction.Value)
+		extends Source[Map[ScheduleType.Value, (String, Seq[(Int, Seq[Int])])], Unit]
+	{
+		val name = "schedule-%d-%s-%d-%s" format (vehicleType.id, routeId, stopId, direction)
+		val maxAge = 2 * 24 * 60 * 60 * 1000l /* ms = 2 days */
+
+		def fetch(client: Client): Map[ScheduleType.Value, (String, Seq[(Int, Seq[Int])])] = {
+			// I assume schedules types are equal for both directions.
+			val scheduleTypes = parsing.parseAvailableScheduleTypes(client.getAvailableScheduleTypes(vehicleType, routeId, Direction.Forward))
+
+			scheduleTypes.map { case (scheduleType, name) =>
+				scheduleType -> (name, parsing.parseStopSchedule(client.getStopSchedule(stopId, vehicleType, routeId, direction, scheduleType)))
+			}.toMap
+		}
+
+		def update(db: Database, old: Boolean, schedules: Map[ScheduleType.Value, (String, Seq[(Int, Seq[Int])])]) {
+			val dbRouteId = db.findRoute(vehicleType, routeId)
+
+			db.clearSchedules(dbRouteId, stopId, direction)
+
+			for ((scheduleType, (name, schedule)) <- schedules) {
+				val expanded = schedule.flatMap{case (hour, minutes) => minutes.map(m => (hour, m))}
+				db.addSchedule(dbRouteId, stopId, direction, scheduleType, name, expanded)
 			}
 		}
 	}
@@ -154,6 +177,13 @@ class DataManager(context: Context, db: Database) {
 		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
 	)(f: => Unit) {
 		requestDatabaseData(RoutePointsListSource(vehicleType, routeId, routeName), getIndicator, updateIndicator, f)
+	}
+
+	def requestStopSchedules(
+		vehicleType: VehicleType.Value, routeId: String, stopId: Int, direction: Direction.Value,
+		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
+	)(f: => Unit) {
+		requestDatabaseData(RouteSchedulesSource(vehicleType, routeId, stopId, direction), getIndicator, updateIndicator, f)
 	}
 
 	def getAvailableRouteScheduleTypes(vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value): Map[ScheduleType.Value, String] = {

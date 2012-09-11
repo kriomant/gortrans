@@ -22,11 +22,14 @@ object parsing {
 
 	class ParsingException(msg: String) extends Exception(msg)
 
-	implicit def jsonArrayTraversable(arr: JSONArray) = new Traversable[JSONObject] {
-		def foreach[T](f: JSONObject => T) = {
-			for (i <- 0 until arr.length) {
-				f(arr.getJSONObject(i))
-			}
+	implicit def jsonArrayUtils(arr: JSONArray) = new {
+		def ofObjects: IndexedSeq[JSONObject] = new scala.collection.IndexedSeq[JSONObject] {
+			def length = arr.length
+			def apply(idx: Int) = arr.getJSONObject(idx)
+		}
+		def ofInts: IndexedSeq[Int] = new scala.collection.IndexedSeq[Int] {
+			def length = arr.length
+			def apply(idx: Int) = arr.getInt(idx)
 		}
 	}
 
@@ -40,7 +43,7 @@ object parsing {
 
 	def parseSection(obj: JSONObject): (VehicleType.Value, Seq[Route]) = {
 		val vtype = VehicleType(obj.getInt("type"))
-		(vtype, obj.getJSONArray("ways") map {
+		(vtype, obj.getJSONArray("ways").ofObjects map {
 			j => parseRoute(vtype, j)
 		} toSeq)
 	}
@@ -48,7 +51,7 @@ object parsing {
 	type RoutesInfo = Map[VehicleType.Value, Seq[Route]]
 
 	def parseRoutes(arr: JSONArray): RoutesInfo = {
-		arr map parseSection toMap
+		arr.ofObjects map parseSection toMap
 	}
 
 	def parseRoutesJson(json: String): RoutesInfo = {
@@ -71,7 +74,7 @@ object parsing {
 		                      )
 
 	def parseVehiclesLocation(obj: JSONObject): Seq[VehicleInfo] = {
-		obj.getJSONArray("markers") map {
+		obj.getJSONArray("markers").ofObjects map {
 			o: JSONObject =>
 				val routeName = o.getString("title")
 				val vehicleType = VehicleType(o.getString("id_typetr").toInt - 1)
@@ -118,18 +121,17 @@ object parsing {
 	case class RoutePoint(stop: Option[RouteStop], latitude: Double, longitude: Double)
 
 	def parseRoutesPoints(obj: JSONObject): Map[String, Seq[RoutePoint]] = {
-		obj.getJSONArray("all") flatMap {
+		obj.getJSONArray("all").ofObjects flatMap {
 			o =>
-				o.getJSONArray("r") map {
+				o.getJSONArray("r").ofObjects map {
 					m =>
 						val routeId = m.getString("marsh")
-						val points: Seq[RoutePoint] = m.getJSONArray("u").toSeq map {
-							p =>
-								val lat = p.getDouble("lat")
-								val lng = p.getDouble("lng")
-								val stop = (p has "n") ? RouteStop(p.getString("n"), p.getInt("len"))
-								RoutePoint(stop, lat, lng)
-						}
+						val points: Seq[RoutePoint] = m.getJSONArray("u").ofObjects.map { p =>
+							val lat = p.getDouble("lat")
+							val lng = p.getDouble("lng")
+							val stop = (p has "n") ? RouteStop(p.getString("n"), p.getInt("len"))
+							RoutePoint(stop, lat, lng)
+						}.toSeq
 						routeId -> points
 				}
 		} toMap

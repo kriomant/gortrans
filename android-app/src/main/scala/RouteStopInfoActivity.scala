@@ -238,7 +238,7 @@ class RouteStopInfoActivity extends SherlockActivity
 		}
 		case R.id.refresh => if (stopId != -1) refreshArrivals(); true
 		case R.id.show_schedule => {
-			val intent = StopScheduleActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName, foldedStopIndex)
+			val intent = StopScheduleActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName, foldedStopIndex, direction)
 			startActivity(intent)
 			true
 		}
