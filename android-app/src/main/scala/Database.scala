@@ -205,6 +205,26 @@ object Database {
 		}
 	}
 
+	object ScheduleStopsTable {
+		val NAME = "scheduleStops"
+
+		val ID_COLUMN = "_id"
+		val NAME_COLUMN = "name"
+		val STOP_ID_COLUMN = "stopId"
+
+		val ALL_COLUMNS = Array(ID_COLUMN, NAME_COLUMN, STOP_ID_COLUMN)
+
+		val ID_COLUMN_INDEX = 0
+		val NAME_COLUMN_INDEX = 1
+		val STOP_ID_COLUMN_INDEX = 2
+
+		class Cursor(cursor: android.database.Cursor) extends CursorWrapper(cursor) {
+			def id = cursor.getLong(ID_COLUMN_INDEX)
+			def name = cursor.getString(NAME_COLUMN_INDEX)
+			def stopId = cursor.getInt(STOP_ID_COLUMN_INDEX)
+		}
+	}
+
 	def escapeLikeArgument(arg: String, escapeChar: Char): String = {
 		(arg
 			.replace(escapeChar.toString, escapeChar.toString+escapeChar.toString)
@@ -390,12 +410,38 @@ class Database(db: SQLiteDatabase) {
 		db.insertOrThrow(SchedulesTable.NAME, null, values)
 	}
 
+	def clearStops() {
+		db.delete(ScheduleStopsTable.NAME, null, null);
+	}
+
+	def addStop(name: String, stopId: Int) {
+		val values = new ContentValues
+		values.put(ScheduleStopsTable.NAME_COLUMN, name)
+		values.put(ScheduleStopsTable.STOP_ID_COLUMN, stopId.asInstanceOf[java.lang.Integer])
+		db.insertOrThrow(ScheduleStopsTable.NAME, null, values)
+	}
+
+	def findStopId(name: String): Option[Int] = {
+		val cursor = new ScheduleStopsTable.Cursor(db.query(
+			ScheduleStopsTable.NAME, ScheduleStopsTable.ALL_COLUMNS,
+			"%s=?" format ScheduleStopsTable.NAME_COLUMN, Array(name),
+			null, null, null
+		))
+		findOne(cursor) { _ => cursor.stopId }
+	}
+
 	def fetchOne[C <: Cursor, T](cursor: C)(f: C => T): T = {
 		closing(cursor) { _ =>
 			if (cursor.moveToNext())
 				f(cursor)
 			else
 				throw new Exception("Row not found")
+		}
+	}
+
+	def findOne[C <: Cursor, T](cursor: C)(f: C => T): Option[T] = {
+		closing(cursor) { _ =>
+			cursor.moveToNext() ? f(cursor)
 		}
 	}
 

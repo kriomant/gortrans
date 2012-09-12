@@ -38,7 +38,6 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 	private[this] var listView: ListView = null
 	private[this] var dataManager: DataManager = null
 
-	private[this] var stopsMap: Map[String, Int] = null
 	private[this] var routeId: String = null
 	private[this] var routeName: String = null
 	private[this] var vehicleType: VehicleType.Value = null
@@ -117,7 +116,7 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 		dataManager.requestStopsList(
 			new ForegroundProcessIndicator(this, loadData),
 			new ActionBarProcessIndicator(this)
-		) { stopsMap = _ }
+		) { }
 	}
 
 	override def onCreateOptionsMenu(menu: Menu): Boolean = {
@@ -146,7 +145,8 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 		val stopName = stopsCursor.name
 
 		val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
-		val stopId = stopsMap.getOrElse(fixedStopName, -1)
+		val db = getApplication.asInstanceOf[CustomApplication].database
+		val stopId = db.findStopId(fixedStopName).getOrElse(-1)
 
 		val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName, position)
 		startActivity(intent)

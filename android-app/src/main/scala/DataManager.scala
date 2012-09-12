@@ -127,6 +127,23 @@ object DataManager {
 			}
 		}
 	}
+
+	object ScheduleStopsSource extends Source[Map[String, Int], Unit] {
+		val name = "stops"
+		val maxAge = 4 * 24 * 60 * 60 * 1000l /* ms = 4 days */
+
+		def fetch(client: Client): Map[String, Int] = {
+			parsing.parseStopsList(client.getStopsList(""))
+		}
+
+		def update(db: Database, old: Boolean, stops: Map[String, Int]) {
+			db.clearStops()
+
+			for ((name, stopId) <- stops) {
+				db.addStop(name, stopId)
+			}
+		}
+	}
 }
 
 class DataManager(context: Context, db: Database) {
@@ -161,15 +178,8 @@ class DataManager(context: Context, db: Database) {
 		)
 	}
 
-	def requestStopsList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: Map[String, Int] => Unit) {
-		val MAX_STOPS_LIST_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
-		requestData(
-			"stops.txt",
-			MAX_STOPS_LIST_AGE,
-			client.getStopsList(""),
-			parsing.parseStopsList(_),
-			getIndicator, updateIndicator, f
-		)
+	def requestStopsList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: => Unit) {
+		requestDatabaseData(ScheduleStopsSource, getIndicator, updateIndicator, f)
 	}
 
 	def requestRoutePoints(

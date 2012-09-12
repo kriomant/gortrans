@@ -60,3 +60,12 @@ CREATE TABLE stopSchedules (
 	, UNIQUE (routeId, stopId, direction, scheduleType)
 );
 
+---x
+
+CREATE TABLE scheduleStops (
+	 _id INTEGER PRIMARY KEY AUTOINCREMENT
+
+	, name TEXT NOT NULL UNIQUE
+	, stopId INTEGER NOT NULL
+);
+
