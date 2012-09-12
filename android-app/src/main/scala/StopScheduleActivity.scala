@@ -7,12 +7,14 @@ import android.support.v4.view.PagerAdapter
 import scala.collection.JavaConverters._
 import android.util.Log
 import android.view._
-import android.widget.{SimpleAdapter, ListView}
+import android.widget.{TextView, SimpleAdapter, ListView}
 import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.MenuItem
 import android.content.{Intent, Context}
 import java.util.Calendar
 import CursorIterator.cursorUtils
+import android.text.{SpannableString, Spanned, SpannableStringBuilder}
+import android.text.style.{CharacterStyle, ForegroundColorSpan}
 
 object StopScheduleActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
@@ -143,11 +145,69 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 			val stopSchedule = schedules(position)._2
 			Log.d("StopScheduleActivity", stopSchedule.length.toString)
 
-			val adapter = new SimpleAdapter(context,
-				stopSchedule.map{it => Map("hour" -> it._1, "minutes" -> it._2.mkString(" ")).asJava}.asJava,
-				R.layout.stop_schedule_item,
-				Array("hour", "minutes"), Array(R.id.hour, R.id.minutes)
-			)
+			val calendar = Calendar.getInstance()
+			val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+			val currentMinute = calendar.get(Calendar.MINUTE)
+
+			def formatTimes(hour: Int, minutes: Seq[Int]) = {
+				val hourStr = new SpannableString(hour.toString)
+				val minBuilder = new SpannableStringBuilder
+
+				if (hour < currentHour) {
+					val span = new ForegroundColorSpan(getResources.getColor(R.color.schedule_past))
+
+					hourStr.setSpan(CharacterStyle.wrap(span), 0, hourStr.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+
+					minBuilder.append(minutes.mkString(" "))
+					minBuilder.setSpan(span, 0, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+
+				} else if (hour > currentHour) {
+					val span = new ForegroundColorSpan(getResources.getColor(R.color.schedule_future))
+
+					hourStr.setSpan(CharacterStyle.wrap(span), 0, hourStr.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+
+					minBuilder.append(minutes.mkString(" "))
+					minBuilder.setSpan(span, 0, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+
+				} else {
+					val (before, after) = minutes.span(_ < currentMinute)
+
+					val spanPast = new ForegroundColorSpan(getResources.getColor(R.color.schedule_past))
+					val spanFuture = new ForegroundColorSpan(getResources.getColor(R.color.schedule_future))
+
+					hourStr.setSpan(CharacterStyle.wrap(spanFuture), 0, hourStr.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+
+					minBuilder.append(before.mkString(" "))
+					minBuilder.setSpan(spanPast, 0, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+
+					minBuilder.append(" ")
+
+					val mark = minBuilder.length
+					minBuilder.append(after.mkString(" "))
+					minBuilder.setSpan(spanFuture, mark, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+				}
+
+				(hourStr, minBuilder)
+			}
+
+			val adapter = new SeqAdapter with EasyAdapter {
+				case class SubViews(hour: TextView, minutes: TextView)
+				val context = StopScheduleActivity.this
+				val itemLayout = R.layout.stop_schedule_item
+				def items = stopSchedule
+
+				def findSubViews(view: View) = SubViews(
+					view.findViewById(R.id.hour).asInstanceOf[TextView],
+					view.findViewById(R.id.minutes).asInstanceOf[TextView]
+				)
+
+				def adjustItem(position: Int, views: SubViews) {
+					val (hour, minutes) = items(position)
+					val (hourText, minutesText) = formatTimes(hour, minutes)
+					views.hour.setText(hourText)
+					views.minutes.setText(minutesText)
+				}
+			}
 			view.setAdapter(adapter)
 
 			view

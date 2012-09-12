@@ -3,4 +3,7 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android">
 	<color name="forward_route">#ff006e0c</color>
 	<color name="backward_route">#ffa94f00</color>
+
+	<color name="schedule_past">@android:color/secondary_text_dark</color>
+	<color name="schedule_future">@android:color/primary_text_dark</color>
 </resources>
