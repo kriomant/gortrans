@@ -157,25 +157,11 @@ class DataManager(context: Context, db: Database) {
 	}
 	val client = new Client(AndroidLogger)
 	                                                           
-	def getRoutesList(): RoutesInfo = {
-		val cacheName = "routes.json"
-		getCachedOrFetch(cacheName, () => client.getRoutesList(), parsing.parseRoutesJson(_))
-	}
-
 	/**
 	 * @note Must be called from UI thread only.
 	 */
 	def requestRoutesList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: => Unit) {
 		requestDatabaseData(RoutesListSource,	 getIndicator, updateIndicator, f)
-	}
-
-	def getStopsList(): Map[String, Int] = {
-		val cacheName = "stops.txt"
-		getCachedOrFetch(
-			cacheName,
-			() => client.getStopsList(""),
-			parsing.parseStopsList(_)
-		)
 	}
 
 	def requestStopsList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: => Unit) {
@@ -194,143 +180,6 @@ class DataManager(context: Context, db: Database) {
 		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
 	)(f: => Unit) {
 		requestDatabaseData(RouteSchedulesSource(vehicleType, routeId, stopId, direction), getIndicator, updateIndicator, f)
-	}
-
-	def getAvailableRouteScheduleTypes(vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value): Map[ScheduleType.Value, String] = {
-		val cacheName = "route-schedule-types/%d-%s-%s.xml" format (vehicleType.id, routeId, direction.toString)
-		getCachedOrFetch(
-			cacheName,
-			() => client.getAvailableScheduleTypes(vehicleType, routeId, direction),
-			parsing.parseAvailableScheduleTypes(_)
-		)
-	}
-
-	def requestAvailableRouteScheduleTypes(
-		vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value,
-		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
-	)(f: Map[ScheduleType.Value, String] => Unit) {
-		val MAX_AGE = 4 * 24 * 60 * 60 * 1000 /* ms = 4 days */
-		requestData(
-			"route-schedule-types/%d-%s-%s.xml" format (vehicleType.id, routeId, direction.toString),
-			MAX_AGE,
-			client.getAvailableScheduleTypes(vehicleType, routeId, direction),
-			parsing.parseAvailableScheduleTypes,
-			getIndicator, updateIndicator, f
-		)
-	}
-
-	def getStopSchedule
-		(stopId: Int, vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value, scheduleType: ScheduleType.Value)
-	= {
-		val cacheName = "stop-schedule/%d-%s-%s-%s-%s.xml" format (stopId, vehicleType.toString, routeId, direction.toString, scheduleType.toString)
-		getCachedOrFetch(
-			cacheName,
-			() => client.getStopSchedule(stopId, vehicleType, routeId, direction, scheduleType),
-			xml => parsing.parseStopSchedule(xml)
-		)
-	}
-
-	def readFromCache(relPath: String): Option[String] = readFromCacheWithTimestamp(relPath) map (_._1)
-
-	def readFromCacheWithTimestamp(relPath: String): Option[(String, Long)] = {
-		try {
-			val path = new File(context.getCacheDir, relPath)
-			closing(new FileInputStream(path)) { s =>
-				closing(new InputStreamReader(s)) { r =>
-					Some(r.readAll(), path.lastModified())
-				}
-			}
-		} catch {
-			case _: FileNotFoundException => None
-		}
-	}
-
-	def writeToCache(relPath: String, data: String) {
-		val path = new File(context.getCacheDir, relPath)
-
-		if (! path.getParentFile.exists())
-			path.getParentFile.mkdirs()
-
-		closing(new FileOutputStream(path)) { s =>
-			closing(new OutputStreamWriter(s)) { w =>
-				w.write(data)
-			}
-		}
-	}
-
-	def getCachedOrFetch[T](cacheName: String, fetch: () => String, parse: String => T): T = {
-		val cached = readFromCache(cacheName)
-		val data = cached getOrElse fetch()
-
-		val parsed = parse(data)
-
-		// Cache just retrieved info only if it was successfully parsed.
-		if (cached.isEmpty)
-			writeToCache(cacheName, data)
-
-		parsed
-	}
-
-	/**
-	 * @note Must be called from UI thread only.
-	 */
-	def requestData[T](
-		cacheName: String, updatePeriod: Int,
-		fetch: => String, parse: String => T,
-		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator,
-		f: T => Unit
-	) {
-		def fetchData(indicator: ProcessIndicator) {
-			val task = new AsyncTaskBridge[Unit, Option[T]] {
-				override def onPreExecute() {
-					indicator.startFetch()
-				}
-
-				protected def doInBackgroundBridge(): Option[T] = {
-					val optData = try {
-						Log.v(TAG, "Fetch data")
-						val rawData = fetch
-						Log.v(TAG, "Data is successfully fetched")
-						Some(rawData)
-					} catch {
-						case _: UnknownHostException | _: ConnectException | _: SocketException | _: EOFException => {
-							Log.v(TAG, "Network failure during data fetching")
-							None
-						}
-					}
-
-					optData map { rawData =>
-						val newData = parse(rawData)
-						writeToCache(cacheName, rawData)
-						newData
-					}
-				}
-
-				override def onPostExecute(result: Option[T]) {
-					indicator.stopFetch()
-					result match {
-						case Some(data) => indicator.onSuccess(); f(data)
-						case None => indicator.onError()
-					}
-				}
-			}
-
-			task.execute()
-		}
-
-		readFromCacheWithTimestamp(cacheName) match {
-			case Some((cachedData, modificationTime)) => {
-				val data = parse(cachedData)
-				f(data)
-
-				if (modificationTime + updatePeriod < (new util.Date).getTime) {
-					// Cache is out of date.
-					fetchData(updateIndicator)
-				}
-			}
-
-			case None => fetchData(getIndicator)
-		}
 	}
 
 	/**
