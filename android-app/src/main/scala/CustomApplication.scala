@@ -50,7 +50,14 @@ class CustomApplication extends Application {
 				action()
 				Log.i(TAG, "Upgrade action has finished successfuly, remember version code %d" format versionCode)
 
-				prefs.edit().putInt("versionCode", versionCode).apply()
+				val editor = prefs.edit()
+				editor.putInt("versionCode", versionCode)
+				if (android.os.Build.VERSION.SDK_INT >= 9)
+					// apply() is faster than commit(), but it is instroduced in API 9
+					editor.apply()
+				else
+					// fallback to slow commit()
+					editor.commit()
 			}
 		}
 	}
