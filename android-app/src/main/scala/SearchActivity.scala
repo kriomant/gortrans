@@ -13,6 +13,8 @@ import android.widget.AdapterView.OnItemClickListener
 import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.MenuItem
 
+import utils.closing
+
 class SearchActivity extends SherlockActivity with TypedActivity {
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
@@ -35,6 +37,17 @@ class SearchActivity extends SherlockActivity with TypedActivity {
 		if (intent.getAction == Intent.ACTION_SEARCH) {
 			val query = intent.getStringExtra(SearchManager.QUERY)
 			search(query)
+
+		} else if (intent.getAction == Intent.ACTION_VIEW) {
+			val dbRouteId = intent.getDataString.toLong
+			val db = getApplication.asInstanceOf[CustomApplication].database
+
+			val routeInfoIntent = closing(db.fetchRoute(dbRouteId)) { cursor =>
+				RouteInfoActivity.createIntent(this, cursor.externalId, cursor.name, cursor.vehicleType)
+			}
+
+			startActivity(routeInfoIntent)
+			finish()
 		}
 	}
 

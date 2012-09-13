@@ -237,6 +237,19 @@ object Database {
 class Database(db: SQLiteDatabase) {
 	import Database._
 
+	def fetchRoute(dbRouteId: Long): RoutesTable.Cursor = {
+		val cursor = db.query(
+			RoutesTable.NAME, RoutesTable.ALL_COLUMNS,
+			"%s=?" format RoutesTable.ID_COLUMN, Array(dbRouteId.toString),
+			null, null, null
+		)
+
+		if (!cursor.moveToFirst())
+			throw new Exception("Route #%d not found" format dbRouteId)
+
+		new RoutesTable.Cursor(cursor)
+	}
+
 	def fetchRoute(vehicleType: VehicleType.Value, externalId: String): RoutesTable.Cursor = {
 		val cursor = db.query(
 			RoutesTable.NAME, RoutesTable.ALL_COLUMNS,

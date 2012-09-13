@@ -4,4 +4,7 @@
   android:label="@string/app_name"
   android:hint="@string/search_hint"
   android:inputType="phone"
+
+  android:searchSuggestAuthority="net.kriomant.gortrans.route_suggestions"
+  android:searchSuggestIntentAction="android.intent.action.VIEW"
 />
