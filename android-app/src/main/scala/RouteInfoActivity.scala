@@ -36,6 +36,7 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 	private[this] var stopsCursor: Database.FoldedRouteStopsTable.Cursor = null
 
 	private[this] var listView: ListView = null
+	private[this] var optionsMenu: Menu = null
 	private[this] var dataManager: DataManager = null
 
 	private[this] var routeId: String = null
@@ -111,6 +112,10 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 				view.setVisibility(View.VISIBLE)
 				listView.setVisibility(View.GONE)
 			}
+
+			if (optionsMenu != null) {
+				optionsMenu.findItem(R.id.show_map).setEnabled(stopsCursor.getCount != 0)
+			}
 		}
 
 		dataManager.requestStopsList(
@@ -122,6 +127,13 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 	override def onCreateOptionsMenu(menu: Menu): Boolean = {
 		super.onCreateOptionsMenu(menu)
 		getSupportMenuInflater.inflate(R.menu.route_info_menu, menu)
+		optionsMenu = menu
+		true
+	}
+
+	override def onPrepareOptionsMenu(menu: Menu) = {
+		super.onPrepareOptionsMenu(menu)
+		menu.findItem(R.id.show_map).setEnabled(stopsCursor != null && stopsCursor.getCount > 0)
 		true
 	}
 
