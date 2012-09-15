@@ -63,14 +63,26 @@ class RouteStopInfoActivity extends SherlockActivity
 		with AsyncProcessIndicator[Unit, Either[String, Seq[Date]]]
 	{
 		override def doInBackgroundBridge() = {
-			val response = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
 			val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
-			try {
-				parsing.parseExpectedArrivals(response, fixedStopName, new Date).left.map { message =>
+
+			val (response, serverTime) = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
+			val now = new Date
+
+			val arrivals = try {
+				parsing.parseExpectedArrivals(response, fixedStopName, now).left.map { message =>
 					getResources.getString(R.string.cant_get_arrivals, message)
 				}
 			} catch {
 				case _: parsing.ParsingException => Left(getString(R.string.cant_parse_arrivals))
+			}
+
+			arrivals.right.map { times =>
+				// Correct time difference between device and server.
+				val diff = now.getTime - serverTime.getTime
+				if (diff > 30 * 1000) {
+					Log.w(TAG, "Time difference with server: %d ms" format diff)
+				}
+				times.map(t => new Date(t.getTime() + diff))
 			}
 		}
 

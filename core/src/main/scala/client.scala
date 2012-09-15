@@ -1,11 +1,12 @@
 package net.kriomant.gortrans
 
-import java.io.{InputStreamReader, BufferedInputStream}
+import java.io.{InputStream, InputStreamReader, BufferedInputStream}
 import utils.readerUtils
 import java.net.{URLEncoder, HttpURLConnection, URL}
 import net.kriomant.gortrans.core.{ScheduleType, VehicleType, Direction, DirectionsEx}
 import scala.collection.JavaConverters._
 import org.json.{JSONObject, JSONArray}
+import java.util
 
 trait Logger {
 	def debug(msg: String)
@@ -19,6 +20,11 @@ object Client {
 		routeName: String,
 		direction: DirectionsEx.Value
 	)
+
+	def readWholeStream(stream: InputStream): String = {
+		val buffered = new BufferedInputStream(stream)
+		new InputStreamReader(buffered).readAll()
+	}
 }
 /** Client for maps.nskgortrans.ru site.
 	*/
@@ -125,15 +131,21 @@ class Client(logger: Logger) {
 		}
 	}
 
-	def getExpectedArrivals(routeId: String, vehicleType: VehicleType.Value, stopId: Int, direction: Direction.Value): String = {
-		fetch(
-			new URL(
-				MOBILE_HOST,
-				"index.php?m=%s&t=1&tt=%s&s=%s&r=%s&p=1" format (
-					routeId, vehicleType.id+1, stopId, directionCodes(direction)
+	/** Returns expected arrivals and current server time. */
+	def getExpectedArrivals(
+		routeId: String, vehicleType: VehicleType.Value, stopId: Int, direction: Direction.Value
+	): (String, util.Date) = {
+		val url = new URL(
+			MOBILE_HOST,
+			"index.php?m=%s&t=1&tt=%s&s=%s&r=%s&p=1" format (
+				routeId, vehicleType.id+1, stopId, directionCodes(direction)
 				)
-			)
 		)
+
+		fetchWithConn(url) { (content, conn) =>
+			val date = new util.Date(conn.getHeaderFieldDate("Date", new util.Date().getTime))
+			(content, date)
+		}
 	}
 
 	private def updateSessionId() {
@@ -163,14 +175,15 @@ class Client(logger: Logger) {
 		logger.debug("PHPSESSID: %s" format mapsSessionId)
 	}
 
-	private def fetch(url: URL): String = {
+	private def fetch(url: URL): String = fetchWithConn(url) { (content, _) => content }
+
+	private def fetchWithConn[T](url: URL)(f: (String, HttpURLConnection) => T): T = {
 		val conn = url.openConnection().asInstanceOf[HttpURLConnection]
 		try {
-			val stream = new BufferedInputStream(conn.getInputStream())
 			// TODO: Use more effective android.util.JsonReader on API level 11.
-			val content = new InputStreamReader(stream).readAll()
+			val content = readWholeStream(conn.getInputStream())
 			logger.verbose("Response from %s: %s" format (url, content))
-			content
+			f(content, conn)
 		} finally {
 			conn.disconnect()
 		}
