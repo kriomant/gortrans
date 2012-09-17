@@ -51,8 +51,8 @@ object General {
       libraryDependencies += "org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
 
 			resolvers += "ActionBarSherlock" at  "http://r.jakewharton.com/maven/release/",
-			libraryDependencies += "com.actionbarsherlock" % "library" % "4.0.2" artifacts(Artifact("library", "apklib", "apklib")),
-	    libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.0.0",
+			libraryDependencies += "com.actionbarsherlock" % "library" % "4.1.0" artifacts(Artifact("library", "apklib", "apklib")),
+	    libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.1.0",
       // Prevent ProGuard from stripping ActionBarSherlock implementation classes which are used through reflection.
       proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep class android.support.v4.content.Loader* -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
 
