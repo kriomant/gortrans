@@ -52,7 +52,7 @@ object Checker {
 				logger.warn("Route is empty")
 			} else {
 				logger.debug("Check stop names")
-				val routeStops = points.collect{ case RoutePoint(Some(RouteStop(name, _)), _, _) => name }
+				val routeStops = points.collect{ case RoutePoint(Some(RouteStop(name)), _, _) => name }
 
 				var wasStopErrors = false
 				for (stopName <- routeStops.toSet[String]) {
@@ -96,9 +96,14 @@ object Checker {
 					}
 				}
 
+				logger.debug("Check route is splittable")
+				val (forward, backward) = core.splitRoute(points, route.begin, route.end)
+				val forwardStops  = forward.collect { case RoutePoint(Some(RouteStop(name)), _, _) => name }
+				val backwardStops = backward.collect { case RoutePoint(Some(RouteStop(name)), _, _) => name }
+
 				logger.debug("Check route is foldable")
 				try {
-					core.foldRoute[String](routeStops, (x => x))
+					core.foldRoute[String](forwardStops, backwardStops, identity)
 				} catch {
 					case e: core.RouteFoldingException => {
 						logger.error("Can't fold route: {}\nRoute: {}", e.getMessage, routeStops.mkString(" —— "))
@@ -110,18 +115,10 @@ object Checker {
 					val (totalLength, positions) = core.straightenRoute(points.map(p => Point(p.longitude, p.latitude)))
 
 					val straightenedStops = ((positions ++ Seq(totalLength)) zip points).collect {
-						case (pos, RoutePoint(Some(RouteStop(name, _)), _, _)) => (pos.toFloat, name)
-					}
-					try {
-						core.foldRouteInternal(straightenedStops.map(_._2))
-					} catch {
-						case e: core.RouteFoldingException => {
-							logger.error("Can't fold straightened route: {}\nRoute: {}", e.getMessage, straightenedStops.map(_._2).mkString(" —— "))
-						}
+						case (pos, RoutePoint(Some(RouteStop(name)), _, _)) => (pos.toFloat, name)
 					}
 				} catch {
-					case e: AssertionError =>
-					case e: Exception => logger.error("Can't straighten route: {}", e)
+					case e@(_: AssertionError | _: Exception) => logger.error("Can't straighten route: {}", e)
 				}
 
 				logger.debug("Request vehicles location")

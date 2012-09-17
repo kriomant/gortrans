@@ -1,6 +1,8 @@
 package net.kriomant.gortrans
 
 import collection.mutable
+import Predef._
+
 import net.kriomant.gortrans.geometry.{Point => Pt, closestSegmentPoint, closestSegmentPointPortion}
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint, RouteStop}
 import net.kriomant.gortrans.utils.traversableOnceUtils
@@ -51,65 +53,72 @@ object core {
 		}
 	}
 
-	def foldRouteInternal(stops: Seq[String]): Seq[(String, Option[Int], Option[Int])] = {
-		// nskgortrans.ru returns route stops for both back and forth
-		// route parts as single list. E.g. for route between A and D
-		// (with corresponding stops in between) route stops list is
-		// [A, B, C, D, D, C, B, A]
-		// This is required because forward and backward route parts may
-		// differ, for example vehicle may not stop on B stop when it goes
-		// backward.
-		// Thus it is needed to "fold" route stops list to make it shorter.
-		// Each route stop in folded route is marked with directions
-		// where it is available.
-
-		if (stops.length < 3)
-			throw new RouteFoldingException("Less than 3 stops in route")
-
-		// Find two consecutive stops with the same name - it is terminal stop.
-		// If terminal stop is not found, it may be one-way circular route,
-		// just split it in the middle.
-		val pos = (2 to stops.length - 2).find(i => stops(i - 1) == stops(i)).getOrElse(stops.length/2)
-
+	def foldRouteInternal(forward: Seq[String], backward: Seq[String]): Seq[(String, Option[Int], Option[Int])] = {
 		// Build folded route at last.
 		val foldedRoute = new mutable.ArrayBuffer[(String, Option[Int], Option[Int])]
 		var fpos = 0 // Position of first unfolded stop in forward route.
-		var bpos = stops.length - 1 // Position of last unfolded stop in backward route (backward part of route is folded from the end)
-		while (fpos < pos) {
+		var bpos = backward.length - 1 // Position of last unfolded stop in backward route (backward part of route is folded from the end)
+		while (fpos < forward.length) {
 			// Take stop name from forward route.
-			val name = stops(fpos)
+			val name = forward(fpos)
 			// Find the same stop in backward route.
-			val bstoppos = stops.view(pos, stops.length).lastIndexOf(name, bpos-pos) match {
-				case -1 => -1
-				case  n => n + pos
-			}
-
-			if (bstoppos != -1) {
-				// Add all backward stops between bpos and bstoppos as backward-only.
-				foldedRoute ++= ((bstoppos + 1) to bpos).reverse.map(s => (stops(s), None, Some(s)))
-				foldedRoute += ((name, Some(fpos), Some(bstoppos)))
-				bpos = bstoppos - 1
-			} else {
-				foldedRoute += ((name, Some(fpos), None))
+			val bstoppos = backward.lastIndexOf(name, bpos) match {
+				case -1 => foldedRoute += ((name, Some(fpos), None))
+				case bstoppos => {
+					// Add all backward stops between bpos and bstoppos as backward-only.
+					foldedRoute ++= ((bstoppos + 1) to bpos).reverse.map(s => (backward(s), None, Some(s)))
+					foldedRoute += ((name, Some(fpos), Some(bstoppos)))
+					bpos = bstoppos - 1
+				}
 			}
 
 			fpos += 1
 		}
 
-		foldedRoute ++= (pos to bpos).reverse.map(s => (stops(s), None, Some(s)))
+		// Forward stops are exhausted, but there may be unused backward stops, add them.
+		foldedRoute ++= (0 to bpos).reverse.map(s => (backward(s), None, Some(s)))
 
 		foldedRoute
 	}
 
-	def foldRoute[Stop](stops: Seq[Stop], getName: Stop => String): Seq[FoldedRouteStop[Stop]] = {
-		if (stops.length < 3)
-			throw new RouteFoldingException("Less than 3 stops in route")
-
-		// Last name (which is the same stop as first one) is non needed by internal
-		// algorithm, strip it.
-		foldRouteInternal(stops.map(getName)).map {
+	def foldRoute[Stop](forward: Seq[Stop], backward: Seq[Stop], getName: Stop => String): Seq[FoldedRouteStop[Stop]] = {
+		foldRouteInternal(forward.map(getName), backward.map(getName)).map {
 			case (name, findex, bindex) =>
-				FoldedRouteStop(name, findex.map(stops.apply), bindex.map(stops.apply))
+				FoldedRouteStop(name, findex.map(forward.apply), bindex.map(backward.apply))
+		}
+	}
+
+	def splitRoute(points: Seq[RoutePoint], begin: String, end: String): (Seq[RoutePoint], Seq[RoutePoint]) = {
+		// First point is always a stop and last point is just duplicate of the first one.
+		require(points.nonEmpty && points.head.stop.isDefined && points.head == points.last)
+
+		// Find two consecutive stops with the same position (excluding first and last points).
+		(2 to points.length - 2).find(i => points(i).stop.isDefined && points(i-1) == points(i)) match {
+			case Some(pos) => (points.slice(0, pos-1), points.slice(pos, points.length-1))
+			case None => {
+				// If equal points are not found, try to split path based on stop names only.
+
+				// Select stop names together with corresponding point indices.
+				val stops = points.zipWithIndex.slice(1, points.length-1).collect{
+					case (RoutePoint(Some(RouteStop(name)), _, _), index) => (name, index)
+				}
+
+				val pos = {
+					// Try to find consecutive stops with the same name.
+					(1 to stops.length-1).find(i => stops(i-1)._1 == stops(i)._1).map(stops(_)._2)
+
+				} orElse {
+						// If such stops aren't found, try to find stop with name given as route end stop.
+						stops.find(_._1 == end).map(_._2)
+
+				} getOrElse {
+
+					// Last resort - split stops approximately in the middle.
+					if (stops.nonEmpty) stops(stops.length/2)._2 else 1
+				}
+
+				(points.slice(0, pos), points.slice(pos, points.length-1))
+			}
 		}
 	}
 

@@ -57,8 +57,10 @@ object DataManager {
 		}
 	}
 
-	case class RoutePointsListSource(vehicleType: VehicleType.Value, routeId: String, routeName: String)
-		extends Source[Seq[RoutePoint], Unit]
+	case class RoutePointsListSource(
+		vehicleType: VehicleType.Value, routeId: String, routeName: String,
+		routeBegin: String, routeEnd: String
+	) extends Source[Seq[RoutePoint], Unit]
 	{
 		val name = "route-%d-%s" format (vehicleType.id, routeId)
 		val maxAge = 2 * 24 * 60 * 60 * 1000l /* ms = 2 days */
@@ -74,25 +76,21 @@ object DataManager {
 			db.clearStopsAndPoints(dbRouteId)
 
 			if (routePoints.nonEmpty) {
-				// First point is always a stop and last point is just duplicate of the first one.
-				// But it may mave different 'length' field value so stops cannot be compared directly.
-				assume(
-					routePoints.head.stop.isDefined &&
-					routePoints.head.stop.get.name == routePoints.last.stop.get.name &&
-					routePoints.head.latitude == routePoints.last.latitude &&
-					routePoints.head.longitude == routePoints.last.longitude
-				)
-				val points = routePoints.dropRight(1)
+				// Split route into forward and backward parts.
+				val (forward, backward) = splitRoute(routePoints, routeBegin, routeEnd)
 
-				for ((point, index) <- points.zipWithIndex) {
+				for ((point, index) <- (forward ++ backward).zipWithIndex) {
 					db.addRoutePoint(dbRouteId, index, point)
 				}
 
 				// Get stop names and corresponding point indices.
-				val stops = points.zipWithIndex.collect {
-					case (RoutePoint(Some(RouteStop(name, _)), _, _), index) => (name, index)
+				val forwardStops = forward.zipWithIndex.collect {
+					case (RoutePoint(Some(RouteStop(name)), _, _), index) => (name, index)
 				}
-				val folded = core.foldRoute[(String, Int)](stops, _._1)
+				val backwardStops = backward.zipWithIndex.collect {
+					case (RoutePoint(Some(RouteStop(name)), _, _), index) => (name, index + forward.length)
+				}
+				val folded = core.foldRoute[(String, Int)](forwardStops, backwardStops, _._1)
 
 				for ((stop, index) <- folded.zipWithIndex) {
 					db.addRouteStop(dbRouteId, stop.name, index, stop.forward.map(_._2), stop.backward.map(_._2))
@@ -170,9 +168,13 @@ class DataManager(context: Context, db: Database) {
 
 	def requestRoutePoints(
 		vehicleType: VehicleType.Value, routeId: String, routeName: String,
+		routeBegin: String, routeEnd: String,
 		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
 	)(f: => Unit) {
-		requestDatabaseData(RoutePointsListSource(vehicleType, routeId, routeName), getIndicator, updateIndicator, f)
+		requestDatabaseData(
+			RoutePointsListSource(vehicleType, routeId, routeName, routeBegin, routeEnd),
+			getIndicator, updateIndicator, f
+		)
 	}
 
 	def requestStopSchedules(

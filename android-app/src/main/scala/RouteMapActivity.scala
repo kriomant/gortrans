@@ -56,7 +56,9 @@ class RouteMapActivity extends SherlockMapActivity
   var routeId: String = null
   var routeName: String = null
   var vehicleType: VehicleType.Value = null
-  
+	var routeBegin: String = null
+	var routeEnd: String = null
+
   var forwardRouteOverlay: Overlay = null
 	var backwardRouteOverlay: Overlay = null
   var stopOverlays: Seq[Overlay] = null
@@ -142,13 +144,27 @@ class RouteMapActivity extends SherlockMapActivity
 		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
 		actionBar.setDisplayHomeAsUpEnabled(true)
 
-		loadData()
+		loadRouteInfo()
+	}
+
+	def loadRouteInfo() {
+		dataManager.requestRoutesList(
+			new ForegroundProcessIndicator(this, loadRouteInfo),
+			new MapActionBarProcessIndicator(this)
+		) {
+			val db = getApplication.asInstanceOf[CustomApplication].database
+			closing(db.fetchRoute(vehicleType, routeId)) { cursor =>
+				routeBegin = cursor.firstStopName
+				routeEnd = cursor.lastStopName
+			}
+			loadData()
+		}
 	}
 
 	def loadData() {
 		// Load route details.
 		dataManager.requestRoutePoints(
-			vehicleType, routeId, routeName,
+			vehicleType, routeId, routeName, routeBegin, routeEnd,
 			new ForegroundProcessIndicator(this, loadData),
 			new MapActionBarProcessIndicator(this)
 		) {

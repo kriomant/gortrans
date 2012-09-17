@@ -12,6 +12,8 @@ import com.actionbarsherlock.view.{MenuItem, Menu}
 import android.widget.AdapterView.OnItemClickListener
 import android.support.v4.widget.CursorAdapter
 
+import utils.closing
+
 object RouteInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
 
@@ -42,6 +44,8 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 	private[this] var routeId: String = null
 	private[this] var routeName: String = null
 	private[this] var vehicleType: VehicleType.Value = null
+	private[this] var routeBegin: String = null
+	private[this] var routeEnd: String = null
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
@@ -75,19 +79,32 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 		actionBar.setDisplayHomeAsUpEnabled(true)
 		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
 		actionBar.setSubtitle(R.string.route)
+
+		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 	}
 
 	override def onStart() {
 		super.onStart()
-		loadData()
+		loadRouteInfo()
 	}
 
-	def loadData() {
-		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
-
+	def loadRouteInfo() {
+		dataManager.requestRoutesList(
+			new ForegroundProcessIndicator(this, loadRouteInfo),
+			new ActionBarProcessIndicator(this)
+		) {
+			val db = getApplication.asInstanceOf[CustomApplication].database
+			closing(db.fetchRoute(vehicleType, routeId)) { cursor =>
+				routeBegin = cursor.firstStopName
+				routeEnd = cursor.lastStopName
+			}
+			loadRoutePoints()
+		}
+	}
+	def loadRoutePoints() {
 		dataManager.requestRoutePoints(
-			vehicleType, routeId, routeName,
-			new ForegroundProcessIndicator(this, loadData),
+			vehicleType, routeId, routeName, routeBegin, routeEnd,
+			new ForegroundProcessIndicator(this, loadRoutePoints),
 			new ActionBarProcessIndicator(this)
 		) {
 			if (stopsCursor == null) {
@@ -119,7 +136,7 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 		}
 
 		dataManager.requestStopsList(
-			new ForegroundProcessIndicator(this, loadData),
+			new ForegroundProcessIndicator(this, loadRoutePoints),
 			new ActionBarProcessIndicator(this)
 		) { }
 	}

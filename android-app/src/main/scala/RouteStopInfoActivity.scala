@@ -179,11 +179,15 @@ class RouteStopInfoActivity extends SherlockActivity
 				new Route(vehicleType, routeId, cursor.name, cursor.firstStopName, cursor.lastStopName)
 			}
 			setDirectionText()
+			loadRoutePoints()
 		}
+	}
 
+	def loadRoutePoints() {
+		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 		dataManager.requestRoutePoints(
-			vehicleType, routeId, routeName,
-			new ForegroundProcessIndicator(this, loadData),
+			vehicleType, routeId, routeName, route.begin, route.end,
+			new ForegroundProcessIndicator(this, loadRoutePoints),
 			new ActionBarProcessIndicator(this)
 		) {
 			routePointsUpdated()

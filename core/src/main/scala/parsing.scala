@@ -116,7 +116,17 @@ object parsing {
 		}.toMap
 	}
 
-	case class RouteStop(name: String, length: Int)
+	case class RouteStop(
+		name: String
+
+		// Meaning of `length` field is not fully clear and it is not used by this app,
+		// so just ignore it. If you want to uncomment it back then take into account that
+		// this module relies heavily on `RoutePoint` (and thus `RouteStop`) object equality
+		// and very often points returned by nskgortrans site have the same stop name and
+		// coordinates, but different `length` value. So it is needed to find all comparisons
+		// of `RoutePoint`s and rewrite them to ignore `length` field.
+		// length: Int
+	)
 
 	case class RoutePoint(stop: Option[RouteStop], latitude: Double, longitude: Double)
 
@@ -129,7 +139,7 @@ object parsing {
 						val points: Seq[RoutePoint] = m.getJSONArray("u").ofObjects.map { p =>
 							val lat = p.getDouble("lat")
 							val lng = p.getDouble("lng")
-							val stop = (p has "n") ? RouteStop(p.getString("n"), p.getInt("len"))
+							val stop = (p has "n") ? RouteStop(p.getString("n") /*, p.getInt("len")*/)
 							RoutePoint(stop, lat, lng)
 						}.toSeq
 						routeId -> points
