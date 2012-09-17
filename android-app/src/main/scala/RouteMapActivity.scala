@@ -37,6 +37,10 @@ object RouteMapActivity {
 		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
 		intent
 	}
+
+	// MapView's zoom level at which whole or significant part of route
+	// is visible.
+	val ZOOM_WHOLE_ROUTE = 14
 }
 
 class RouteMapActivity extends SherlockMapActivity
@@ -409,11 +413,21 @@ class RouteStopOverlay(resources: Resources, geoPoint: GeoPoint) extends Overlay
 	val img = BitmapFactory.decodeResource(resources, R.drawable.route_stop_marker)
 
 	override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
-		if (! shadow) {
+		if (! shadow && view.getZoomLevel >= RouteMapActivity.ZOOM_WHOLE_ROUTE) {
 			val point = new Point
 			view.getProjection.toPixels(geoPoint, point)
 
-			canvas.drawBitmap(img, point.x - img.getWidth/2, point.y - img.getHeight/2, null)
+			if (
+				view.getZoomLevel == RouteMapActivity.ZOOM_WHOLE_ROUTE ||
+				view.getZoomLevel == RouteMapActivity.ZOOM_WHOLE_ROUTE+1
+			)
+				canvas.drawBitmap(img,
+					new Rect(0, 0, img.getWidth, img.getHeight),
+					new Rect(point.x - img.getWidth/4, point.y - img.getHeight/4, point.x + img.getWidth/4, point.y + img.getHeight/4),
+					null
+				)
+			else
+				canvas.drawBitmap(img, point.x - img.getWidth/2, point.y - img.getHeight/2, null)
 		}
 	}
 }
@@ -423,7 +437,7 @@ class RouteStopNameOverlay(name: String, geoPoint: GeoPoint) extends Overlay {
 	final val Y_OFFSET = 5
 
 	override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
-		if (! shadow) {
+		if (! shadow && view.getZoomLevel >= RouteMapActivity.ZOOM_WHOLE_ROUTE) {
 			val point = new Point
 			view.getProjection.toPixels(geoPoint, point)
 
