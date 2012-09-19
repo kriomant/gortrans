@@ -51,7 +51,7 @@ trait VehiclesWatcher { this: Activity =>
 		override def doInBackgroundBridge(): Either[String, Seq[VehicleInfo]] = {
 			val (vehicleType, routeId, routeName) = getVehiclesToTrack
 			val request = new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
-			val json = client.getVehiclesLocation(Seq(request))
+			val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(Seq(request)) }
 
 			try {
 				Right(parsing.parseVehiclesLocation(json))
