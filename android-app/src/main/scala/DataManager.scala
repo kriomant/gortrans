@@ -39,7 +39,8 @@ object DataManager {
 		val maxAge = 4 * 24 * 60 * 60 * 1000l /* ms = 4 days */
 
 		def fetch(client: Client): RoutesInfo = {
-			parsing.parseRoutesJson(client.getRoutesList())
+			val json = retryOnceIfEmpty { client.getRoutesList() }
+			parsing.parseRoutesJson(json)
 		}
 
 		def update(db: Database, old: Boolean, fresh: RoutesInfo) {
