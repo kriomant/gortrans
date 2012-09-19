@@ -29,6 +29,11 @@ object DataManager {
 		def update(db: Database, old: Boolean, fresh: Data)
 	}
 
+	def retryOnceIfEmpty(f: => String): String = {
+		var res = f
+		if (res.nonEmpty) res else f
+	}
+
 	object RoutesListSource extends Source[RoutesInfo, Database.RoutesTable.Cursor] {
 		val name = "routes"
 		val maxAge = 4 * 24 * 60 * 60 * 1000l /* ms = 4 days */
@@ -66,7 +71,9 @@ object DataManager {
 		val maxAge = 2 * 24 * 60 * 60 * 1000l /* ms = 2 days */
 
 		def fetch(client: Client): Seq[RoutePoint] = {
-			val response = client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)))
+			val response = retryOnceIfEmpty {
+				client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)))
+			}
 			parsing.parseRoutesPoints(response)(routeId)
 		}
 
