@@ -52,6 +52,8 @@
 		<string name="show_schedule">Показать расписание</string>
 		<string name="refresh">Обновить</string>
 
+		<string name="cant_parse_vehicles">Ошибка загрузки координат: некорректный ответ сервера</string>
+
 		<string name="loading">Загружаю...</string>
 		<string name="wait_please">Подождите, пожалуйста.</string>
 		<string name="cant_load">Ошибка</string>

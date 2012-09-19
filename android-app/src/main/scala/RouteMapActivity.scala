@@ -7,7 +7,7 @@ import android.widget.CompoundButton.OnCheckedChangeListener
 import android.os.{Handler, Bundle}
 import com.google.android.maps._
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint}
-import android.widget.{ToggleButton, CompoundButton}
+import android.widget.{Toast, ToggleButton, CompoundButton}
 import android.content.{Context, Intent}
 import android.location.{Location}
 import android.view.View
@@ -323,25 +323,37 @@ class RouteMapActivity extends SherlockMapActivity
 		updateOverlays()
 	}
 
-	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
-		val vehiclesPointsAndAngles = vehicles map { v =>
-			val (pt, segment) = v.direction match {
-				case Some(Direction.Forward) => core.snapVehicleToRoute(v, forwardRoutePoints)
-				case Some(Direction.Backward) => core.snapVehicleToRoute(v, backwardRoutePoints)
-				case None => (Pt(v.longitude, v.latitude), None)
+	def onVehiclesLocationUpdated(result: Either[String, Seq[VehicleInfo]]) {
+		result match {
+			case Right(vehicles) => {
+				val vehiclesPointsAndAngles = vehicles map { v =>
+					val (pt, segment) = v.direction match {
+						case Some(Direction.Forward) => core.snapVehicleToRoute(v, forwardRoutePoints)
+						case Some(Direction.Backward) => core.snapVehicleToRoute(v, backwardRoutePoints)
+						case None => (Pt(v.longitude, v.latitude), None)
+					}
+
+					val angle = segment map { s =>
+						math.atan2(s._2.y - s._1.y, s._2.x - s._1.x) * 180 / math.Pi
+					}
+					(v, pt, angle)
+				}
+
+				vehiclesOverlay = new VehiclesOverlay(getResources, vehiclesPointsAndAngles)
+				realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle) =>
+					new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
+				}
+				updateOverlays()
 			}
 
-			val angle = segment map { s =>
-				math.atan2(s._2.y - s._1.y, s._2.x - s._1.x) * 180 / math.Pi
-			}
-			(v, pt, angle)
-		}
+			case Left(message) => {
+				Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
-		vehiclesOverlay = new VehiclesOverlay(getResources, vehiclesPointsAndAngles)
-		realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle) =>
-			new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
+				vehiclesOverlay = null
+				realVehicleLocationOverlays = Seq()
+				updateOverlays()
+			}
 		}
-		updateOverlays()
 
 		setSupportProgressBarIndeterminateVisibility(false)
 	}

@@ -15,7 +15,7 @@ trait VehiclesWatcher { this: Activity =>
 	def getVehiclesToTrack: (VehicleType.Value, String, String) // type, routeId, routeName
 	def onVehiclesLocationUpdateStarted()
 	def onVehiclesLocationUpdateCancelled()
-	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo])
+	def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]])
 
 	private[this] final val VEHICLES_LOCATION_UPDATE_PERIOD = 20000 /* ms */
 
@@ -43,19 +43,24 @@ trait VehiclesWatcher { this: Activity =>
 		onVehiclesLocationUpdateCancelled()
 	}
 
-	class TrackVehiclesTask extends AsyncTaskBridge[Unit, Seq[VehicleInfo]] {
+	class TrackVehiclesTask extends AsyncTaskBridge[Unit, Either[String, Seq[VehicleInfo]]] {
 		override def onPreExecute() {
 			onVehiclesLocationUpdateStarted()
 		}
 
-		override def doInBackgroundBridge(): Seq[VehicleInfo] = {
+		override def doInBackgroundBridge(): Either[String, Seq[VehicleInfo]] = {
 			val (vehicleType, routeId, routeName) = getVehiclesToTrack
 			val request = new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
 			val json = client.getVehiclesLocation(Seq(request))
-			parsing.parseVehiclesLocation(json)
+
+			try {
+				Right(parsing.parseVehiclesLocation(json))
+			} catch {
+				case _: org.json.JSONException => Left(getString(R.string.cant_parse_vehicles))
+			}
 		}
 
-		override def onPostExecute(result: Seq[VehicleInfo]) {
+		override def onPostExecute(result: Either[String, Seq[VehicleInfo]]) {
 			onVehiclesLocationUpdated(result)
 		}
 

@@ -198,25 +198,36 @@ class RouteStopInfoActivity extends SherlockActivity
 
 	def onVehiclesLocationUpdateStarted() {}
 	def onVehiclesLocationUpdateCancelled() {}
-	def onVehiclesLocationUpdated(vehicles: Seq[VehicleInfo]) {
-		// Snap vehicles moving in appropriate direction to route.
-		val snapped = vehicles flatMap { v =>
-			v.direction match {
-				case Some(d) => {
-					val (routePart, offset) = d match {
-						case Direction.Forward => (forwardPoints, 0)
-						case Direction.Backward => (backwardPoints, forwardPoints.length-1)
-					}
-					snapVehicleToRouteInternal(v, routePart) map { case (segmentIndex, pointPos) =>
-						pointPositions(offset+segmentIndex) + pointPos * (pointPositions(offset+segmentIndex+1) - pointPositions(offset+segmentIndex))
+	def onVehiclesLocationUpdated(result: Either[String, Seq[VehicleInfo]]) {
+		val flatRoute = findView(TR.flat_route)
+
+		result match {
+			case Right(vehicles) => {
+				// Snap vehicles moving in appropriate direction to route.
+				val snapped = vehicles flatMap { v =>
+					v.direction match {
+						case Some(d) => {
+							val (routePart, offset) = d match {
+								case Direction.Forward => (forwardPoints, 0)
+								case Direction.Backward => (backwardPoints, forwardPoints.length-1)
+							}
+							snapVehicleToRouteInternal(v, routePart) map { case (segmentIndex, pointPos) =>
+								pointPositions(offset+segmentIndex) + pointPos * (pointPositions(offset+segmentIndex+1) - pointPositions(offset+segmentIndex))
+							}
+						}
+						case None => None
 					}
 				}
-				case None => None
+
+				flatRoute.setVehicles(snapped.map(_.toFloat))
+			}
+
+			case Left(message) => {
+				Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+				flatRoute.setVehicles(Seq())
 			}
 		}
-
-		val flatRoute = findView(TR.flat_route)
-		flatRoute.setVehicles(snapped.map(_.toFloat))
 	}
 
 	protected override def onPause() {
