@@ -8,7 +8,7 @@ import net.kriomant.gortrans.Client.{RouteInfoRequest}
 import android.content.Context
 import android.util.Log
 import java.util
-import java.net.{SocketException, UnknownHostException, ConnectException}
+import java.net.{SocketTimeoutException, SocketException, UnknownHostException, ConnectException}
 import scala.collection.mutable
 
 object DataManager {
@@ -214,7 +214,13 @@ class DataManager(context: Context, db: Database) {
 						Log.v(TAG, "Data is successfully fetched")
 						Some(rawData)
 					} catch {
-						case ex @ (_: UnknownHostException | _: ConnectException | _: SocketException | _: EOFException) => {
+						case ex @ (
+							_: UnknownHostException |
+							_: ConnectException |
+							_: SocketException |
+							_: EOFException |
+							_: SocketTimeoutException
+						) => {
 							Log.v(TAG, "Network failure during data fetching", ex)
 							None
 						}
