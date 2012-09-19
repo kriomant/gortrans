@@ -15,7 +15,7 @@ object Database {
 	val TAG = getClass.getName
 
 	val NAME = "gortrans"
-	val VERSION = 3
+	val VERSION = 4
 
 	class Helper(context: Context) extends SQLiteOpenHelper(context, NAME, null, VERSION) {
 		def onCreate(db: SQLiteDatabase) {
