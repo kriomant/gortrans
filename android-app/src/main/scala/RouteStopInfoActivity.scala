@@ -34,7 +34,7 @@ object RouteStopInfoActivity {
 
 	def createIntent(
 		caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value,
-		stopId: Int, stopName: String, foldedStopIndex: Int
+		stopId: Int, stopName: String, foldedStopIndex: Int = -1
 	): Intent = {
 		val intent = new Intent(caller, classOf[RouteStopInfoActivity])
 		intent.putExtra(EXTRA_ROUTE_ID, routeId)
@@ -265,7 +265,7 @@ class RouteStopInfoActivity extends SherlockActivity
 		}
 		case R.id.refresh => if (stopId != -1) refreshArrivals(); true
 		case R.id.show_schedule => {
-			val intent = StopScheduleActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName, foldedStopIndex, direction)
+			val intent = StopScheduleActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName, direction)
 			startActivity(intent)
 			true
 		}
@@ -332,6 +332,13 @@ class RouteStopInfoActivity extends SherlockActivity
 		}
 		val stops = closing(db.fetchRouteStops(vehicleType, routeId)) {
 			_.map(c => FoldedRouteStop[Int](c.name, c.forwardPointIndex, c.backwardPointIndex)).toIndexedSeq
+		}
+
+		// If `foldedStopIndex` extra is not given (it is possible in case
+		// of using shortcut created with previous versions) find stop
+		// index by name.
+		if (foldedStopIndex == -1) {
+			foldedStopIndex = stops.indexWhere(s => s.name == stopName)
 		}
 
 		// Split points into forward and backward parts. They will be used

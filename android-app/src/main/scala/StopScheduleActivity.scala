@@ -25,11 +25,10 @@ object StopScheduleActivity {
 	private final val EXTRA_STOP_ID = CLASS_NAME + ".STOP_ID"
 	private final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
 	private final val EXTRA_DIRECTION = CLASS_NAME + ".DIRECTION"
-	private final val EXTRA_FOLDED_STOP_INDEX = CLASS_NAME + ".FOLDED_STOP_INDEX"
 
 	def createIntent(
 		caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value,
-		stopId: Int, stopName: String, foldedStopIndex: Int, direction: Direction.Value
+		stopId: Int, stopName: String, direction: Direction.Value
 	): Intent = {
 		val intent = new Intent(caller, classOf[StopScheduleActivity])
 		intent.putExtra(EXTRA_ROUTE_ID, routeId)
@@ -38,7 +37,6 @@ object StopScheduleActivity {
 		intent.putExtra(EXTRA_STOP_ID, stopId)
 		intent.putExtra(EXTRA_STOP_NAME, stopName)
 		intent.putExtra(EXTRA_DIRECTION, direction.id)
-		intent.putExtra(EXTRA_FOLDED_STOP_INDEX, foldedStopIndex)
 		intent
 	}
 }
@@ -53,7 +51,6 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 	private var vehicleType: VehicleType.Value = null
 	private var stopId: Int = -1
 	private var stopName: String = null
-	private var foldedStopIndex: Int = -1
 	private var direction: Direction.Value = null
 
 	override def onCreate(bundle: Bundle) {
@@ -68,7 +65,6 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 		stopId = intent.getIntExtra(EXTRA_STOP_ID, -1)
 		stopName = intent.getStringExtra(EXTRA_STOP_NAME)
 		direction = Direction(intent.getIntExtra(EXTRA_DIRECTION, -1))
-		foldedStopIndex = intent.getIntExtra(EXTRA_FOLDED_STOP_INDEX, -1)
 
 		val stopScheduleFormatByVehicleType = Map(
 			VehicleType.Bus -> R.string.bus_n,
@@ -224,7 +220,7 @@ class StopScheduleActivity extends SherlockActivity with TypedActivity with Shor
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case android.R.id.home => {
-			val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName, foldedStopIndex)
+			val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
 			startActivity(intent)
 			true
 		}
