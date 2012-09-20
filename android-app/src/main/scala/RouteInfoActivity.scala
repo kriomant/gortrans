@@ -173,12 +173,21 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 		stopsCursor.moveToPosition(position)
 		val stopName = stopsCursor.name
 
-		val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
-		val db = getApplication.asInstanceOf[CustomApplication].database
-		val stopId = db.findStopId(fixedStopName).getOrElse(-1)
+		openStopInfo(stopName)
+	}
 
-		val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName, position)
-		startActivity(intent)
+	private[this] def openStopInfo(stopName: String) {
+		dataManager.requestStopsList(
+			new ForegroundProcessIndicator(this, () => openStopInfo(stopName)),
+			new ActionBarProcessIndicator(this)
+		) {
+			val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
+			val db = getApplication.asInstanceOf[CustomApplication].database
+			val stopId = db.findStopId(fixedStopName).getOrElse(-1)
+
+			val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
+			startActivity(intent)
+		}
 	}
 }
 
