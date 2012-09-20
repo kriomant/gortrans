@@ -6,8 +6,12 @@ import net.kriomant.gortrans.Client.RouteInfoRequest
 import net.kriomant.gortrans.core.{VehicleType, DirectionsEx}
 import android.app.Activity
 import android.widget.Toast
+import java.net.{SocketTimeoutException, SocketException, ConnectException, UnknownHostException}
+import java.io.EOFException
+import android.util.Log
 
 trait VehiclesWatcher { this: Activity =>
+	private final val TAG = classOf[VehiclesWatcher].getName
 
 	val handler: Handler
 	def client: Client = getApplication.asInstanceOf[CustomApplication].dataManager.client
@@ -51,11 +55,22 @@ trait VehiclesWatcher { this: Activity =>
 		override def doInBackgroundBridge(): Either[String, Seq[VehicleInfo]] = {
 			val (vehicleType, routeId, routeName) = getVehiclesToTrack
 			val request = new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
-			val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(Seq(request)) }
-
 			try {
+				val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(Seq(request)) }
 				Right(parsing.parseVehiclesLocation(json))
 			} catch {
+				// TODO: Reuse code from DataManager.
+				case ex @ (
+					_: UnknownHostException |
+					_: ConnectException |
+					_: SocketException |
+					_: EOFException |
+					_: SocketTimeoutException
+				) => {
+					Log.v(TAG, "Network failure during data fetching", ex)
+					Left(getString(R.string.cant_fetch_vehicles))
+				}
+
 				case _: org.json.JSONException => Left(getString(R.string.cant_parse_vehicles))
 			}
 		}
