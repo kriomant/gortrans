@@ -9,6 +9,7 @@ import android.widget.Toast
 import java.net.{SocketTimeoutException, SocketException, ConnectException, UnknownHostException}
 import java.io.EOFException
 import android.util.Log
+import java.util
 
 trait VehiclesWatcher { this: Activity =>
 	private final val TAG = classOf[VehiclesWatcher].getName
@@ -57,7 +58,7 @@ trait VehiclesWatcher { this: Activity =>
 			val request = new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
 			try {
 				val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(Seq(request)) }
-				Right(parsing.parseVehiclesLocation(json))
+				Right(parsing.parseVehiclesLocation(json, new util.Date))
 			} catch {
 				// TODO: Reuse code from DataManager.
 				case ex @ (

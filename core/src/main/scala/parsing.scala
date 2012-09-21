@@ -16,9 +16,11 @@ import java.util.{Calendar, Date}
 import util.matching.Regex.Match
 import java.util.regex.Pattern
 import net.kriomant.gortrans.core.Route
-import scala.collection.mutable
+import java.util
 
 object parsing {
+
+	val NSK_TIME_ZONE = util.TimeZone.getTimeZone("+07")
 
 	class ParsingException(msg: String) extends Exception(msg)
 
@@ -31,6 +33,21 @@ object parsing {
 			def length = arr.length
 			def apply(idx: Int) = arr.getInt(idx)
 		}
+	}
+
+	def combineDateAndTime(date: Date, time: Date, timeZone: util.TimeZone): Date = {
+		val dateCalendar = Calendar.getInstance(timeZone)
+		val timeCalendar = Calendar.getInstance(timeZone)
+
+		dateCalendar.setTime(date)
+		timeCalendar.setTime(time)
+
+		dateCalendar.set(Calendar.HOUR_OF_DAY, timeCalendar.get(Calendar.HOUR_OF_DAY))
+		dateCalendar.set(Calendar.MINUTE, timeCalendar.get(Calendar.MINUTE))
+		dateCalendar.set(Calendar.SECOND, timeCalendar.get(Calendar.SECOND))
+		dateCalendar.set(Calendar.MILLISECOND, timeCalendar.get(Calendar.MILLISECOND))
+
+		dateCalendar.getTime
 	}
 
 	def parseRoute(vehicleType: VehicleType.Value, obj: JSONObject) = Route(
@@ -73,7 +90,7 @@ object parsing {
 		                      schedule: Seq[(String, String)]
 		                      )
 
-	def parseVehiclesLocation(obj: JSONObject): Seq[VehicleInfo] = {
+	def parseVehiclesLocation(obj: JSONObject, serverTime: Date): Seq[VehicleInfo] = {
 		obj.getJSONArray("markers").ofObjects map {
 			o: JSONObject =>
 				val routeName = o.getString("title")
@@ -89,7 +106,20 @@ object parsing {
 				}
 				val latitude = o.getString("lat").toFloat
 				val longitude = o.getString("lng").toFloat
-				val time = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(o.getString("time_nav"))
+
+				val timeString = o.getString("time_nav")
+				val time = try {
+					new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(timeString)
+				} catch {
+					// According to crash reports nskgortrans sometimes sends time without date
+					// part.
+					case e: java.text.ParseException => {
+						val dateFormat = new SimpleDateFormat("HH:mm:ss")
+						dateFormat.setTimeZone(NSK_TIME_ZONE)
+						combineDateAndTime(serverTime, dateFormat.parse(timeString), NSK_TIME_ZONE)
+					}
+				}
+
 				val azimuth = o.getString("azimuth").toInt
 				val schedule = o.getString("rasp").split('|').map {
 					l =>
@@ -101,10 +131,10 @@ object parsing {
 		} toSeq
 	}
 
-	def parseVehiclesLocation(json: String): Seq[VehicleInfo] = {
+	def parseVehiclesLocation(json: String, serverTime: Date): Seq[VehicleInfo] = {
 		val tokenizer = new JSONTokener(json)
 		val obj = new JSONObject(tokenizer)
-		parseVehiclesLocation(obj)
+		parseVehiclesLocation(obj, serverTime)
 	}
 
 	def parseStopsList(content: String): Map[String, Int] = {
