@@ -105,20 +105,29 @@ class FlatRouteView(context: Context, attributes: AttributeSet) extends View(con
 	}
 
 	class ScalingEventHandler(downEvent: MotionEvent) extends TouchHandler {
-		val pointerId = downEvent.getPointerId(0)
+		var pointerId = downEvent.getPointerId(0)
 		val initialX = downEvent.getX
 		val initialScale = FlatRouteView.this.scale
 
 		def apply(event: MotionEvent): Boolean = event.getAction match {
 			case MotionEvent.ACTION_MOVE => {
-				val idx = event.findPointerIndex(pointerId)
-				val x = event.getX(idx)
-				FlatRouteView.this.scale = clampScale(initialScale / (_fixedStopX - initialX) * (_fixedStopX - x))
-				FlatRouteView.this.invalidate()
+				if (pointerId != -1) {
+					val idx = event.findPointerIndex(pointerId)
+					val x = event.getX(idx)
+					FlatRouteView.this.scale = clampScale(initialScale / (_fixedStopX - initialX) * (_fixedStopX - x))
+					FlatRouteView.this.invalidate()
+				}
 				true
 			}
 
-			case MotionEvent.ACTION_UP => true
+			case MotionEvent.ACTION_POINTER_UP => {
+				if (pointerId != -1 && event.getPointerId(event.getActionIndex) == pointerId) {
+					// Pointer which initiated action is up.
+					pointerId = -1
+				}
+				true
+			}
+
 			case _ => false
 		}
 
