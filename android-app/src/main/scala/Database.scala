@@ -198,10 +198,13 @@ object Database {
 			def scheduleName = cursor.getString(SCHEDULE_NAME_COLUMN_INDEX)
 			def direction = Direction(cursor.getInt(DIRECTION_COLUMN_INDEX))
 			def stopId = cursor.getInt(STOP_ID_COLUMN_INDEX)
-			def schedule = cursor.getString(SCHEDULE_COLUMN_INDEX).split(",").map { s =>
-				val Array(hour, minute) = s.split(":", 2).map(_.toInt)
-				(hour, minute)
-			}.toSeq
+			def schedule = cursor.getString(SCHEDULE_COLUMN_INDEX) match {
+				case "" => Seq()
+				case str => str.split(",").map { s =>
+					val Array(hour, minute) = s.split(":", 2).map(_.toInt)
+					(hour, minute)
+				}.toSeq
+			}
 		}
 	}
 
