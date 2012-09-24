@@ -9,13 +9,14 @@ import android.database.{Cursor, CursorWrapper}
 import net.kriomant.gortrans.core.{ScheduleType, Direction, DirectionsEx, VehicleType}
 import java.util
 import utils.booleanUtils
+import CursorIterator.cursorUtils
 import net.kriomant.gortrans.parsing.RoutePoint
 
 object Database {
 	val TAG = getClass.getName
 
 	val NAME = "gortrans"
-	val VERSION = 4
+	val VERSION = 5
 
 	class Helper(context: Context) extends SQLiteOpenHelper(context, NAME, null, VERSION) {
 		def onCreate(db: SQLiteDatabase) {
@@ -228,6 +229,66 @@ object Database {
 		}
 	}
 
+	object RouteGroupsTable {
+		val NAME = "routeGroups"
+
+		val ID_COLUMN = "_id"
+		val NAME_COLUMN = "name"
+
+		val ALL_COLUMNS = Array(ID_COLUMN, NAME_COLUMN)
+
+		val ID_COLUMN_INDEX = 0
+		val NAME_COLUMN_INDEX = 1
+
+		class Cursor(cursor: android.database.Cursor) extends CursorWrapper(cursor) {
+			def id = cursor.getLong(ID_COLUMN_INDEX)
+			def name = cursor.getString(NAME_COLUMN_INDEX)
+		}
+	}
+
+	object RouteGroupItemsTable {
+		val NAME = "routeGroupItems"
+
+		val ID_COLUMN = "_id"
+		val GROUP_ID_COLUMN = "groupId"
+		val ROUTE_ID_COLUMN = "routeId"
+
+		val ALL_COLUMNS = Array(ID_COLUMN, GROUP_ID_COLUMN, ROUTE_ID_COLUMN)
+
+		val ID_COLUMN_INDEX = 0
+		val GROUP_ID_COLUMN_INDEX = 1
+		val ROUTE_ID_COLUMN_INDEX = 2
+
+		class Cursor(cursor: android.database.Cursor) extends CursorWrapper(cursor) {
+			def id = cursor.getLong(ID_COLUMN_INDEX)
+			def groupId = cursor.getLong(GROUP_ID_COLUMN_INDEX)
+			def routeId = cursor.getLong(ROUTE_ID_COLUMN_INDEX)
+		}
+	}
+
+	object RouteGroupList {
+		val NAME = "routeGroupList"
+
+		val GROUP_ID_COLUMN = "groupId"
+		val GROUP_NAME_COLUMN = "groupName"
+		val VEHICLE_TYPE_COLUMN = "vehicleType"
+		val ROUTE_NAME_COLUMN = "routeName"
+
+		val ALL_COLUMNS = Array(GROUP_ID_COLUMN, GROUP_NAME_COLUMN, VEHICLE_TYPE_COLUMN, ROUTE_NAME_COLUMN)
+
+		val GROUP_ID_COLUMN_INDEX = 0
+		val GROUP_NAME_COLUMN_INDEX = 1
+		val VEHICLE_TYPE_COLUMN_INDEX = 2
+		val ROUTE_NAME_COLUMN_INDEX = 3
+
+		class Cursor(cursor: android.database.Cursor) extends CursorWrapper(cursor) {
+			def groupId = cursor.getLong(GROUP_ID_COLUMN_INDEX)
+			def groupName = cursor.getString(GROUP_NAME_COLUMN_INDEX)
+			def vehicleType = VehicleType(cursor.getInt(VEHICLE_TYPE_COLUMN_INDEX))
+			def routeName = cursor.getString(ROUTE_NAME_COLUMN_INDEX)
+		}
+	}
+
 	def escapeLikeArgument(arg: String, escapeChar: Char): String = {
 		(arg
 			.replace(escapeChar.toString, escapeChar.toString+escapeChar.toString)
@@ -235,6 +296,8 @@ object Database {
 			.replace("_", escapeChar.toString+"_")
 		)
 	}
+
+	case class GroupInfo(id: Long, name: String, routes: Set[(VehicleType.Value, String)])
 }
 
 class Database(db: SQLiteDatabase) {
@@ -444,6 +507,34 @@ class Database(db: SQLiteDatabase) {
 			null, null, null
 		))
 		findOne(cursor) { _ => cursor.stopId }
+	}
+
+	def loadGroups(): Seq[GroupInfo] = {
+		val cursor = new RouteGroupList.Cursor(db.query(
+			RouteGroupList.NAME, RouteGroupList.ALL_COLUMNS,
+			null, null, null, null, RouteGroupList.GROUP_ID_COLUMN
+		))
+		closing(cursor) { _ =>
+			(cursor
+				.map(c => (c.groupId, c.groupName, c.vehicleType, c.routeName))
+				.toSeq.groupBy(_._1)
+				.map{ case (groupId, items) => GroupInfo(groupId, items.head._2, items.map(i => (i._3, i._4)).toSet) }
+				.toSeq
+			)
+		}
+	}
+
+	def createGroup(name: String): Long = {
+		val values = new ContentValues
+		values.put(RouteGroupsTable.NAME_COLUMN, name)
+		db.insertOrThrow(RouteGroupsTable.NAME, null, values)
+	}
+
+	def addRouteToGroup(groupId: Long, routeId: Long): Long = {
+		val values = new ContentValues
+		values.put(RouteGroupItemsTable.GROUP_ID_COLUMN, groupId.asInstanceOf[java.lang.Long])
+		values.put(RouteGroupItemsTable.ROUTE_ID_COLUMN, routeId.asInstanceOf[java.lang.Long])
+		db.insertOrThrow(RouteGroupItemsTable.NAME, null, values)
 	}
 
 	def fetchOne[C <: Cursor, T](cursor: C)(f: C => T): T = {

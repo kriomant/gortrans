@@ -5,6 +5,10 @@
 		<string name="search_route">Поиск</string>
 		<string name="search_hint">Поиск маршрута</string>
 
+		<string name="create_group">Объединить в группу</string>
+		<string name="group_created">Создана группа «%1$s»</string>
+		<string name="route_list">Список маршрутов</string>
+
     <string name="bus">Автобус</string>
     <string name="trolleybus">Троллейбус</string>
     <string name="tramway">Трамвай</string>

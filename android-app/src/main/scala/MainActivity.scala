@@ -9,12 +9,14 @@ import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
 import android.support.v4.app.{FragmentPagerAdapter, ListFragment, FragmentTransaction}
 import android.view.{ViewGroup, LayoutInflater, View}
 import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar}
-import com.actionbarsherlock.view.{MenuItem, Menu, Window}
+import com.actionbarsherlock.view.{ActionMode, MenuItem, Menu, Window}
 import android.content.{DialogInterface, Context, Intent}
 import net.kriomant.gortrans.DataManager.ProcessIndicator
 import android.app.{AlertDialog, ProgressDialog}
 import android.util.Log
 import android.support.v4.view.ViewPager.OnPageChangeListener
+import android.widget.AdapterView.{OnItemClickListener, OnItemLongClickListener}
+import scala.collection.mutable
 
 object MainActivity {
 	val EXTRA_VEHICLE_TYPE = "vehicleType"
@@ -26,12 +28,13 @@ object MainActivity {
 	}
 }
 
-class MainActivity extends SherlockFragmentActivity with TypedActivity {
+class MainActivity extends SherlockFragmentActivity with TypedActivity with CreateGroupDialog.Listener {
 	import MainActivity._
 
 	private[this] final val TAG = "MainActivity"
 
 	var tabFragmentsMap: Map[VehicleType.Value, RoutesListFragment] = null
+	var actionModeHelper: MultiListActionModeHelper = null
 
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
@@ -49,6 +52,8 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 	  ).mapValues(getResources.getDrawable(_))
 
 	  val tabPager = findView(TR.tab_pager)
+
+	  actionModeHelper = new MultiListActionModeHelper(this, ContextActions)
 
 	  // Fix tabs order.
 	  val tabsOrder = Seq(VehicleType.Bus, VehicleType.TrolleyBus, VehicleType.TramWay, VehicleType.MiniBus)
@@ -153,6 +158,52 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity {
 		// Save index of currently selected tab.
 		outState.putInt("tabIndex", getSupportActionBar.getSelectedNavigationIndex)
 	}
+
+	/** This method is called by tab fragments when their views are created. */
+	def registerRoutesList(listView: ListView) {
+		actionModeHelper.attach(listView)
+	}
+
+	object ContextActions extends ActionMode.Callback with ListSelectionActionModeCallback {
+		def onCreateActionMode(mode: ActionMode, menu: Menu) = {
+			val inflater = mode.getMenuInflater
+			inflater.inflate(R.menu.route_list_actions, menu)
+			true
+		}
+
+		def onPrepareActionMode(mode: ActionMode, menu: Menu) = { true }
+		def onActionItemClicked(mode: ActionMode, item: MenuItem) = item.getItemId match {
+			case R.id.create_group => {
+				val createGroupDialog = new CreateGroupDialog
+				createGroupDialog.show(getSupportFragmentManager, "create_group_dialog")
+				true
+			}
+			case _ => false
+		}
+
+		def onDestroyActionMode(mode: ActionMode) {}
+
+		def itemCheckedStateChanged(mode: ActionMode) {
+			val count = actionModeHelper.getListViews.map(_.getCheckedItemCount).sum
+			mode.setTitle("%d routes" format count)
+		}
+	}
+
+	def onCreateGroup(name: String) {
+		val db = getApplication.asInstanceOf[CustomApplication].database
+
+		db.transaction {
+			val groupId = db.createGroup(name)
+			actionModeHelper.getListViews.foreach { listView =>
+				if (listView.getCheckedItemCount > 0) {
+					listView.getCheckedItemIds.foreach { routeId => db.addRouteToGroup(groupId, routeId) }
+				}
+			}
+		}
+		actionModeHelper.finish()
+
+		Toast.makeText(this, getString(R.string.group_created, name), Toast.LENGTH_SHORT).show()
+	}
 }
 
 class RoutesListFragment extends ListFragment {
@@ -209,6 +260,19 @@ class RoutesListFragment extends ListFragment {
 		}
 	}
 
+	override def onViewCreated(view: View, savedInstanceState: Bundle) {
+		super.onViewCreated(view, savedInstanceState)
+
+		getListView.setOnItemLongClickListener(new OnItemLongClickListener {
+			def onItemLongClick(parent: AdapterView[_], view: View, position: Int, id: Long) = {
+				getListView.setItemChecked(position, true)
+				true
+			}
+		})
+
+		getActivity.asInstanceOf[MainActivity].registerRoutesList(getListView)
+	}
+
 	def refresh() {
 		if (cursor != null)
 			cursor.requery()
@@ -224,5 +288,92 @@ class RoutesListFragment extends ListFragment {
 	override def onSaveInstanceState(outState: Bundle) {
 		super.onSaveInstanceState(outState)
 		outState.putParcelable("list", getListView.onSaveInstanceState())
+	}
+}
+
+class ActionModeCallbackWrapper(callback: ActionMode.Callback) extends ActionMode.Callback {
+	def onCreateActionMode(mode: ActionMode, menu: Menu) = callback.onCreateActionMode(mode, menu)
+	def onPrepareActionMode(mode: ActionMode, menu: Menu) = callback.onPrepareActionMode(mode, menu)
+	def onActionItemClicked(mode: ActionMode, item: MenuItem) = callback.onActionItemClicked(mode, item)
+	def onDestroyActionMode(mode: ActionMode) { callback.onDestroyActionMode(mode) }
+}
+
+trait ListSelectionActionModeCallback {
+	def itemCheckedStateChanged(mode: ActionMode)
+}
+
+class MultiListActionModeHelper(
+	activity: SherlockFragmentActivity,
+	actionModeCallback: ActionMode.Callback with ListSelectionActionModeCallback
+) {
+	private[this] val listViews = new mutable.ArrayBuffer[ListView]
+
+	def getListViews: Seq[ListView] = listViews
+
+	def finish() {
+		actionMode.finish()
+	}
+
+	def attach(listView: ListView) {
+		require(listView.getChoiceMode == AbsListView.CHOICE_MODE_MULTIPLE)
+
+		listViews += listView
+		listView.setOnItemLongClickListener(new OnItemLongClickListener {
+			def onItemLongClick(parent: AdapterView[_], view: View, position: Int, id: Long) = {
+				if (actionMode == null) {
+					listView.setItemChecked(position, true)
+
+					listViews.foreach { listView => setUpClickListener(listView)}
+					savedItemClickListeners ++= listViews.map(_.getOnItemClickListener)
+					actionMode = activity.startActionMode(new ActionModeCallbackWrapper(actionModeCallback) {
+						override def onDestroyActionMode(mode: ActionMode) {
+							onActionModeFinished()
+							super.onDestroyActionMode(mode)
+						}
+					})
+					actionModeCallback.itemCheckedStateChanged(actionMode)
+				}
+				true
+			}
+		})
+
+		if (actionMode != null) {
+			savedItemClickListeners += listView.getOnItemClickListener
+			setUpClickListener(listView)
+		}
+	}
+
+	private var actionMode: ActionMode = null
+	private var savedItemClickListeners = new mutable.ArrayBuffer[OnItemClickListener]
+
+	private def setUpClickListener(listView: ListView) {
+		listView.setOnItemClickListener(new OnItemClickListener {
+			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
+				// For some reason list item has already changed it's checked state here.
+				val selected = listView.getCheckedItemPositions.get(position)
+
+				if (!selected && listView.getCheckedItemCount == 0 && listViews.forall(_.getCheckedItemCount == 0)) {
+					actionMode.finish()
+				} else {
+					actionModeCallback.itemCheckedStateChanged(actionMode)
+				}
+			}
+		})
+	}
+
+	private def onActionModeFinished() {
+		listViews.zip(savedItemClickListeners).foreach { case (listView, listener) =>
+			listView.setOnItemClickListener(listener)
+		}
+		savedItemClickListeners.clear()
+
+		actionMode = null
+		listViews.foreach { listView =>
+			listView.clearChoices()
+			// Due to some Android bug ListView clears choices, but doesn't redraw
+			// checked elements, so they remain highlighted until they go out of view.
+			// Force ListView to redraw items using `requestLayout`.
+			listView.requestLayout()
+		}
 	}
 }
