@@ -537,6 +537,10 @@ class Database(db: SQLiteDatabase) {
 		db.insertOrThrow(RouteGroupItemsTable.NAME, null, values)
 	}
 
+	def deleteGroup(groupId: Long) {
+		db.delete(RouteGroupsTable.NAME, "%s=?" format RouteGroupsTable.ID_COLUMN, Array(groupId.toString))
+	}
+
 	def fetchOne[C <: Cursor, T](cursor: C)(f: C => T): T = {
 		closing(cursor) { _ =>
 			if (cursor.moveToNext())

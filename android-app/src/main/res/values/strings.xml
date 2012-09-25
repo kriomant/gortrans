@@ -68,4 +68,6 @@
 		<string name="background_update_started">Обновление данных...</string>
 		<string name="background_update_stopped">Данные обновлены</string>
 		<string name="background_update_error">Не удалось обновить данные</string>
+
+		<string name="delete">Удалить</string>
 </resources>

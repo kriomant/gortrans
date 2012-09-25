@@ -9,14 +9,11 @@ import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
 import android.support.v4.app.{FragmentPagerAdapter, ListFragment, FragmentTransaction}
 import android.view.{ViewGroup, LayoutInflater, View}
 import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar}
-import com.actionbarsherlock.view.{ActionMode, MenuItem, Menu, Window}
+import com.actionbarsherlock.view.{ActionMode, MenuItem, Menu}
 import android.content.{DialogInterface, Context, Intent}
 import net.kriomant.gortrans.DataManager.ProcessIndicator
-import android.app.{AlertDialog, ProgressDialog}
-import android.util.Log
 import android.support.v4.view.ViewPager.OnPageChangeListener
-import android.widget.AdapterView.{OnItemClickListener, OnItemLongClickListener}
-import scala.collection.mutable
+import android.widget.AdapterView.OnItemLongClickListener
 
 object MainActivity {
 	val EXTRA_VEHICLE_TYPE = "vehicleType"
@@ -298,82 +295,3 @@ class ActionModeCallbackWrapper(callback: ActionMode.Callback) extends ActionMod
 	def onDestroyActionMode(mode: ActionMode) { callback.onDestroyActionMode(mode) }
 }
 
-trait ListSelectionActionModeCallback {
-	def itemCheckedStateChanged(mode: ActionMode)
-}
-
-class MultiListActionModeHelper(
-	activity: SherlockFragmentActivity,
-	actionModeCallback: ActionMode.Callback with ListSelectionActionModeCallback
-) {
-	private[this] val listViews = new mutable.ArrayBuffer[ListView]
-
-	def getListViews: Seq[ListView] = listViews
-
-	def finish() {
-		actionMode.finish()
-	}
-
-	def attach(listView: ListView) {
-		require(listView.getChoiceMode == AbsListView.CHOICE_MODE_MULTIPLE)
-
-		listViews += listView
-		listView.setOnItemLongClickListener(new OnItemLongClickListener {
-			def onItemLongClick(parent: AdapterView[_], view: View, position: Int, id: Long) = {
-				if (actionMode == null) {
-					listView.setItemChecked(position, true)
-
-					listViews.foreach { listView => setUpClickListener(listView)}
-					savedItemClickListeners ++= listViews.map(_.getOnItemClickListener)
-					actionMode = activity.startActionMode(new ActionModeCallbackWrapper(actionModeCallback) {
-						override def onDestroyActionMode(mode: ActionMode) {
-							onActionModeFinished()
-							super.onDestroyActionMode(mode)
-						}
-					})
-					actionModeCallback.itemCheckedStateChanged(actionMode)
-				}
-				true
-			}
-		})
-
-		if (actionMode != null) {
-			savedItemClickListeners += listView.getOnItemClickListener
-			setUpClickListener(listView)
-		}
-	}
-
-	private var actionMode: ActionMode = null
-	private var savedItemClickListeners = new mutable.ArrayBuffer[OnItemClickListener]
-
-	private def setUpClickListener(listView: ListView) {
-		listView.setOnItemClickListener(new OnItemClickListener {
-			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
-				// For some reason list item has already changed it's checked state here.
-				val selected = listView.getCheckedItemPositions.get(position)
-
-				if (!selected && listView.getCheckedItemCount == 0 && listViews.forall(_.getCheckedItemCount == 0)) {
-					actionMode.finish()
-				} else {
-					actionModeCallback.itemCheckedStateChanged(actionMode)
-				}
-			}
-		})
-	}
-
-	private def onActionModeFinished() {
-		listViews.zip(savedItemClickListeners).foreach { case (listView, listener) =>
-			listView.setOnItemClickListener(listener)
-		}
-		savedItemClickListeners.clear()
-
-		actionMode = null
-		listViews.foreach { listView =>
-			listView.clearChoices()
-			// Due to some Android bug ListView clears choices, but doesn't redraw
-			// checked elements, so they remain highlighted until they go out of view.
-			// Force ListView to redraw items using `requestLayout`.
-			listView.requestLayout()
-		}
-	}
-}

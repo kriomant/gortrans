@@ -1,16 +1,17 @@
 package net.kriomant.gortrans
 
-import com.actionbarsherlock.app.SherlockActivity
+import com.actionbarsherlock.app.{SherlockFragmentActivity, SherlockActivity}
 import android.os.Bundle
-import com.actionbarsherlock.view.Menu
-import android.view.{View, MenuItem}
+import com.actionbarsherlock.view.{ActionMode, Menu, MenuItem}
+import android.view.View
 import android.widget.{ListView, TextView, SimpleAdapter, ListAdapter}
 import android.content.Context
 import android.text.{Spanned, SpannableStringBuilder}
 import android.text.style.ImageSpan
 import net.kriomant.gortrans.core.VehicleType
+import com.actionbarsherlock.view
 
-class GroupsActivity extends SherlockActivity with TypedActivity {
+class GroupsActivity extends SherlockFragmentActivity with TypedActivity {
 	private[this] var groupList: ListView = _
 
 	override def onCreate(savedInstanceState: Bundle) {
@@ -19,6 +20,39 @@ class GroupsActivity extends SherlockActivity with TypedActivity {
 		setContentView(R.layout.groups_activity)
 
 		groupList = findView(TR.group_list)
+
+		val actionModeHelper = new MultiListActionModeHelper(this, new ActionMode.Callback with ListSelectionActionModeCallback {
+			def onCreateActionMode(mode: ActionMode, menu: Menu) = {
+				mode.getMenuInflater.inflate(R.menu.route_groups_actions, menu)
+				true
+			}
+
+			def onPrepareActionMode(mode: ActionMode, menu: Menu) = false
+
+			def onActionItemClicked(mode: ActionMode, item: view.MenuItem) = item.getItemId match {
+				case R.id.delete_group =>
+					val db = getApplication.asInstanceOf[CustomApplication].database
+					db.transaction {
+						groupList.getCheckedItemIds.foreach { groupId =>
+							db.deleteGroup(groupId)
+						}
+					}
+					mode.finish()
+					loadGroups()
+					true
+				case _ => false
+			}
+
+			def onDestroyActionMode(mode: ActionMode) {}
+
+			def itemCheckedStateChanged(mode: ActionMode) {
+				if (groupList.getCheckedItemCount == 0)
+					mode.finish()
+				else
+					mode.setTitle(groupList.getCheckedItemCount.toString + " groups")
+			}
+		})
+		actionModeHelper.attach(groupList)
 	}
 
 	override def onCreateOptionsMenu(menu: Menu) = {
@@ -30,17 +64,21 @@ class GroupsActivity extends SherlockActivity with TypedActivity {
 	override def onStart() {
 		super.onStart()
 
+		loadGroups()
+	}
+
+	private def loadGroups() {
 		val db = getApplication.asInstanceOf[CustomApplication].database
 		val groups = db.loadGroups()
 		groupList.setAdapter(new RouteGroupsAdapter(this, groups))
 	}
 
-	override def onMenuItemSelected(featureId: Int, item: MenuItem) = item.getItemId match {
+	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case R.id.routes_list =>
 			startActivity(MainActivity.createIntent(this))
 			true
 
-		case _ => super.onMenuItemSelected(featureId, item)
+		case _ => super.onOptionsItemSelected(item)
 	}
 }
 
@@ -87,4 +125,8 @@ class RouteGroupsAdapter(val context: Context, val items: Seq[Database.GroupInfo
 		}
 		views.routes.setText(builder)
 	}
+
+
+	override def hasStableIds: Boolean = true
+	override def getItemId(position: Int): Long = items(position).id
 }
