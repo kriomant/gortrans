@@ -58,10 +58,11 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity {
 			def onDestroyActionMode(mode: ActionMode) {}
 
 			def itemCheckedStateChanged(mode: ActionMode) {
-				if (groupList.getCheckedItemCount == 0)
+				val checkedItemCount = Compatibility.getCheckedItemCount(groupList)
+				if (checkedItemCount == 0)
 					mode.finish()
 				else
-					mode.setTitle(groupList.getCheckedItemCount.toString + " groups")
+					mode.setTitle(checkedItemCount.toString + " groups")
 			}
 		})
 		actionModeHelper.attach(groupList)

@@ -181,7 +181,7 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity with Crea
 		def onDestroyActionMode(mode: ActionMode) {}
 
 		def itemCheckedStateChanged(mode: ActionMode) {
-			val count = actionModeHelper.getListViews.map(_.getCheckedItemCount).sum
+			val count = actionModeHelper.getListViews.map(Compatibility.getCheckedItemCount(_)).sum
 			mode.setTitle("%d routes" format count)
 		}
 	}
@@ -192,7 +192,7 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity with Crea
 		db.transaction {
 			val groupId = db.createGroup(name)
 			actionModeHelper.getListViews.foreach { listView =>
-				if (listView.getCheckedItemCount > 0) {
+				if (Compatibility.getCheckedItemCount(listView) > 0) {
 					listView.getCheckedItemIds.foreach { routeId => db.addRouteToGroup(groupId, routeId) }
 				}
 			}

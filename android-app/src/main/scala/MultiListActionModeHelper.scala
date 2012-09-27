@@ -62,7 +62,7 @@ class MultiListActionModeHelper(
 				// For some reason list item has already changed it's checked state here.
 				val selected = listView.getCheckedItemPositions.get(position)
 
-				if (!selected && listView.getCheckedItemCount == 0 && listViews.forall(_.getCheckedItemCount == 0)) {
+				if (!selected && Compatibility.getCheckedItemCount(listView) == 0 && listViews.forall(Compatibility.getCheckedItemCount(_) == 0)) {
 					actionMode.finish()
 				} else {
 					actionModeCallback.itemCheckedStateChanged(actionMode)
