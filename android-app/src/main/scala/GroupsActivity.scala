@@ -4,12 +4,19 @@ import com.actionbarsherlock.app.{SherlockFragmentActivity, SherlockActivity}
 import android.os.Bundle
 import com.actionbarsherlock.view.{ActionMode, Menu, MenuItem}
 import android.view.View
-import android.widget.{ListView, TextView, SimpleAdapter, ListAdapter}
-import android.content.Context
+import android.widget._
+import android.content.{Intent, Context}
 import android.text.{Spanned, SpannableStringBuilder}
 import android.text.style.ImageSpan
 import net.kriomant.gortrans.core.VehicleType
 import com.actionbarsherlock.view
+import android.widget.AdapterView.OnItemClickListener
+
+object GroupsActivity {
+	def createIntent(context: Context): Intent = {
+		new Intent(context, classOf[GroupsActivity])
+	}
+}
 
 class GroupsActivity extends SherlockFragmentActivity with TypedActivity {
 	private[this] var groupList: ListView = _
@@ -20,6 +27,11 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity {
 		setContentView(R.layout.groups_activity)
 
 		groupList = findView(TR.group_list)
+		groupList.setOnItemClickListener(new OnItemClickListener {
+			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
+				startActivity(RouteMapActivity.createShowGroupIntent(GroupsActivity.this, id))
+			}
+		})
 
 		val actionModeHelper = new MultiListActionModeHelper(this, new ActionMode.Callback with ListSelectionActionModeCallback {
 			def onCreateActionMode(mode: ActionMode, menu: Menu) = {

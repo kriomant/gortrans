@@ -21,6 +21,7 @@ import android.graphics.Point
 import net.kriomant.gortrans.geometry.{Point => Pt}
 import net.kriomant.gortrans.CursorIterator.cursorUtils
 import utils.closing
+import scala.collection.mutable
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -29,6 +30,7 @@ object RouteMapActivity {
 	private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
 	private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
 	private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
+	private final val EXTRA_GROUP_ID = CLASS_NAME + ".VEHICLE_TYPE"
 
 	def createIntent(caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value): Intent = {
 		val intent = new Intent(caller, classOf[RouteMapActivity])
@@ -38,9 +40,31 @@ object RouteMapActivity {
 		intent
 	}
 
+	def createShowGroupIntent(context: Context, groupId: Long): Intent = {
+		val intent = new Intent(context, classOf[RouteMapActivity])
+		intent.putExtra(EXTRA_GROUP_ID, groupId)
+		intent
+	}
+
 	// MapView's zoom level at which whole or significant part of route
 	// is visible.
 	val ZOOM_WHOLE_ROUTE = 14
+
+	case class RouteInfo(
+		forwardRoutePoints: Seq[Pt],
+		backwardRoutePoints: Seq[Pt],
+
+		bounds: RectF,
+		stops: Set[(Pt, String)], // (position, name)
+		stopNames: Set[(Pt, String)],
+
+		forwardRouteOverlay: Overlay,
+		backwardRouteOverlay: Overlay
+	)
+
+	def routePointToGeoPoint(p: Pt): GeoPoint =
+		new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
+
 }
 
 class RouteMapActivity extends SherlockMapActivity
@@ -57,25 +81,15 @@ class RouteMapActivity extends SherlockMapActivity
 
 	private[this] var dataManager: DataManager = null
 
-  var routeId: String = null
-  var routeName: String = null
-  var vehicleType: VehicleType.Value = null
-	var routeBegin: String = null
-	var routeEnd: String = null
+	var routesInfo: Set[core.Route] = null
 
-  var forwardRouteOverlay: Overlay = null
-	var backwardRouteOverlay: Overlay = null
-  var stopOverlays: Seq[Overlay] = null
-	var stopNameOverlays: Seq[Overlay] = null
   var vehiclesOverlay: ItemizedOverlay[OverlayItem] = null
 	var locationOverlay: Overlay = null
 	var realVehicleLocationOverlays: Seq[Overlay] = Seq()
 
   var updatingVehiclesLocationIsOn: Boolean = false
 
-	var routePoints: Seq[RoutePoint] = null
-	var forwardRoutePoints: Seq[Pt] = null
-	var backwardRoutePoints: Seq[Pt] = null
+	val routes: mutable.Map[(VehicleType.Value, String), RouteInfo] = mutable.Map()
 
 	def isRouteDisplayed = false
 	override def isLocationDisplayed = false
@@ -129,12 +143,7 @@ class RouteMapActivity extends SherlockMapActivity
 	}
 
 	override def onNewIntent(intent: Intent) {
-		// Get route reference.
-		routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
-		routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
-		vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
-
-		Log.d(TAG, "New intent received, route ID: %s" format routeId)
+		setIntent(intent)
 
 		// Set title.
 		val routeNameFormatByVehicleType = Map(
@@ -145,40 +154,79 @@ class RouteMapActivity extends SherlockMapActivity
 		).mapValues(getString)
 
 		val actionBar = getSupportActionBar
-		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
 		actionBar.setDisplayHomeAsUpEnabled(true)
 
-		loadRouteInfo()
-	}
+		routes.clear()
+		updateOverlays()
 
-	def loadRouteInfo() {
-		dataManager.requestRoutesList(
-			new ForegroundProcessIndicator(this, loadRouteInfo),
-			new MapActionBarProcessIndicator(this)
-		) {
-			val db = getApplication.asInstanceOf[CustomApplication].database
-			closing(db.fetchRoute(vehicleType, routeId)) { cursor =>
-				routeBegin = cursor.firstStopName
-				routeEnd = cursor.lastStopName
+		val db = getApplication.asInstanceOf[CustomApplication].database
+
+		val groupId = intent.getLongExtra(EXTRA_GROUP_ID, -1)
+		if (groupId != -1) {
+			val (groupName, dbRouteIds) = db.transaction {
+				(db.getGroupName(groupId), db.getGroupItems(groupId))
 			}
-			loadData()
+			routesInfo = dbRouteIds map { rid =>
+				closing(db.fetchRoute(rid)) { c =>
+					core.Route(c.vehicleType, c.externalId, c.name, c.firstStopName, c.lastStopName)
+				}
+			}
+
+			actionBar.setTitle(groupName)
+
+			loadRoutesData()
+
+		} else {
+			// Get route reference.
+			val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
+			val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
+			val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
+
+			Log.d(TAG, "New intent received, route ID: %s" format routeId)
+
+			routesInfo = Set(core.Route(vehicleType, routeId, routeName, "", ""))
+
+			actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+
+			loadRouteInfo(vehicleType, routeId, routeName)
 		}
 	}
 
-	def loadData() {
+	def loadRouteInfo(vehicleType: VehicleType.Value, routeId: String, routeName: String) {
+		val db = getApplication.asInstanceOf[CustomApplication].database
+
+		dataManager.requestRoutesList(
+			new ForegroundProcessIndicator(this, () => loadRouteInfo(vehicleType, routeId, routeName)),
+			new MapActionBarProcessIndicator(this)
+		) {
+			routesInfo = closing(db.fetchRoute(vehicleType, routeId)) { cursor =>
+				val routeBegin = cursor.firstStopName
+				val routeEnd = cursor.lastStopName
+				Set(core.Route(vehicleType, routeId, routeName, routeBegin, routeEnd))
+			}
+
+			loadRoutesData()
+		}
+	}
+
+	def loadRoutesData() {
+		routesInfo foreach (loadData _)
+	}
+
+	def loadData(routeInfo: core.Route) {
 		// Load route details.
 		dataManager.requestRoutePoints(
-			vehicleType, routeId, routeName, routeBegin, routeEnd,
-			new ForegroundProcessIndicator(this, loadData),
+			routeInfo.vehicleType, routeInfo.id, routeInfo.name, routeInfo.begin, routeInfo.end,
+			new ForegroundProcessIndicator(this, () => loadData(routeInfo)),
 			new MapActionBarProcessIndicator(this)
 		) {
 			val db = getApplication.asInstanceOf[CustomApplication].database
 
 			// Load route data from database.
-			val points = closing(db.fetchRoutePoints(vehicleType, routeId)) { cursor =>
+			val points = closing(db.fetchRoutePoints(routeInfo.vehicleType, routeInfo.id)) { cursor =>
 				cursor.map(c => Pt(c.longitude, c.latitude)).toIndexedSeq
 			}
-			val stops = closing(db.fetchRouteStops(vehicleType, routeId)) {
+			val stops = closing(db.fetchRouteStops(routeInfo.vehicleType, routeInfo.id)) {
 				_.map(c => FoldedRouteStop[Int](c.name, c.forwardPointIndex, c.backwardPointIndex)).toIndexedSeq
 			}
 
@@ -187,8 +235,8 @@ class RouteMapActivity extends SherlockMapActivity
 			val firstBackwardStop = stops.reverseIterator.find(_.backward.isDefined).get
 			val firstBackwardPointIndex = firstBackwardStop.backward.get
 			val (fwdp, bwdp) = points.splitAt(firstBackwardStop.backward.get)
-			forwardRoutePoints = points.slice(0, firstBackwardPointIndex+1)
-			backwardRoutePoints = points.slice(firstBackwardPointIndex, points.length) :+ points.head
+			val forwardRoutePoints = points.slice(0, firstBackwardPointIndex+1)
+			val backwardRoutePoints = points.slice(firstBackwardPointIndex, points.length) :+ points.head
 			assert(forwardRoutePoints.last == backwardRoutePoints.head)
 			assert(backwardRoutePoints.last == forwardRoutePoints.head)
 
@@ -199,9 +247,7 @@ class RouteMapActivity extends SherlockMapActivity
 			val right = points.map(_.x).max
 			val longitude = (left + right) / 2
 			val latitude = (top + bottom) / 2
-
-			def routePointToGeoPoint(p: Pt): GeoPoint =
-				new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
+			val bounds = new RectF(left.toFloat, top.toFloat, right.toFloat, bottom.toFloat)
 
 			// Navigate to show full route.
 			val ctrl = mapView.getController
@@ -209,11 +255,11 @@ class RouteMapActivity extends SherlockMapActivity
 			ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
 
 			// Add route markers.
-			forwardRouteOverlay = new RouteOverlay(
+			val forwardRouteOverlay = new RouteOverlay(
 				getResources, getResources.getColor(R.color.forward_route),
 				forwardRoutePoints map routePointToGeoPoint
 			)
-			backwardRouteOverlay = new RouteOverlay(
+			val backwardRouteOverlay = new RouteOverlay(
 				getResources, getResources.getColor(R.color.backward_route),
 				backwardRoutePoints map routePointToGeoPoint
 			)
@@ -223,30 +269,46 @@ class RouteMapActivity extends SherlockMapActivity
 				stops.collect { case FoldedRouteStop(name, Some(pos), _) => (points(pos), name) } ++
 				stops.reverse.collect { case FoldedRouteStop(name, _, Some(pos)) => (points(pos), name) }
 
-			stopOverlays = routeStops map { case (point, name) =>
-				new RouteStopOverlay(getResources, routePointToGeoPoint(point))
-			}
-			// Display stop name next to one of folded stops.
-			stopNameOverlays = stops map { p =>
-				// Find stop which is to the east of another.
+			val stopNames = stops map { p =>
+			// Find stop which is to the east of another.
 				val stop = (p.forward, p.backward) match {
 					case (Some(f), Some(b)) => if (points(f).x > points(b).x) f else b
 					case (Some(f), None) => f
 					case (None, Some(b)) => b
 					case (None, None) => throw new AssertionError
 				}
-				new RouteStopNameOverlay(p.name, routePointToGeoPoint(points(stop)))
+				(points(stop), p.name)
 			}
+
+			routes((routeInfo.vehicleType, routeInfo.id)) = RouteInfo(
+				forwardRoutePoints, backwardRoutePoints,
+				bounds, routeStops.toSet, stopNames.toSet,
+				forwardRouteOverlay, backwardRouteOverlay
+			)
 			updateOverlays()
 		}
 	}
 
   def updateOverlays() {
     Log.d("RouteMapActivity", "updateOverlays")
+
+	  // Display stop name next to one of folded stops.
+	  val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
+	  val stopNameOverlays = stopNames map { case (pos, name) =>
+		  new RouteStopNameOverlay(name, routePointToGeoPoint(pos))
+	  }
+
+	  val stops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
+	  val stopOverlays = stops map { case (point, name) =>
+		  new RouteStopOverlay(getResources, routePointToGeoPoint(point))
+	  }
+
     val overlays = mapView.getOverlays
     overlays.clear()
-    overlays.add(forwardRouteOverlay)
-	  overlays.add(backwardRouteOverlay)
+    routes.values foreach { r =>
+	    overlays.add(r.forwardRouteOverlay)
+	    overlays.add(r.backwardRouteOverlay)
+    }
     for (o <- stopOverlays)
       overlays.add(o)
 	  for (o <- stopNameOverlays)
@@ -276,8 +338,17 @@ class RouteMapActivity extends SherlockMapActivity
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case android.R.id.home => {
-			val intent = RouteInfoActivity.createIntent(this, routeId, routeName, vehicleType)
-			startActivity(intent)
+			val intent = getIntent
+			val parentIntent = intent.getLongExtra(EXTRA_GROUP_ID, -1) match {
+				case -1 =>
+					val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
+					val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
+					val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
+					RouteInfoActivity.createIntent(this, routeId, routeName, vehicleType)
+				case groupId =>
+					GroupsActivity.createIntent(this)
+			}
+			startActivity(parentIntent)
 			true
 		}
 		case _ => super.onOptionsItemSelected(item)
@@ -298,18 +369,29 @@ class RouteMapActivity extends SherlockMapActivity
 	}
 
 	def getShortcutNameAndIcon: (String, Int) = {
-		val vehicleShortName = getString(vehicleType match {
-			case VehicleType.Bus => R.string.bus_short
-			case VehicleType.TrolleyBus => R.string.trolleybus_short
-			case VehicleType.TramWay => R.string.tramway_short
-			case VehicleType.MiniBus => R.string.minibus_short
-		})
-		val name = getString(R.string.route_map_shortcut_format, vehicleShortName, routeName)
+		val intent = getIntent
+		val name = intent.getLongExtra(EXTRA_GROUP_ID, -1) match {
+			case -1 =>
+				val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
+				val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
+
+				val vehicleShortName = getString(vehicleType match {
+					case VehicleType.Bus => R.string.bus_short
+					case VehicleType.TrolleyBus => R.string.trolleybus_short
+					case VehicleType.TramWay => R.string.tramway_short
+					case VehicleType.MiniBus => R.string.minibus_short
+				})
+				getString(R.string.route_map_shortcut_format, vehicleShortName, routeName)
+
+			case groupId =>
+				val db = getApplication.asInstanceOf[CustomApplication].database
+				db.getGroupName(groupId)
+		}
 		(name, R.drawable.route_map)
 	}
 
 
-	def getVehiclesToTrack = (vehicleType, routeId, routeName)
+	def getVehiclesToTrack = routesInfo.map(r => (r.vehicleType, r.id, r.name))
 
 	def onVehiclesLocationUpdateStarted() {
 		setSupportProgressBarIndeterminateVisibility(true)
@@ -327,9 +409,10 @@ class RouteMapActivity extends SherlockMapActivity
 		result match {
 			case Right(vehicles) => {
 				val vehiclesPointsAndAngles = vehicles map { v =>
+					val route = routes((v.vehicleType, v.routeId))
 					val (pt, segment) = v.direction match {
-						case Some(Direction.Forward) => core.snapVehicleToRoute(v, forwardRoutePoints)
-						case Some(Direction.Backward) => core.snapVehicleToRoute(v, backwardRoutePoints)
+						case Some(Direction.Forward) => core.snapVehicleToRoute(v, route.forwardRoutePoints)
+						case Some(Direction.Backward) => core.snapVehicleToRoute(v, route.backwardRoutePoints)
 						case None => (Pt(v.longitude, v.latitude), None)
 					}
 

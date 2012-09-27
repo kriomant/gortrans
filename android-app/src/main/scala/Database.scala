@@ -269,7 +269,7 @@ object Database {
 	object RouteGroupList {
 		val NAME = "routeGroupList"
 
-		val GROUP_ID_COLUMN = "groupId"
+		val GROUP_ID_COLUMN = "_id"
 		val GROUP_NAME_COLUMN = "groupName"
 		val VEHICLE_TYPE_COLUMN = "vehicleType"
 		val ROUTE_NAME_COLUMN = "routeName"
@@ -524,6 +524,24 @@ class Database(db: SQLiteDatabase) {
 		}
 	}
 
+	def getGroupName(groupId: Long): String = {
+		val cursor = db.query(
+			RouteGroupsTable.NAME, Array(RouteGroupsTable.NAME_COLUMN),
+			"%s=?" format RouteGroupsTable.ID_COLUMN, Array(groupId.toString), null, null, null
+		)
+		fetchOne(cursor) { _ => cursor.getString(0) }
+	}
+
+	def getGroupItems(groupId: Long): Set[Long] = {
+		val cursor = db.query(
+			RouteGroupItemsTable.NAME, Array(RouteGroupItemsTable.ROUTE_ID_COLUMN),
+			"%s=?" format RouteGroupItemsTable.GROUP_ID_COLUMN, Array(groupId.toString), null, null, null
+		)
+		closing(cursor) { _ =>
+			cursor.map{ c => c.getLong(0) }.toSet
+		}
+	}
+
 	def createGroup(name: String): Long = {
 		val values = new ContentValues
 		values.put(RouteGroupsTable.NAME_COLUMN, name)
@@ -558,7 +576,7 @@ class Database(db: SQLiteDatabase) {
 
 	def close() { db.close() }
 
-	def transaction[T](f: => T) {
+	def transaction[T](f: => T): T = {
 		db.beginTransaction()
 		try {
 			val result = f

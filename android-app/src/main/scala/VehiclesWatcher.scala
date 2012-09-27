@@ -17,7 +17,7 @@ trait VehiclesWatcher { this: Activity =>
 	val handler: Handler
 	def client: Client = getApplication.asInstanceOf[CustomApplication].dataManager.client
 
-	def getVehiclesToTrack: (VehicleType.Value, String, String) // type, routeId, routeName
+	def getVehiclesToTrack: Set[(VehicleType.Value, String, String)] // type, routeId, routeName
 	def onVehiclesLocationUpdateStarted()
 	def onVehiclesLocationUpdateCancelled()
 	def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]])
@@ -54,10 +54,11 @@ trait VehiclesWatcher { this: Activity =>
 		}
 
 		override def doInBackgroundBridge(): Either[String, Seq[VehicleInfo]] = {
-			val (vehicleType, routeId, routeName) = getVehiclesToTrack
-			val request = new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
+			val requests = getVehiclesToTrack map { case (vehicleType, routeId, routeName) =>
+				new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
+			}
 			try {
-				val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(Seq(request)) }
+				val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(requests) }
 				Right(parsing.parseVehiclesLocation(json, new util.Date))
 			} catch {
 				// TODO: Reuse code from DataManager.

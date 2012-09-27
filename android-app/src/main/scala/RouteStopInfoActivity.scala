@@ -194,7 +194,7 @@ class RouteStopInfoActivity extends SherlockActivity
 		}
 	}
 
-	def getVehiclesToTrack = (vehicleType, routeId, routeName) // type, routeId, routeName
+	def getVehiclesToTrack = Set((vehicleType, routeId, routeName)) // type, routeId, routeName
 
 	def onVehiclesLocationUpdateStarted() {}
 	def onVehiclesLocationUpdateCancelled() {}
