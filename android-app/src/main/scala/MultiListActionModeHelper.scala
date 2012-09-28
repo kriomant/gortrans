@@ -33,8 +33,9 @@ class MultiListActionModeHelper(
 				if (actionMode == null) {
 					listView.setItemChecked(position, true)
 
+					savedItemClickListeners = listViews.map(_.getOnItemClickListener)
 					listViews.foreach { listView => setUpClickListener(listView)}
-					savedItemClickListeners ++= listViews.map(_.getOnItemClickListener)
+
 					actionMode = activity.startActionMode(new ActionModeCallbackWrapper(actionModeCallback) {
 						override def onDestroyActionMode(mode: ActionMode) {
 							onActionModeFinished()
