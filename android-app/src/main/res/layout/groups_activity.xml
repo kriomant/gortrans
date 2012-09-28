@@ -1,9 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<ListView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:id="@+id/group_list"
-	android:choiceMode="multipleChoice">
+  android:orientation="vertical">
 
-</ListView>
+	<TextView android:id="@+id/group_list_empty"
+	  android:layout_width="match_parent"
+	  android:layout_height="wrap_content"
+	  android:text="@string/group_list_empty"
+		android:textAppearance="?android:attr/textAppearanceMedium"/>
+
+	<ListView
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:id="@+id/group_list"
+		android:choiceMode="multipleChoice"/>
+
+</LinearLayout>
