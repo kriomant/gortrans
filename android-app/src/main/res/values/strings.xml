@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Транспорт Новосибирска</string>
     <string name="route_points">Маршрут</string>
+		<string name="routes">Маршруты</string>
 
 		<string name="search_route">Поиск</string>
 		<string name="search_hint">Поиск маршрута</string>
