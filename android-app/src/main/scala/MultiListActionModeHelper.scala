@@ -25,16 +25,17 @@ class MultiListActionModeHelper(
 	}
 
 	def attach(listView: ListView) {
-		require(listView.getChoiceMode == AbsListView.CHOICE_MODE_MULTIPLE)
-
 		listViews += listView
 		listView.setOnItemLongClickListener(new OnItemLongClickListener {
 			def onItemLongClick(parent: AdapterView[_], view: View, position: Int, id: Long) = {
 				if (actionMode == null) {
-					listView.setItemChecked(position, true)
-
 					savedItemClickListeners = listViews.map(_.getOnItemClickListener)
-					listViews.foreach { listView => setUpClickListener(listView)}
+					listViews.foreach { listView =>
+						setUpClickListener(listView)
+						listView.setChoiceMode(AbsListView.CHOICE_MODE_MULTIPLE)
+					}
+
+					listView.setItemChecked(position, true)
 
 					actionMode = activity.startActionMode(new ActionModeCallbackWrapper(actionModeCallback) {
 						override def onDestroyActionMode(mode: ActionMode) {
@@ -85,6 +86,15 @@ class MultiListActionModeHelper(
 			// checked elements, so they remain highlighted until they go out of view.
 			// Force ListView to redraw items using `requestLayout`.
 			listView.requestLayout()
+			// If choice mode is set to none before relayouting, then
+			// during layout process ListView won't event bother to set
+			// 'unchecked' state to Checkable items, because choice mode
+			// is 'none'. So don't change mode immediately, but schedule it.
+			listView.post(new Runnable {
+				def run() {
+					listView.setChoiceMode(AbsListView.CHOICE_MODE_NONE)
+				}
+			})
 		}
 	}
 }
