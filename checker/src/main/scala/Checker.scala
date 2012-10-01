@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint}
 import net.kriomant.gortrans.core.VehicleType
 import net.kriomant.gortrans.geometry.Point
+import java.util
 
 object Checker {
 	val logger = LoggerFactory.getLogger(getClass)
@@ -44,7 +45,7 @@ object Checker {
 		} reduceLeft (_ ++ _)
 
 		logger.info("Check routes")
-		for (route <- routes) {
+		for (route: core.Route <- routes) {
 			logger.info("Check {} {} route", route.vehicleType, route.name)
 
 			val points = routesPoints(route.id)
@@ -125,7 +126,7 @@ object Checker {
 				val vehiclesLocation = routePointsRequests.grouped(30) map { group =>
 					val rawVehiclesLocation = client.getVehiclesLocation(group)
 					logger.trace("Raw vehicles location:\n{}", rawVehiclesLocation)
-					val locations = parsing.parseVehiclesLocation(rawVehiclesLocation)
+					val locations = parsing.parseVehiclesLocation(rawVehiclesLocation, new util.Date)
 					locations
 				} reduceLeft (_ ++ _)
 			}
