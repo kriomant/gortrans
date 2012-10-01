@@ -314,6 +314,7 @@ class RouteMapActivity extends SherlockMapActivity
 
     val overlays = mapView.getOverlays
     overlays.clear()
+
     routes.values foreach { r =>
 	    overlays.add(r.forwardRouteOverlay)
 	    overlays.add(r.backwardRouteOverlay)
@@ -327,7 +328,10 @@ class RouteMapActivity extends SherlockMapActivity
 		  overlays.add(o)
 	  if (locationOverlay != null)
 		  overlays.add(locationOverlay)
-    mapView.postInvalidate()
+
+	  overlays.add(balloonController.closeBalloonOverlay)
+
+	  mapView.postInvalidate()
   }
 
   override def onResume() {
@@ -572,6 +576,14 @@ class RealVehicleLocationOverlay(snapped: Pt, real: Pt) extends Overlay {
 class MapBalloonController(context: Context, mapView: MapView) {
 	import utils.functionAsRunnable
 
+	val closeBalloonOverlay = new Overlay {
+		override def onTap(p1: GeoPoint, p2: MapView): Boolean = {
+			if (balloon != null)
+				hideBalloon()
+			false
+		}
+	}
+
 	def inflateView(layoutResourceId: Int): View = {
 		val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
 		inflater.inflate(layoutResourceId, mapView, false)
@@ -605,6 +617,13 @@ class MapBalloonController(context: Context, mapView: MapView) {
 	}
 
 	def isViewShown(view: View): Boolean = (view eq balloon)
+
+	def hideBalloon() {
+		if (balloon != null) {
+			mapView.removeView(balloon)
+			balloon = null
+		}
+	}
 
 	def hideView(view: View) {
 		if (balloon == view) {
