@@ -57,4 +57,8 @@ object utils {
 	}
 
 	implicit def traversableOnceUtils[T](traversable: TraversableOnce[T]) = new TraversableOnceUtils(traversable)
+
+	implicit def functionAsRunnable(f: => Unit): Runnable = new Runnable {
+		def run() { f }
+	}
 }
