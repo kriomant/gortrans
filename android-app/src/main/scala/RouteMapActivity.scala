@@ -94,7 +94,7 @@ class RouteMapActivity extends SherlockMapActivity
 
 	var routesInfo: Set[core.Route] = null
 
-  var vehiclesOverlay: ItemizedOverlay[OverlayItem] = null
+  var vehiclesOverlay: VehiclesOverlay = null
 	var locationOverlay: Overlay = null
 	var realVehicleLocationOverlays: Seq[Overlay] = Seq()
 
@@ -154,6 +154,7 @@ class RouteMapActivity extends SherlockMapActivity
 		})
 
 		balloonController = new MapBalloonController(this, mapView)
+		vehiclesOverlay = new VehiclesOverlay(this, getResources, balloonController)
 
 		onNewIntent(getIntent)
 	}
@@ -321,8 +322,7 @@ class RouteMapActivity extends SherlockMapActivity
       overlays.add(o)
 	  for (o <- stopNameOverlays)
 		  overlays.add(o)
-    if (vehiclesOverlay != null)
-      overlays.add(vehiclesOverlay)
+    overlays.add(vehiclesOverlay)
 	  for (o <- realVehicleLocationOverlays)
 		  overlays.add(o)
 	  if (locationOverlay != null)
@@ -408,7 +408,7 @@ class RouteMapActivity extends SherlockMapActivity
 	def onVehiclesLocationUpdateCancelled() {
 		setSupportProgressBarIndeterminateVisibility(false)
 
-		vehiclesOverlay = null
+		vehiclesOverlay.clear()
 		realVehicleLocationOverlays = Seq()
 		updateOverlays()
 	}
@@ -430,7 +430,7 @@ class RouteMapActivity extends SherlockMapActivity
 					(v, pt, angle)
 				}
 
-				vehiclesOverlay = new VehiclesOverlay(this, getResources, balloonController, vehiclesPointsAndAngles)
+				vehiclesOverlay.setVehicles(vehiclesPointsAndAngles)
 				realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle) =>
 					new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
 				}
@@ -440,7 +440,7 @@ class RouteMapActivity extends SherlockMapActivity
 			case Left(message) => {
 				Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
-				vehiclesOverlay = null
+				vehiclesOverlay.clear()
 				realVehicleLocationOverlays = Seq()
 				updateOverlays()
 			}
@@ -580,7 +580,7 @@ class MapBalloonController(context: Context, mapView: MapView) {
 	def showBalloon(view: View, at: GeoPoint) {
 		require(view != null)
 
-		if (balloon != null)
+		if (balloon.ne(null) && balloon.ne(view))
 			mapView.removeView(balloon)
 
 		val layoutParams = new MapView.LayoutParams(
@@ -589,8 +589,11 @@ class MapBalloonController(context: Context, mapView: MapView) {
 		)
 		view.setLayoutParams(layoutParams.asInstanceOf[ViewGroup.LayoutParams])
 
-		mapView.addView(view)
-		balloon = view
+		if (view ne balloon) {
+			mapView.addView(view)
+			balloon = view
+		}
+
 		mapView.measure(
 			MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
 			MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
@@ -598,6 +601,15 @@ class MapBalloonController(context: Context, mapView: MapView) {
 
 		balloon.post {
 			ensureBalloonIsFullyVisible()
+		}
+	}
+
+	def isViewShown(view: View): Boolean = (view eq balloon)
+
+	def hideView(view: View) {
+		if (balloon == view) {
+			mapView.removeView(balloon)
+			balloon = null
 		}
 	}
 
@@ -632,8 +644,7 @@ class MapBalloonController(context: Context, mapView: MapView) {
 }
 
 class VehiclesOverlay(
-	context: Context, resources: Resources, balloonController: MapBalloonController,
-	infos: Seq[(VehicleInfo, Pt, Option[Double])]
+	context: Context, resources: Resources, balloonController: MapBalloonController
 ) extends ItemizedOverlay[OverlayItem](null)
 {
   def boundCenterBottom = ItemizedOverlayBridge.boundCenterBottom_(_)
@@ -645,9 +656,26 @@ class VehiclesOverlay(
 	val vehicleBackward = BitmapFactory.decodeResource(resources, R.drawable.vehicle_backward_marker)
 	val vehicleUnknown = BitmapFactory.decodeResource(resources, R.drawable.vehicle_stopped_marker)
 
+	// Information to identify vehicle for which balloon is shown.
+	var balloonVehicle: (VehicleType.Value, String, Int) = null
 	val balloon = balloonController.inflateView(R.layout.map_vehicle_popup)
 
-  populate()
+	var infos: Seq[(VehicleInfo, Pt, Option[Double])] = Seq()
+
+	def setVehicles(vehicles: Seq[(VehicleInfo, Pt, Option[Double])]) {
+		infos = vehicles
+		populate()
+
+		if (balloonVehicle != null && balloonController.isViewShown(balloon)) {
+			// Find vehicle to show balloon for.
+			infos.indexWhere{case (info, _, _) => (info.vehicleType, info.routeId, info.scheduleNr) == balloonVehicle} match {
+				case -1 => balloonController.hideView(balloon)
+				case pos => showBalloon(infos(pos)._1, getItem(pos))
+			}
+		}
+	}
+
+	def clear() { setVehicles(Seq()) }
 
   def size = infos.length
 
@@ -680,10 +708,14 @@ class VehiclesOverlay(
     item
   }
 
-	override def onTap(index: Int): Boolean = {
-		val item = getItem(index)
-		val vehicleInfo = infos(index)._1
+	populate()
 
+	override def onTap(index: Int): Boolean = {
+		showBalloon(infos(index)._1, getItem(index))
+		true
+	}
+
+	private def showBalloon(vehicleInfo: VehicleInfo, item: OverlayItem) {
 		val title = context.getString(
 			RouteMapActivity.routeNameResourceByVehicleType(vehicleInfo.vehicleType),
 			vehicleInfo.routeName
@@ -706,7 +738,7 @@ class VehiclesOverlay(
 			resources.getString(R.string.vehicle_speed_format, vehicleInfo.speed.asInstanceOf[AnyRef])
 		)
 
+		balloonVehicle = (vehicleInfo.vehicleType, vehicleInfo.routeId, vehicleInfo.scheduleNr)
 		balloonController.showBalloon(balloon, item.getPoint)
-		true
 	}
 }
