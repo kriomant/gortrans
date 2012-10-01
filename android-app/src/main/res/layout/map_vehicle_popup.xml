@@ -31,6 +31,7 @@
 			android:layout_height="wrap_content"
 			android:textColor="@android:color/black"
 			android:layout_weight="1"
+			android:singleLine="true"
 			/>
 
 		<ImageView android:id="@+id/vehicle_icon"
@@ -43,6 +44,7 @@
 			android:layout_height="wrap_content"
 			android:textColor="@android:color/black"
 			android:layout_weight="1"
+			android:singleLine="true"
 			/>
 	</LinearLayout>
 </LinearLayout>
