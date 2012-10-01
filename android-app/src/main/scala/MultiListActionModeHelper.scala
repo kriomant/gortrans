@@ -52,6 +52,7 @@ class MultiListActionModeHelper(
 		if (actionMode != null) {
 			savedItemClickListeners += listView.getOnItemClickListener
 			setUpClickListener(listView)
+			listView.setChoiceMode(AbsListView.CHOICE_MODE_MULTIPLE)
 		}
 	}
 
