@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- I can't make RelativeLayout to position one view to the right of another
+     horizontally centered view, so I use nested linear layouts. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="wrap_content"
+	android:layout_height="wrap_content"
+	android:background="@drawable/map_vehicle_popup"
+  android:orientation="vertical"
+>
+	<TextView android:id="@+id/vehicle_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:textAppearance="?android:attr/textAppearanceMedium"
+	/>
+
+	<TextView android:id="@+id/vehicle_schedule"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:textColor="@android:color/primary_text_light"
+	/>
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:measureWithLargestChild="true"
+		android:orientation="horizontal"
+	>
+		<TextView android:id="@+id/vehicle_schedule_number"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:textColor="@android:color/black"
+			android:layout_weight="1"
+			/>
+
+		<ImageView android:id="@+id/vehicle_icon"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			/>
+
+		<TextView android:id="@+id/vehicle_speed"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:textColor="@android:color/black"
+			android:layout_weight="1"
+			/>
+	</LinearLayout>
+</LinearLayout>
+

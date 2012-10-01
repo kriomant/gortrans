@@ -7,21 +7,26 @@ import android.widget.CompoundButton.OnCheckedChangeListener
 import android.os.{Handler, Bundle}
 import com.google.android.maps._
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint}
-import android.widget.{Toast, ToggleButton, CompoundButton}
+import android.widget._
 import android.content.{Context, Intent}
 import android.location.{Location}
-import android.view.View
-import android.view.View.OnClickListener
+import android.view.{LayoutInflater, ViewGroup, View}
+import android.view.View.{MeasureSpec, OnClickListener}
 import com.actionbarsherlock.app.SherlockMapActivity
 import com.actionbarsherlock.view.{MenuItem, Window}
 import android.graphics._
 import android.graphics.drawable.{BitmapDrawable, Drawable}
 import net.kriomant.gortrans.core.{FoldedRouteStop, Direction, VehicleType}
-import android.graphics.Point
 import net.kriomant.gortrans.geometry.{Point => Pt}
 import net.kriomant.gortrans.CursorIterator.cursorUtils
 import utils.closing
 import scala.collection.mutable
+import android.graphics.Point
+import scala.Some
+import net.kriomant.gortrans.core.FoldedRouteStop
+import scala.Left
+import net.kriomant.gortrans.parsing.VehicleInfo
+import scala.Right
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -65,6 +70,12 @@ object RouteMapActivity {
 	def routePointToGeoPoint(p: Pt): GeoPoint =
 		new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
 
+	val routeNameResourceByVehicleType = Map(
+		VehicleType.Bus -> R.string.bus_n,
+		VehicleType.TrolleyBus -> R.string.trolleybus_n,
+		VehicleType.TramWay -> R.string.tramway_n,
+		VehicleType.MiniBus -> R.string.minibus_n
+	)
 }
 
 class RouteMapActivity extends SherlockMapActivity
@@ -86,6 +97,8 @@ class RouteMapActivity extends SherlockMapActivity
   var vehiclesOverlay: ItemizedOverlay[OverlayItem] = null
 	var locationOverlay: Overlay = null
 	var realVehicleLocationOverlays: Seq[Overlay] = Seq()
+
+	var baloonController: MapBaloonController = null
 
   var updatingVehiclesLocationIsOn: Boolean = false
 
@@ -139,19 +152,14 @@ class RouteMapActivity extends SherlockMapActivity
 				}
 			}
 		})
+
+		baloonController = new MapBaloonController(this, mapView)
+
 		onNewIntent(getIntent)
 	}
 
 	override def onNewIntent(intent: Intent) {
 		setIntent(intent)
-
-		// Set title.
-		val routeNameFormatByVehicleType = Map(
-			VehicleType.Bus -> R.string.bus_n,
-			VehicleType.TrolleyBus -> R.string.trolleybus_n,
-			VehicleType.TramWay -> R.string.tramway_n,
-			VehicleType.MiniBus -> R.string.minibus_n
-		).mapValues(getString)
 
 		val actionBar = getSupportActionBar
 		actionBar.setDisplayHomeAsUpEnabled(true)
@@ -186,7 +194,7 @@ class RouteMapActivity extends SherlockMapActivity
 
 			routesInfo = Set(core.Route(vehicleType, routeId, routeName, "", ""))
 
-			actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+			actionBar.setTitle(getString(routeNameResourceByVehicleType(vehicleType), routeName))
 
 			loadRouteInfo(vehicleType, routeId, routeName)
 		}
@@ -422,7 +430,7 @@ class RouteMapActivity extends SherlockMapActivity
 					(v, pt, angle)
 				}
 
-				vehiclesOverlay = new VehiclesOverlay(getResources, vehiclesPointsAndAngles)
+				vehiclesOverlay = new VehiclesOverlay(this, getResources, baloonController, vehiclesPointsAndAngles)
 				realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle) =>
 					new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
 				}
@@ -561,8 +569,37 @@ class RealVehicleLocationOverlay(snapped: Pt, real: Pt) extends Overlay {
 	}
 }
 
-class VehiclesOverlay(resources: Resources, infos: Seq[(VehicleInfo, Pt, Option[Double])])
-	extends ItemizedOverlay[OverlayItem](null)
+class MapBaloonController(context: Context, mapView: MapView) {
+	def inflateView(layoutResourceId: Int): View = {
+		val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
+		inflater.inflate(layoutResourceId, mapView, false)
+	}
+
+	def showBaloon(view: View, at: GeoPoint) {
+		if (baloon != null)
+			mapView.removeView(baloon)
+
+		val layoutParams = new MapView.LayoutParams(
+			ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+			at, MapView.LayoutParams.BOTTOM_CENTER
+		)
+		view.setLayoutParams(layoutParams.asInstanceOf[ViewGroup.LayoutParams])
+
+		mapView.addView(view)
+		baloon = view
+		mapView.measure(
+			MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+			MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+		)
+	}
+
+	private[this] var baloon: View = null
+}
+
+class VehiclesOverlay(
+	context: Context, resources: Resources, baloonController: MapBaloonController,
+	infos: Seq[(VehicleInfo, Pt, Option[Double])]
+) extends ItemizedOverlay[OverlayItem](null)
 {
   def boundCenterBottom = ItemizedOverlayBridge.boundCenterBottom_(_)
 
@@ -572,6 +609,8 @@ class VehiclesOverlay(resources: Resources, infos: Seq[(VehicleInfo, Pt, Option[
 	val vehicleForward = BitmapFactory.decodeResource(resources, R.drawable.vehicle_forward_marker)
 	val vehicleBackward = BitmapFactory.decodeResource(resources, R.drawable.vehicle_backward_marker)
 	val vehicleUnknown = BitmapFactory.decodeResource(resources, R.drawable.vehicle_stopped_marker)
+
+	val baloon = baloonController.inflateView(R.layout.map_vehicle_popup)
 
   populate()
 
@@ -605,4 +644,34 @@ class VehiclesOverlay(resources: Resources, infos: Seq[(VehicleInfo, Pt, Option[
 	  item.setMarker(boundCenterBottom(new BitmapDrawable(resources, bitmap)))
     item
   }
+
+	override def onTap(index: Int): Boolean = {
+		val item = getItem(index)
+		val vehicleInfo = infos(index)._1
+
+		val title = context.getString(
+			RouteMapActivity.routeNameResourceByVehicleType(vehicleInfo.vehicleType),
+			vehicleInfo.routeName
+		)
+		baloon.findViewById(R.id.vehicle_title).asInstanceOf[TextView].setText(title)
+
+		val bitmap = item.getMarker(0).asInstanceOf[BitmapDrawable].getBitmap
+		baloon.findViewById(R.id.vehicle_icon).asInstanceOf[ImageView].setImageBitmap(bitmap)
+
+		baloon.findViewById(R.id.vehicle_schedule_number).asInstanceOf[TextView].setText(
+			resources.getString(R.string.vehicle_schedule_number, vehicleInfo.scheduleNr.asInstanceOf[AnyRef])
+		)
+
+		val schedule = vehicleInfo.schedule.map{ case (time, stop) =>
+			resources.getString(R.string.vehicle_schedule_row, time, stop)
+		}.mkString("\n")
+		baloon.findViewById(R.id.vehicle_schedule).asInstanceOf[TextView].setText(schedule)
+
+		baloon.findViewById(R.id.vehicle_speed).asInstanceOf[TextView].setText(
+			resources.getString(R.string.vehicle_speed_format, vehicleInfo.speed.asInstanceOf[AnyRef])
+		)
+
+		baloonController.showBaloon(baloon, item.getPoint)
+		true
+	}
 }

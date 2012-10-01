@@ -77,4 +77,9 @@
 		<string name="background_update_error">Не удалось обновить данные</string>
 
 		<string name="delete">Удалить</string>
+
+		<!-- One schedule row for vehicle popup on map. Parameters: time, stop name. -->
+		<string name="vehicle_schedule_row">%1$s %2$s</string>
+		<string name="vehicle_speed_format">%1$d км/ч</string>
+		<string name="vehicle_schedule_number">график №%1$d</string>
 </resources>
