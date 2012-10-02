@@ -121,9 +121,9 @@ object parsing {
 				}
 
 				val azimuth = o.getString("azimuth").toInt
-				val schedule = o.getString("rasp").split('|').map {
-					l =>
-						l.splitAt(l.indexOf('+'))
+				val schedule = o.getString("rasp").split('|').map { s =>
+					val parts = s.split("\\+", 2)
+					(parts(0), parts(1))
 				}
 				val speed = o.getString("speed").toInt
 

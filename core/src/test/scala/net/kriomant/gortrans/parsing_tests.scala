@@ -53,7 +53,7 @@ class ParseVehiclesLocationTest extends FunSuite {
 			=== Seq(
 				VehicleInfo(
 					VehicleType.TrolleyBus, "13", "13", 1, Some(Direction.Forward), 55.019932f, 82.923119f,
-					date("2012-03-04 14:54:00", parsing.NSK_TIME_ZONE), 286, 15, Seq(("14:34", "+Stop 2"))
+					date("2012-03-04 14:54:00", parsing.NSK_TIME_ZONE), 286, 15, Seq(("14:34", "Stop 2"))
 				)
 			)
 		)
