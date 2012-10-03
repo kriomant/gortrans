@@ -611,7 +611,9 @@ class MapBalloonController(context: Context, mapView: MapView) {
 		)
 
 		balloon.post {
-			ensureBalloonIsFullyVisible()
+			if (balloon != null) {
+				ensureBalloonIsFullyVisible()
+			}
 		}
 	}
 
