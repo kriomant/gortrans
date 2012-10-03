@@ -208,32 +208,37 @@ class DataManager(context: Context, db: Database) {
 				}
 
 				protected def doInBackgroundBridge(): Boolean = {
-					val optData = try {
-						Log.v(TAG, "Fetch data")
-						val rawData = source.fetch(client)
-						Log.v(TAG, "Data is successfully fetched")
-						Some(rawData)
-					} catch {
-						case ex @ (
-							_: UnknownHostException |
-							_: ConnectException |
-							_: SocketException |
-							_: EOFException |
-							_: SocketTimeoutException
-						) => {
-							Log.v(TAG, "Network failure during data fetching", ex)
-							None
+					Thread.currentThread.setName("AsyncTask: request %s" format source.name)
+					try {
+						val optData = try {
+							Log.v(TAG, "Fetch data")
+							val rawData = source.fetch(client)
+							Log.v(TAG, "Data is successfully fetched")
+							Some(rawData)
+						} catch {
+							case ex @ (
+								_: UnknownHostException |
+								_: ConnectException |
+								_: SocketException |
+								_: EOFException |
+								_: SocketTimeoutException
+							) => {
+								Log.v(TAG, "Network failure during data fetching", ex)
+								None
+							}
 						}
-					}
 
-					optData map { rawData =>
-						db.transaction {
-							source.update(db, old, rawData)
-							db.updateLastUpdateTime(source.name, new util.Date)
+						optData map { rawData =>
+							db.transaction {
+								source.update(db, old, rawData)
+								db.updateLastUpdateTime(source.name, new util.Date)
+							}
 						}
-					}
+						optData.isDefined
 
-					optData.isDefined
+					} finally {
+						Thread.currentThread.setName("AsyncTask: idle")
+					}
 				}
 
 				override def onPostExecute(success: Boolean) {
