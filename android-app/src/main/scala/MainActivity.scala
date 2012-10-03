@@ -40,6 +40,7 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity with Crea
 
 	  val actionBar = getSupportActionBar
 	  actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS)
+	  actionBar.setDisplayHomeAsUpEnabled(true)
 
 	  val vehicleTypeDrawables = Map(
 		  VehicleType.Bus -> R.drawable.tab_bus,
@@ -111,6 +112,12 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity with Crea
 
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+		case android.R.id.home =>
+			val intent = GroupsActivity.createIntent(this)
+			intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+			startActivity(intent)
+			true
+
 		case R.id.search =>
 			onSearchRequested()
 			true
