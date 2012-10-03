@@ -82,4 +82,15 @@
 		<string name="vehicle_schedule_row">%1$s %2$s</string>
 		<string name="vehicle_speed_format">%1$d км/ч</string>
 		<string name="vehicle_schedule_number">график №%1$d</string>
+
+		<plurals name="routes">
+			<item quantity="one">%1$d маршрут</item>
+			<item quantity="two">%1$d маршрута</item>
+			<item quantity="few">%1$d маршрутов</item>
+		</plurals>
+	<plurals name="groups">
+		<item quantity="one">%1$d группа</item>
+		<item quantity="two">%1$d группы</item>
+		<item quantity="few">%1$d групп</item>
+	</plurals>
 </resources>

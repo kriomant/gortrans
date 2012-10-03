@@ -63,7 +63,7 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity {
 				if (checkedItemCount == 0)
 					mode.finish()
 				else
-					mode.setTitle(checkedItemCount.toString + " groups")
+					mode.setTitle(compatibility.plurals.getQuantityString(GroupsActivity.this, R.plurals.groups, checkedItemCount, checkedItemCount))
 			}
 		})
 		actionModeHelper.attach(groupList)

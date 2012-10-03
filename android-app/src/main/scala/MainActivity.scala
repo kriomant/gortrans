@@ -182,7 +182,7 @@ class MainActivity extends SherlockFragmentActivity with TypedActivity with Crea
 
 		def itemCheckedStateChanged(mode: ActionMode) {
 			val count = actionModeHelper.getListViews.map(Compatibility.getCheckedItemCount(_)).sum
-			mode.setTitle("%d routes" format count)
+			mode.setTitle(compatibility.plurals.getQuantityString(MainActivity.this, R.plurals.routes, count, count))
 		}
 	}
 
