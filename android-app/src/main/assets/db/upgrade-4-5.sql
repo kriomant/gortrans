@@ -16,6 +16,6 @@ CREATE TABLE routeGroupItems (
 ---x
 
 CREATE VIEW routeGroupList AS
-SELECT g._id AS groupId, g.name AS groupName, r.vehicleType AS vehicleType, r.name AS routeName
+SELECT g._id AS _id, g.name AS groupName, r.vehicleType AS vehicleType, r.name AS routeName
 FROM routeGroups AS g INNER JOIN routeGroupItems AS i ON g._id = i.groupId INNER JOIN routes AS r ON i.routeId = r._id
 
