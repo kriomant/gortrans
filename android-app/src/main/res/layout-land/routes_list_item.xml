@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<net.kriomant.gortrans.compatibility.CheckableRelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
   android:orientation="horizontal"
+	android:background="@drawable/abs__activated_background_holo_dark"
 >
 	<TextView
 		android:id="@+id/route_name"
@@ -30,5 +31,5 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 	/>
-</LinearLayout>
+</net.kriomant.gortrans.compatibility.CheckableRelativeLayout>
 
