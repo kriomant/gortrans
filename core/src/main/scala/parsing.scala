@@ -77,6 +77,13 @@ object parsing {
 		parseRoutes(arr)
 	}
 
+	abstract sealed class VehicleSchedule
+	object VehicleSchedule {
+		case object NotProvided extends VehicleSchedule
+		case class Status(status: String) extends VehicleSchedule
+		case class Schedule(schedule: Seq[(String, String)]) extends VehicleSchedule
+	}
+
 	case class VehicleInfo(
 		                      vehicleType: VehicleType.Value,
 		                      routeId: String,
@@ -87,7 +94,7 @@ object parsing {
 		                      time: Date,
 		                      azimuth: Int,
 		                      speed: Int,
-		                      schedule: Seq[(String, String)]
+		                      schedule: VehicleSchedule
 		                      )
 
 	def parseVehiclesLocation(obj: JSONObject, serverTime: Date): Seq[VehicleInfo] = {
@@ -121,9 +128,13 @@ object parsing {
 				}
 
 				val azimuth = o.getString("azimuth").toInt
-				val schedule = o.getString("rasp").split('|').map { s =>
-					val parts = s.split("\\+", 2)
-					(parts(0), parts(1))
+				val schedule = o.getString("rasp") match {
+					case "" | "-" | "--" => VehicleSchedule.NotProvided
+					case str if !str.contains('|') => VehicleSchedule.Status(str)
+					case str => VehicleSchedule.Schedule(str.split('|').map { s =>
+						val parts = s.split("\\+", 2)
+						(parts(0), parts(1))
+					})
 				}
 				val speed = o.getString("speed").toInt
 

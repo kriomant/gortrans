@@ -1,7 +1,7 @@
 package net.kriomant.gortrans
 
 import org.scalatest.FunSuite
-import net.kriomant.gortrans.parsing.{VehicleInfo, combineDateAndTime, parseVehiclesLocation}
+import net.kriomant.gortrans.parsing.{VehicleSchedule, VehicleInfo, combineDateAndTime, parseVehiclesLocation}
 import java.util
 import java.text.SimpleDateFormat
 import net.kriomant.gortrans.core.{Direction, VehicleType}
@@ -53,7 +53,47 @@ class ParseVehiclesLocationTest extends FunSuite {
 			=== Seq(
 				VehicleInfo(
 					VehicleType.TrolleyBus, "13", "13", 1, Some(Direction.Forward), 55.019932f, 82.923119f,
-					date("2012-03-04 14:54:00", parsing.NSK_TIME_ZONE), 286, 15, Seq(("14:34", "Stop 2"))
+					date("2012-03-04 14:54:00", parsing.NSK_TIME_ZONE), 286, 15, VehicleSchedule.Schedule(Seq(("14:34", "Stop 2")))
+				)
+			)
+		)
+	}
+
+	test("status instead of schedule") {
+		val response = """
+			{"markers":[
+				{"title":"13","id_typetr":"2","marsh":"13","graph":"1","direction":"A",
+				"lat":"55.019932","lng":"82.923119","time_nav":"14:54:00","azimuth":"286",
+				"rasp":"Отстой","speed":"15"
+			}]}
+		               		"""
+
+		assert(
+			parseVehiclesLocation(response, date("2012-03-04 01:02", parsing.NSK_TIME_ZONE))
+				=== Seq(
+				VehicleInfo(
+					VehicleType.TrolleyBus, "13", "13", 1, Some(Direction.Forward), 55.019932f, 82.923119f,
+					date("2012-03-04 14:54:00", parsing.NSK_TIME_ZONE), 286, 15, VehicleSchedule.Status("Отстой")
+				)
+			)
+		)
+	}
+
+	test("no schedule data") {
+		val response = """
+			{"markers":[
+				{"title":"13","id_typetr":"2","marsh":"13","graph":"1","direction":"A",
+				"lat":"55.019932","lng":"82.923119","time_nav":"14:54:00","azimuth":"286",
+				"rasp":"-","speed":"15"
+			}]}
+		               		               		"""
+
+		assert(
+			parseVehiclesLocation(response, date("2012-03-04 01:02", parsing.NSK_TIME_ZONE))
+				=== Seq(
+				VehicleInfo(
+					VehicleType.TrolleyBus, "13", "13", 1, Some(Direction.Forward), 55.019932f, 82.923119f,
+					date("2012-03-04 14:54:00", parsing.NSK_TIME_ZONE), 286, 15, VehicleSchedule.NotProvided
 				)
 			)
 		)

@@ -6,7 +6,7 @@ import java.lang.Math
 import android.widget.CompoundButton.OnCheckedChangeListener
 import android.os.{Handler, Bundle}
 import com.google.android.maps._
-import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint}
+import net.kriomant.gortrans.parsing.{VehicleSchedule, VehicleInfo, RoutePoint}
 import android.widget._
 import android.content.{Context, Intent}
 import android.location.{Location}
@@ -25,7 +25,6 @@ import android.graphics.Point
 import scala.Some
 import net.kriomant.gortrans.core.FoldedRouteStop
 import scala.Left
-import net.kriomant.gortrans.parsing.VehicleInfo
 import scala.Right
 
 object RouteMapActivity {
@@ -748,9 +747,14 @@ class VehiclesOverlay(
 			resources.getString(R.string.vehicle_schedule_number, vehicleInfo.scheduleNr.asInstanceOf[AnyRef])
 		)
 
-		val schedule = vehicleInfo.schedule.map{ case (time, stop) =>
-			resources.getString(R.string.vehicle_schedule_row, time, stop)
-		}.mkString("\n")
+		val schedule = vehicleInfo.schedule match {
+			case VehicleSchedule.Schedule(schedule) =>
+				schedule.map{ case (time, stop) =>
+					resources.getString(R.string.vehicle_schedule_row, time, stop)
+				}.mkString("\n")
+			case VehicleSchedule.Status(status) => status
+			case VehicleSchedule.NotProvided => ""
+		}
 		balloon.findViewById(R.id.vehicle_schedule).asInstanceOf[TextView].setText(schedule)
 
 		balloon.findViewById(R.id.vehicle_speed).asInstanceOf[TextView].setText(
