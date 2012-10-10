@@ -15,7 +15,7 @@ import android.view.View.{MeasureSpec, OnClickListener}
 import com.actionbarsherlock.app.SherlockMapActivity
 import com.actionbarsherlock.view.{MenuItem, Window}
 import android.graphics._
-import android.graphics.drawable.{BitmapDrawable, Drawable}
+import drawable.Drawable
 import net.kriomant.gortrans.core.{FoldedRouteStop, Direction, VehicleType}
 import net.kriomant.gortrans.geometry.{Point => Pt}
 import net.kriomant.gortrans.CursorIterator.cursorUtils
@@ -663,18 +663,133 @@ class MapBalloonController(context: Context, mapView: MapView) {
 	private[this] var balloon: View = null
 }
 
+object VehicleMarker {
+	case class ConstantState(
+		back: Drawable, front: Drawable, arrow: Drawable,
+		angle: Option[Float], color: Int
+	) extends Drawable.ConstantState {
+		// VehicleMarker uses color filters to colorize some drawables and
+		// color filter is part of constant state and is shared between
+		// drawables, so they are needed to be mutated.
+		def this(resources: Resources, angle: Option[Float], color: Int) = this(
+			resources.getDrawable(R.drawable.vehicle_marker_back).mutate(),
+			resources.getDrawable(R.drawable.vehicle_marker_front),
+			resources.getDrawable(R.drawable.vehicle_marker_arrow).mutate(),
+			angle, color
+		)
+
+		back.setColorFilter(new LightingColorFilter(Color.BLACK, color))
+		arrow.setColorFilter(new LightingColorFilter(Color.BLACK, color))
+
+		val frontInsets = {
+			val diff = back.getIntrinsicWidth - front.getIntrinsicWidth
+			val offset = diff / 2
+			new Rect(offset, offset, diff - offset, back.getIntrinsicHeight - front.getIntrinsicHeight - offset)
+		}
+
+		def newDrawable(): Drawable = new VehicleMarker(new ConstantState(
+			back.getConstantState.newDrawable(),
+			front.getConstantState.newDrawable(),
+			arrow.getConstantState.newDrawable(),
+			angle, color
+		))
+
+		override def newDrawable(res: Resources): Drawable = new VehicleMarker(new ConstantState(
+			back.getConstantState.newDrawable(res),
+			front.getConstantState.newDrawable(res),
+			arrow.getConstantState.newDrawable(res),
+			angle, color
+		))
+
+		def getChangingConfigurations: Int =
+			back.getChangingConfigurations |
+			front.getChangingConfigurations |
+			arrow.getChangingConfigurations
+	}
+}
+class VehicleMarker private (state: VehicleMarker.ConstantState) extends Drawable {
+	def this(resources: Resources, angle: Option[Float], color: Int) =
+		this(new VehicleMarker.ConstantState(resources, angle, color))
+
+	def draw(canvas: Canvas) {
+		val bounds = getBounds
+		canvas.saveLayerAlpha(bounds.left, bounds.top, bounds.right, bounds.bottom, _alpha, Canvas.HAS_ALPHA_LAYER_SAVE_FLAG)
+		state.back.draw(canvas)
+		if (state.front.isVisible)
+			state.front.draw(canvas)
+
+		if (state.arrow.isVisible) {
+			state.angle map { a =>
+				canvas.save(Canvas.MATRIX_SAVE_FLAG)
+				val arrowBounds = state.arrow.getBounds
+				canvas.rotate(-a, (arrowBounds.left + arrowBounds.right) / 2.0f, (arrowBounds.top + arrowBounds.bottom) / 2.0f)
+				state.arrow.draw(canvas)
+				canvas.restore()
+			}
+		}
+
+		canvas.restore()
+	}
+
+	var _alpha: Int = 255
+
+	def setAlpha(alpha: Int) {
+		_alpha = alpha
+	}
+
+	/** Set color filter.
+	  *
+	  * This method should apply color filter to whole drawable, but it doesn't
+	  * do it exactly. This drawable is composite and uses color filter on inner drawables
+	  * to colorize them. Ideally I should compose inner and provided color filters,
+	  * but Android platform doesn't provide such capability.
+	  *
+	  * So this method is designed to work with ItemizedOverlay which uses color
+	  * filter to draw shadows.
+	  */
+	def setColorFilter(cf: ColorFilter) {
+		if (cf != null) {
+			state.back.setColorFilter(cf)
+			state.front.setVisible(false, false)
+			state.arrow.setVisible(false, false)
+		} else {
+			state.back.setColorFilter(new LightingColorFilter(Color.BLACK, state.color))
+			state.front.setVisible(true, false)
+			state.arrow.setVisible(true, false)
+		}
+	}
+
+	def getOpacity: Int = PixelFormat.TRANSLUCENT
+
+	override def onBoundsChange(bounds: Rect) {
+		super.onBoundsChange(bounds)
+		state.back.setBounds(bounds)
+
+		val frontRect = new Rect(
+			bounds.left + state.frontInsets.left,
+			bounds.top + state.frontInsets.top,
+			bounds.right - state.frontInsets.right,
+			bounds.bottom - state.frontInsets.bottom
+		)
+		state.front.setBounds(frontRect)
+		state.arrow.setBounds(frontRect)
+	}
+
+	override def getIntrinsicWidth: Int = state.back.getIntrinsicWidth
+	override def getIntrinsicHeight: Int = state.back.getIntrinsicHeight
+
+	override def getConstantState = state
+
+	override def mutate(): Drawable = throw new Exception("not mutable")
+}
+
 class VehiclesOverlay(
 	context: Context, resources: Resources, balloonController: MapBalloonController
 ) extends ItemizedOverlay[OverlayItem](null)
 {
   def boundCenterBottom = ItemizedOverlayBridge.boundCenterBottom_(_)
 
-	val forwardArrow = BitmapFactory.decodeResource(resources, R.drawable.forward_route_arrow)
-	val backwardArrow = BitmapFactory.decodeResource(resources, R.drawable.backward_route_arrow)
-
-	val vehicleForward = BitmapFactory.decodeResource(resources, R.drawable.vehicle_forward_marker)
-	val vehicleBackward = BitmapFactory.decodeResource(resources, R.drawable.vehicle_backward_marker)
-	val vehicleUnknown = BitmapFactory.decodeResource(resources, R.drawable.vehicle_stopped_marker)
+	val vehicleUnknown = resources.getDrawable(R.drawable.vehicle_stopped_marker)
 
 	// Information to identify vehicle for which balloon is shown.
 	var balloonVehicle: (VehicleType.Value, String, Int) = null
@@ -700,31 +815,21 @@ class VehiclesOverlay(
   def size = infos.length
 
   def createItem(pos: Int) = {
-    Log.d("RouteMapActivity", "Create vehicle overlay #%d" format pos)
     val (info, point, angle) = infos(pos)
 
-	  val bitmap = info.direction match {
+	  val marker = info.direction match {
 		  case Some(dir) =>
-			  val (image, arrow) = dir match {
-					case Direction.Forward => (vehicleForward, forwardArrow)
-					case Direction.Backward => (vehicleBackward, backwardArrow)
+			  val color = dir match {
+					case Direction.Forward => resources.getColor(R.color.forward_vehicle)
+					case Direction.Backward => resources.getColor(R.color.backward_vehicle)
 				}
-			  angle match {
-				  case Some(a) =>
-					  val modified = image.copy(image.getConfig, true)
-					  val canvas = new Canvas(modified)
-					  canvas.rotate(-a.toFloat, image.getWidth / 2, image.getWidth / 2)
-					  canvas.drawBitmap(arrow, (image.getWidth-arrow.getWidth)/2, (image.getWidth-arrow.getHeight)/2, new Paint)
-					  modified
-
-				  case None => image
-			  }
+			  new VehicleMarker(resources, angle.map(_.toFloat), color)
 
 		  case None => vehicleUnknown
 	  }
     val geoPoint = new GeoPoint((point.y*1e6).toInt, (point.x*1e6).toInt)
     val item = new OverlayItem(geoPoint, null, null)
-	  item.setMarker(boundCenterBottom(new BitmapDrawable(resources, bitmap)))
+	  item.setMarker(boundCenterBottom(marker))
     item
   }
 
@@ -742,8 +847,8 @@ class VehiclesOverlay(
 		)
 		balloon.findViewById(R.id.vehicle_title).asInstanceOf[TextView].setText(title)
 
-		val bitmap = item.getMarker(0).asInstanceOf[BitmapDrawable].getBitmap
-		balloon.findViewById(R.id.vehicle_icon).asInstanceOf[ImageView].setImageBitmap(bitmap)
+		val vehicleMarker = item.getMarker(0).getConstantState.newDrawable(balloon.getResources)
+		balloon.findViewById(R.id.vehicle_icon).asInstanceOf[ImageView].setImageDrawable(vehicleMarker)
 
 		balloon.findViewById(R.id.vehicle_schedule_number).asInstanceOf[TextView].setText(
 			resources.getString(R.string.vehicle_schedule_number, vehicleInfo.scheduleNr.asInstanceOf[AnyRef])
