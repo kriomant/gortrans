@@ -58,7 +58,24 @@ object utils {
 
 	implicit def traversableOnceUtils[T](traversable: TraversableOnce[T]) = new TraversableOnceUtils(traversable)
 
-	implicit def functionAsRunnable(f: => Unit): Runnable = new Runnable {
-		def run() { f }
+	/** Convert function without arguments into runnable.
+	  *
+	  * I have tried to use "=>Unit" argument instead of ()=>Unit, but then
+	  * following code:
+	  *
+	  *   view.post { if (obj != null) { doSmth() } }
+	  *
+	  * is converted into
+	  *
+	  *   view.post( if (obj != null) new Runnable { def run() { doSmth() } } )
+	  *
+	  * and not
+	  *
+	  *   view.post(new Runnable { def run() { if (obj != null) doSmth() } })
+	  *
+	  * as expected.
+	  */
+	implicit def functionAsRunnable(f: () => Unit): Runnable = new Runnable {
+		def run() { f() }
 	}
 }

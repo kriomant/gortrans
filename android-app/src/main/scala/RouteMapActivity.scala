@@ -610,7 +610,7 @@ class MapBalloonController(context: Context, mapView: MapView) {
 			MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
 		)
 
-		balloon.post {
+		balloon.post { () =>
 			if (balloon != null) {
 				ensureBalloonIsFullyVisible()
 			}
