@@ -26,6 +26,7 @@ import scala.Some
 import net.kriomant.gortrans.core.FoldedRouteStop
 import scala.Left
 import scala.Right
+import scala.collection.JavaConverters.asJavaCollectionConverter
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -93,6 +94,12 @@ class RouteMapActivity extends SherlockMapActivity
 
 	var routesInfo: Set[core.Route] = null
 
+	// Overlays are splitted into constant ones which are
+	// updated on new intent or updated route data only and
+	// volatile which are frequently updated, like vehicles.
+	// At first constant:
+	var constantOverlays: mutable.Buffer[Overlay] = mutable.Buffer()
+	// Now volatile ones:
   var vehiclesOverlay: VehiclesOverlay = null
 	var locationOverlay: Overlay = null
 	var realVehicleLocationOverlays: Seq[Overlay] = Seq()
@@ -165,6 +172,7 @@ class RouteMapActivity extends SherlockMapActivity
 		actionBar.setDisplayHomeAsUpEnabled(true)
 
 		routes.clear()
+		createConstantOverlays()
 		updateOverlays()
 
 		val db = getApplication.asInstanceOf[CustomApplication].database
@@ -293,35 +301,46 @@ class RouteMapActivity extends SherlockMapActivity
 				bounds, routeStops.toSet, stopNames.toSet,
 				forwardRouteOverlay, backwardRouteOverlay
 			)
+
+			createConstantOverlays()
 			updateOverlays()
 		}
+	}
+
+	/** Create overlays which are changed on new intent only.
+	  *
+	  * @note This method doesn't call updateOverlays.
+		*/
+	def createConstantOverlays() {
+		// Display stop name next to one of folded stops.
+		val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
+		val stopNameOverlays: Iterator[Overlay] = stopNames.iterator map { case (pos, name) =>
+			new RouteStopNameOverlay(name, routePointToGeoPoint(pos))
+		}
+
+		val stops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
+		val stopOverlays: Iterator[Overlay] = stops.iterator map { case (point, name) =>
+			new RouteStopOverlay(getResources, routePointToGeoPoint(point))
+		}
+
+		val routeOverlays: Iterator[Overlay] = routes.values.iterator flatMap { r =>
+			Iterator(r.forwardRouteOverlay, r.backwardRouteOverlay)
+		}
+
+		constantOverlays.clear()
+		constantOverlays ++= routeOverlays
+		constantOverlays ++= stopOverlays
+		constantOverlays ++= stopNameOverlays
 	}
 
   def updateOverlays() {
     Log.d("RouteMapActivity", "updateOverlays")
 
-	  // Display stop name next to one of folded stops.
-	  val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
-	  val stopNameOverlays = stopNames map { case (pos, name) =>
-		  new RouteStopNameOverlay(name, routePointToGeoPoint(pos))
-	  }
-
-	  val stops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
-	  val stopOverlays = stops map { case (point, name) =>
-		  new RouteStopOverlay(getResources, routePointToGeoPoint(point))
-	  }
-
     val overlays = mapView.getOverlays
     overlays.clear()
 
-    routes.values foreach { r =>
-	    overlays.add(r.forwardRouteOverlay)
-	    overlays.add(r.backwardRouteOverlay)
-    }
-    for (o <- stopOverlays)
-      overlays.add(o)
-	  for (o <- stopNameOverlays)
-		  overlays.add(o)
+	  overlays.addAll(constantOverlays.asJavaCollection)
+
     overlays.add(vehiclesOverlay)
 	  for (o <- realVehicleLocationOverlays)
 		  overlays.add(o)
