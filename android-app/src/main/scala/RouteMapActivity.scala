@@ -438,7 +438,7 @@ class RouteMapActivity extends SherlockMapActivity
 	def onVehiclesLocationUpdated(result: Either[String, Seq[VehicleInfo]]) {
 		result match {
 			case Right(vehicles) => {
-				val vehiclesPointsAndAngles = vehicles map { v =>
+				val vehiclesPointsAndAngles = android_utils.measure(TAG, "snapping %d vehicles" format vehicles.length) { vehicles map { v =>
 					val route = routes((v.vehicleType, v.routeId))
 					val (pt, segment) = v.direction match {
 						case Some(Direction.Forward) => core.snapVehicleToRoute(v, route.forwardRoutePoints)
@@ -450,7 +450,7 @@ class RouteMapActivity extends SherlockMapActivity
 						math.atan2(s._2.y - s._1.y, s._2.x - s._1.x) * 180 / math.Pi
 					}
 					(v, pt, angle)
-				}
+				}}
 
 				vehiclesOverlay.setVehicles(vehiclesPointsAndAngles)
 				realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle) =>

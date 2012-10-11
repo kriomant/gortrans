@@ -165,7 +165,7 @@ object core {
 
 	/**
 	 * Snap vehicle to route.
-	 * @returns `Some((segment_index, segment_part))` if vehicle is successfully snapped, `None` otherwise.
+	 * @return `Some((segment_index, segment_part))` if vehicle is successfully snapped, `None` otherwise.
 	 */
 	def snapVehicleToRouteInternal(vehicle: VehicleInfo, route: Seq[Pt]): Option[(Int, Double)] = {
 		// Dumb brute-force algorithm: enumerate all route segments for each vehicle.
@@ -174,24 +174,42 @@ object core {
 		}
 		val location = Pt(vehicle.longitude.toDouble, vehicle.latitude.toDouble)
 
-		// Find segment closest to vehicle position.
-		val segmentsWithDistance: Iterator[(Double, Int, Double)] = segments.zipWithIndex map {
-			case (segment@(start, end), segmentIndex) =>
-				val closestPointPos = closestSegmentPointPortion(location, start, end)
-				val closestPoint = start + (end - start) * closestPointPos
-				val distance = location distanceTo closestPoint
-				(distance, segmentIndex, closestPointPos)
-		}
-		val (distance, segmentIndex, pointPos) = segmentsWithDistance.minBy(_._1)
-
-		// Calculate distance in meters from vehicle location to closest segment.
 		// ATTENTION: Distances below are specific to Novosibirsk:
 		// One degree of latitude contains ~111 km, one degree of longitude - ~67 km.
 		// We use approximation 100 km per degree for both directions.
 		val MAX_DISTANCE_FROM_ROUTE = 30 /* meters */
 		val MAX_DISTANCE_IN_DEGREES = MAX_DISTANCE_FROM_ROUTE / 100000.0
 
-		(distance <= MAX_DISTANCE_IN_DEGREES) ? (segmentIndex, pointPos)
+		def segmentCloseEnough(location: Pt, start: Pt, end: Pt): Boolean = {
+			// Get segment bounding box.
+			var (left, right) = if (start.x < end.x) (start.x, end.x) else (end.x, start.x)
+			var (top, bottom) = if (start.y < end.y) (start.y, end.y) else (end.y, start.y)
+			// Expand by maximum distance.
+			left -= MAX_DISTANCE_IN_DEGREES
+			right += MAX_DISTANCE_IN_DEGREES
+			top -= MAX_DISTANCE_IN_DEGREES
+			bottom += MAX_DISTANCE_IN_DEGREES
+			location.x >= left && location.x <= right && location.y >= top && location.y <= bottom
+		}
+
+		// Find segment closest to vehicle position.
+		val segmentsWithDistance: Iterator[(Double, Int, Double)] = segments.zipWithIndex collect {
+			case (segment@(start, end), segmentIndex) if segmentCloseEnough(location, start, end) =>
+				val closestPointPos = closestSegmentPointPortion(location, start, end)
+				val closestPoint = start + (end - start) * closestPointPos
+				val distance = location distanceTo closestPoint
+				(distance, segmentIndex, closestPointPos)
+		}
+
+		if (segmentsWithDistance.nonEmpty) {
+			val (distance, segmentIndex, pointPos) = segmentsWithDistance.minBy(_._1)
+
+			// Calculate distance in meters from vehicle location to closest segment.
+			(distance <= MAX_DISTANCE_IN_DEGREES) ? (segmentIndex, pointPos)
+
+		} else {
+			None
+		}
 	}
 
 	def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[Pt]): (Pt, Option[(Pt, Pt)]) = {
