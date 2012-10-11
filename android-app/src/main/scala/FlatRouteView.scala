@@ -211,7 +211,7 @@ class FlatRouteView(context: Context, attributes: AttributeSet) extends View(con
 
 	private[this] val stopImage = context.getResources.getDrawable(R.drawable.route_stop_marker)
 	private[this] val selectedStopImage = context.getResources.getDrawable(R.drawable.route_stop_marker_selected)
-	private[this] val vehicleIcon = context.getResources.getDrawable(R.drawable.vehicle_forward_marker)
+	private[this] val vehicleIcon = new VehicleMarker(getResources, None, getResources.getColor(R.color.forward_vehicle))
 
 	private[this] val _padding = stopImage.getIntrinsicWidth / 2
 }
