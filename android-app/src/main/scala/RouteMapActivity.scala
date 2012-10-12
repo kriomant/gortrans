@@ -4,7 +4,7 @@ import android.util.Log
 import android.content.res.Resources
 import java.lang.Math
 import android.widget.CompoundButton.OnCheckedChangeListener
-import android.os.{Handler, Bundle}
+import android.os.Bundle
 import com.google.android.maps._
 import net.kriomant.gortrans.parsing.{VehicleSchedule, VehicleInfo, RoutePoint}
 import android.widget._
@@ -27,6 +27,7 @@ import net.kriomant.gortrans.core.FoldedRouteStop
 import scala.Left
 import scala.Right
 import scala.collection.JavaConverters.asJavaCollectionConverter
+import net.kriomant.gortrans.VehiclesWatcher.Listener
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -81,18 +82,18 @@ object RouteMapActivity {
 class RouteMapActivity extends SherlockMapActivity
 	with TypedActivity
 	with TrackLocation
-	with MapShortcutTarget
-	with VehiclesWatcher {
+	with MapShortcutTarget {
 
 	import RouteMapActivity._
 
 	private[this] var mapView: MapView = null
   private[this] var trackVehiclesToggle: ToggleButton = null
-  val handler = new Handler
 
 	private[this] var dataManager: DataManager = null
 
 	var routesInfo: Set[core.Route] = null
+
+	var vehiclesWatcher: VehiclesWatcher = null
 
 	// Overlays are splitted into constant ones which are
 	// updated on new intent or updated route data only and
@@ -132,10 +133,10 @@ class RouteMapActivity extends SherlockMapActivity
       def onCheckedChanged(button: CompoundButton, checked: Boolean) {
         if (checked) {
           updatingVehiclesLocationIsOn = true
-          startUpdatingVehiclesLocation()
+          if (vehiclesWatcher != null) vehiclesWatcher.startUpdatingVehiclesLocation()
         } else {
-          stopUpdatingVehiclesLocation()
-          updatingVehiclesLocationIsOn = false
+	        updatingVehiclesLocationIsOn = false
+          if (vehiclesWatcher != null) vehiclesWatcher.stopUpdatingVehiclesLocation()
         }
       }
     })
@@ -170,6 +171,10 @@ class RouteMapActivity extends SherlockMapActivity
 
 		val actionBar = getSupportActionBar
 		actionBar.setDisplayHomeAsUpEnabled(true)
+
+		if (vehiclesWatcher != null)
+			vehiclesWatcher.stopUpdatingVehiclesLocation()
+		vehiclesWatcher = null
 
 		routes.clear()
 		createConstantOverlays()
@@ -206,6 +211,20 @@ class RouteMapActivity extends SherlockMapActivity
 
 			loadRouteInfo(vehicleType, routeId, routeName)
 		}
+
+		vehiclesWatcher = new VehiclesWatcher(this, routesInfo.map(r => (r.vehicleType, r.id, r.name)), new Listener {
+			def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]]) {
+				RouteMapActivity.this.onVehiclesLocationUpdated(vehicles)
+			}
+
+			def onVehiclesLocationUpdateCancelled() {
+				RouteMapActivity.this.onVehiclesLocationUpdateCancelled()
+			}
+
+			def onVehiclesLocationUpdateStarted() {
+				RouteMapActivity.this.onVehiclesLocationUpdateStarted()
+			}
+		})
 	}
 
 	def loadRouteInfo(vehicleType: VehicleType.Value, routeId: String, routeName: String) {
@@ -355,13 +374,13 @@ class RouteMapActivity extends SherlockMapActivity
   override def onResume() {
     super.onResume()
 
-    if (updatingVehiclesLocationIsOn)
-      startUpdatingVehiclesLocation()
+    if (updatingVehiclesLocationIsOn && vehiclesWatcher != null)
+      vehiclesWatcher.startUpdatingVehiclesLocation()
   }
 
   override def onPause() {
-    if (updatingVehiclesLocationIsOn)
-      stopUpdatingVehiclesLocation()
+    if (updatingVehiclesLocationIsOn && vehiclesWatcher != null)
+      vehiclesWatcher.stopUpdatingVehiclesLocation()
 
     super.onPause()
   }
@@ -420,8 +439,6 @@ class RouteMapActivity extends SherlockMapActivity
 		(name, R.drawable.route_map)
 	}
 
-
-	def getVehiclesToTrack = routesInfo.map(r => (r.vehicleType, r.id, r.name))
 
 	def onVehiclesLocationUpdateStarted() {
 		setSupportProgressBarIndeterminateVisibility(true)

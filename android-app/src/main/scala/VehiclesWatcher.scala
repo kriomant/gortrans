@@ -11,16 +11,18 @@ import java.io.EOFException
 import android.util.Log
 import java.util
 
-trait VehiclesWatcher { this: Activity =>
+object VehiclesWatcher {
+	trait Listener {
+		def onVehiclesLocationUpdateStarted()
+		def onVehiclesLocationUpdateCancelled()
+		def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]])
+	}
+}
+class VehiclesWatcher(context: Activity, vehiclesToTrack: Set[(VehicleType.Value, String, String)], listener: VehiclesWatcher.Listener) {
 	private final val TAG = classOf[VehiclesWatcher].getName
 
-	val handler: Handler
-	def client: Client = getApplication.asInstanceOf[CustomApplication].dataManager.client
-
-	def getVehiclesToTrack: Set[(VehicleType.Value, String, String)] // type, routeId, routeName
-	def onVehiclesLocationUpdateStarted()
-	def onVehiclesLocationUpdateCancelled()
-	def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]])
+	val handler = new Handler
+	def client: Client = context.getApplication.asInstanceOf[CustomApplication].dataManager.client
 
 	private[this] final val VEHICLES_LOCATION_UPDATE_PERIOD = 20000 /* ms */
 
@@ -38,23 +40,23 @@ trait VehiclesWatcher { this: Activity =>
 
 	def startUpdatingVehiclesLocation() {
 		handler.post(updateVehiclesLocationRunnable)
-		Toast.makeText(this, R.string.vehicles_tracking_turned_on, Toast.LENGTH_SHORT).show()
+		Toast.makeText(context, R.string.vehicles_tracking_turned_on, Toast.LENGTH_SHORT).show()
 	}
 
 	def stopUpdatingVehiclesLocation() {
 		handler.removeCallbacks(updateVehiclesLocationRunnable)
-		Toast.makeText(this, R.string.vehicles_tracking_turned_off, Toast.LENGTH_SHORT).show()
+		Toast.makeText(context, R.string.vehicles_tracking_turned_off, Toast.LENGTH_SHORT).show()
 
-		onVehiclesLocationUpdateCancelled()
+		listener.onVehiclesLocationUpdateCancelled()
 	}
 
 	class TrackVehiclesTask extends AsyncTaskBridge[Unit, Either[String, Seq[VehicleInfo]]] {
 		override def onPreExecute() {
-			onVehiclesLocationUpdateStarted()
+			listener.onVehiclesLocationUpdateStarted()
 		}
 
 		override def doInBackgroundBridge(): Either[String, Seq[VehicleInfo]] = {
-			val requests = getVehiclesToTrack map { case (vehicleType, routeId, routeName) =>
+			val requests = vehiclesToTrack map { case (vehicleType, routeId, routeName) =>
 				new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
 			}
 			try {
@@ -70,19 +72,19 @@ trait VehiclesWatcher { this: Activity =>
 					_: SocketTimeoutException
 				) => {
 					Log.v(TAG, "Network failure during data fetching", ex)
-					Left(getString(R.string.cant_fetch_vehicles))
+					Left(context.getString(R.string.cant_fetch_vehicles))
 				}
 
-				case _: org.json.JSONException => Left(getString(R.string.cant_parse_vehicles))
+				case _: org.json.JSONException => Left(context.getString(R.string.cant_parse_vehicles))
 			}
 		}
 
 		override def onPostExecute(result: Either[String, Seq[VehicleInfo]]) {
-			onVehiclesLocationUpdated(result)
+			listener.onVehiclesLocationUpdated(result)
 		}
 
 		override def onCancelled() {
-			onVehiclesLocationUpdateCancelled()
+			listener.onVehiclesLocationUpdateCancelled()
 		}
 	}
 }

@@ -55,7 +55,6 @@ class RouteStopInfoActivity extends SherlockActivity
 	with TypedActivity
 	with ShortcutTarget
 	with SherlockAsyncTaskIndicator
-	with VehiclesWatcher
 {
 	import RouteStopInfoActivity._
 
@@ -65,6 +64,7 @@ class RouteStopInfoActivity extends SherlockActivity
 		override def doInBackgroundBridge() = {
 			val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
 
+			val client = getApplication.asInstanceOf[CustomApplication].dataManager.client
 			val (response, serverTime) = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
 			val now = new Date
 
@@ -106,7 +106,7 @@ class RouteStopInfoActivity extends SherlockActivity
 	var foldedRoute: Seq[FoldedRouteStop[RoutePoint]] = null
 	var pointPositions: Seq[Double] = null
 
-	val handler = new Handler
+	var vehiclesWatcher: VehiclesWatcher = null
 
 	var periodicRefresh = new PeriodicTimer(REFRESH_PERIOD)(refreshArrivals)
 
@@ -161,6 +161,15 @@ class RouteStopInfoActivity extends SherlockActivity
 			no_arrivals_view.setText(getResources.getString(R.string.no_arrivals))
 			list.setVisibility(View.GONE)
 		}
+
+		vehiclesWatcher = new VehiclesWatcher(this, Set((vehicleType, routeId, routeName)), new VehiclesWatcher.Listener {
+			def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]]) {
+				RouteStopInfoActivity.this.onVehiclesLocationUpdated(vehicles)
+			}
+
+			def onVehiclesLocationUpdateCancelled() {}
+			def onVehiclesLocationUpdateStarted() {}
+		})
 	}
 
 	override def onStart() {
@@ -194,10 +203,6 @@ class RouteStopInfoActivity extends SherlockActivity
 		}
 	}
 
-	def getVehiclesToTrack = Set((vehicleType, routeId, routeName)) // type, routeId, routeName
-
-	def onVehiclesLocationUpdateStarted() {}
-	def onVehiclesLocationUpdateCancelled() {}
 	def onVehiclesLocationUpdated(result: Either[String, Seq[VehicleInfo]]) {
 		val flatRoute = findView(TR.flat_route)
 
@@ -231,7 +236,7 @@ class RouteStopInfoActivity extends SherlockActivity
 	}
 
 	protected override def onPause() {
-		stopUpdatingVehiclesLocation()
+		vehiclesWatcher.stopUpdatingVehiclesLocation()
 		if (stopId != -1) {
 			periodicRefresh.stop()
 		}
@@ -247,7 +252,7 @@ class RouteStopInfoActivity extends SherlockActivity
 			periodicRefresh.start()
 		}
 
-		startUpdatingVehiclesLocation()
+		vehiclesWatcher.startUpdatingVehiclesLocation()
 	}
 
 	override def onCreateOptionsMenu(menu: Menu): Boolean = {
