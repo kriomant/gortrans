@@ -3,6 +3,8 @@ package net.kriomant.gortrans
 import android.util.Log
 import android.os.{Debug, SystemClock}
 
+import scala.collection.mutable
+
 object android_utils {
 
 	def measure[T](tag: String, title: String)(f: => T): T = {
@@ -21,5 +23,33 @@ object android_utils {
 		} finally {
 			Debug.stopAllocCounting()
 		}
+	}
+
+	class Observable[T] {
+		def get(f: T => Unit) {
+			value match {
+				case Some(v) => f(v)
+				case None => getRequests.enqueue(f)
+			}
+		}
+
+		def subscribe(f: T => Unit) {
+			subscribers.enqueue(f)
+			value.map { v => f(v) }
+		}
+
+		protected def set(v: T) {
+			value = Some(v)
+
+			getRequests.foreach(_(v))
+			getRequests.clear()
+
+			subscribers.foreach(_(v))
+		}
+
+		private var value: Option[T] = None
+
+		private val getRequests = mutable.Queue[T => Unit]()
+		private val subscribers = mutable.Queue[T => Unit]()
 	}
 }

@@ -10,6 +10,7 @@ import java.net.{SocketTimeoutException, SocketException, ConnectException, Unkn
 import java.io.EOFException
 import android.util.Log
 import java.util
+import net.kriomant.gortrans.android_utils.Observable
 
 object VehiclesWatcher {
 	trait Listener {
@@ -18,7 +19,11 @@ object VehiclesWatcher {
 		def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]])
 	}
 }
-class VehiclesWatcher(context: Activity, vehiclesToTrack: Set[(VehicleType.Value, String, String)], listener: VehiclesWatcher.Listener) {
+class VehiclesWatcher(
+	context: Activity,
+	vehiclesToTrack: Set[(VehicleType.Value, String, String)],
+	listener: VehiclesWatcher.Listener
+) extends Observable[Either[String, Seq[VehicleInfo]]] {
 	private final val TAG = classOf[VehiclesWatcher].getName
 
 	val handler = new Handler
@@ -59,7 +64,7 @@ class VehiclesWatcher(context: Activity, vehiclesToTrack: Set[(VehicleType.Value
 			val requests = vehiclesToTrack map { case (vehicleType, routeId, routeName) =>
 				new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
 			}
-			try {
+			val res = try {
 				val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(requests) }
 				Right(parsing.parseVehiclesLocation(json, new util.Date))
 			} catch {
@@ -77,6 +82,9 @@ class VehiclesWatcher(context: Activity, vehiclesToTrack: Set[(VehicleType.Value
 
 				case _: org.json.JSONException => Left(context.getString(R.string.cant_parse_vehicles))
 			}
+
+			set(res)
+			res
 		}
 
 		override def onPostExecute(result: Either[String, Seq[VehicleInfo]]) {

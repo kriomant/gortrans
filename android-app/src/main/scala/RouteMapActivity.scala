@@ -28,6 +28,7 @@ import scala.Left
 import scala.Right
 import scala.collection.JavaConverters.asJavaCollectionConverter
 import net.kriomant.gortrans.VehiclesWatcher.Listener
+import utils.functionAsRunnable
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -94,6 +95,8 @@ class RouteMapActivity extends SherlockMapActivity
 	var routesInfo: Set[core.Route] = null
 
 	var vehiclesWatcher: VehiclesWatcher = null
+
+	var vehiclesData: Seq[(VehicleInfo, Pt, Option[Double])] = Seq()
 
 	// Overlays are splitted into constant ones which are
 	// updated on new intent or updated route data only and
@@ -214,7 +217,7 @@ class RouteMapActivity extends SherlockMapActivity
 
 		vehiclesWatcher = new VehiclesWatcher(this, routesInfo.map(r => (r.vehicleType, r.id, r.name)), new Listener {
 			def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]]) {
-				RouteMapActivity.this.onVehiclesLocationUpdated(vehicles)
+				RouteMapActivity.this.onVehiclesLocationUpdated()
 			}
 
 			def onVehiclesLocationUpdateCancelled() {
@@ -225,6 +228,8 @@ class RouteMapActivity extends SherlockMapActivity
 				RouteMapActivity.this.onVehiclesLocationUpdateStarted()
 			}
 		})
+
+		vehiclesWatcher.subscribe (updateVehiclesLocation _)
 	}
 
 	def loadRouteInfo(vehicleType: VehicleType.Value, routeId: String, routeName: String) {
@@ -360,6 +365,7 @@ class RouteMapActivity extends SherlockMapActivity
 
 	  overlays.addAll(constantOverlays.asJavaCollection)
 
+	  vehiclesOverlay.setVehicles(vehiclesData)
     overlays.add(vehiclesOverlay)
 	  for (o <- realVehicleLocationOverlays)
 		  overlays.add(o)
@@ -452,7 +458,11 @@ class RouteMapActivity extends SherlockMapActivity
 		updateOverlays()
 	}
 
-	def onVehiclesLocationUpdated(result: Either[String, Seq[VehicleInfo]]) {
+	def onVehiclesLocationUpdated() {
+		setSupportProgressBarIndeterminateVisibility(false)
+	}
+
+	def updateVehiclesLocation(result: Either[String, Seq[VehicleInfo]]) {
 		result match {
 			case Right(vehicles) => {
 				val vehiclesPointsAndAngles = android_utils.measure(TAG, "snapping %d vehicles" format vehicles.length) { vehicles map { v =>
@@ -469,23 +479,25 @@ class RouteMapActivity extends SherlockMapActivity
 					(v, pt, angle)
 				}}
 
-				vehiclesOverlay.setVehicles(vehiclesPointsAndAngles)
+				vehiclesData = vehiclesPointsAndAngles
 				realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle) =>
 					new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
 				}
-				updateOverlays()
+
+				runOnUiThread { () =>
+					updateOverlays()
+				}
 			}
 
 			case Left(message) => {
-				Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-
-				vehiclesOverlay.clear()
+				vehiclesData = Seq()
 				realVehicleLocationOverlays = Seq()
-				updateOverlays()
+				runOnUiThread { () =>
+					Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+					updateOverlays()
+				}
 			}
 		}
-
-		setSupportProgressBarIndeterminateVisibility(false)
 	}
 }
 
@@ -833,6 +845,9 @@ class VehiclesOverlay(
 
 	var infos: Seq[(VehicleInfo, Pt, Option[Double])] = Seq()
 
+	/**
+	 * @note This method manages balloon view, so it must be called from UI thread.
+	 */
 	def setVehicles(vehicles: Seq[(VehicleInfo, Pt, Option[Double])]) {
 		infos = vehicles
 		populate()
