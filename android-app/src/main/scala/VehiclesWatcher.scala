@@ -11,6 +11,7 @@ import java.io.EOFException
 import android.util.Log
 import java.util
 import net.kriomant.gortrans.android_utils.Observable
+import com.sun.xml.internal.ws.client.ClientTransportException
 
 object VehiclesWatcher {
 	trait Listener {
@@ -74,7 +75,8 @@ class VehiclesWatcher(
 					_: ConnectException |
 					_: SocketException |
 					_: EOFException |
-					_: SocketTimeoutException
+					_: SocketTimeoutException |
+					_: ClientException
 				) => {
 					Log.v(TAG, "Network failure during data fetching", ex)
 					Left(context.getString(R.string.cant_fetch_vehicles))

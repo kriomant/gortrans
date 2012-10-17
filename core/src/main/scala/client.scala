@@ -13,6 +13,8 @@ trait Logger {
 	def verbose(msg: String)
 }
 
+class ClientException(message: String, cause: Throwable = null) extends Exception(message, cause)
+
 object Client {
 	case class RouteInfoRequest(
 		vehicleType: VehicleType.Value,
@@ -153,6 +155,9 @@ class Client(logger: Logger) {
 			val conn = MAPS_HOST.openConnection().asInstanceOf[HttpURLConnection]
 			try {
 				val headers = conn.getHeaderFields
+				if (headers == null)
+					throw new ClientException("Can't get response headers")
+
 				logger.verbose("Headers: %s" format headers)
 
 				val cookieHeaders = headers.asScala.flatMap{
@@ -171,8 +176,13 @@ class Client(logger: Logger) {
 			}
 		}
 
-		mapsSessionId = cookies("PHPSESSID")
-		logger.debug("PHPSESSID: %s" format mapsSessionId)
+		cookies.get("PHPSESSID") match {
+			case Some(sessionId) =>
+				logger.debug("PHPSESSID: %s" format mapsSessionId)
+				mapsSessionId = sessionId
+
+			case None => throw new ClientException("Session cookie not found")
+		}
 	}
 
 	private def fetch(url: URL): String = fetchWithConn(url) { (content, _) => content }
