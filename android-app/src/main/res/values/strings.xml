@@ -11,10 +11,9 @@
 		<string name="route_list">Список маршрутов</string>
 		<string name="group_list_empty">
 			<b>Ваш список групп маршрутов пока пуст.</b>\n\n
-			Чтобы создать новую группу, откройте список маршрутов, начните режим выделения с помощью долгого
-			нажатия на первом маршруте, выберите остальные маршруты коротким нажатием и выберите команду
-			«<i>Объединить в группу</i>» на панели действий.
+			Создайте группу маршрутов или откройте полный список для просмотра индивидуальных маршрутов.
 		</string>
+		<string name="choose_routes">Выберите маршруты</string>
 
     <string name="bus">Автобус</string>
     <string name="trolleybus">Троллейбус</string>
@@ -77,6 +76,7 @@
 		<string name="background_update_error">Не удалось обновить данные</string>
 
 		<string name="delete">Удалить</string>
+		<string name="accept">Подтвердить</string>
 
 		<!-- One schedule row for vehicle popup on map. Parameters: time, stop name. -->
 		<string name="vehicle_schedule_row">%1$s %2$s</string>
@@ -88,9 +88,9 @@
 			<item quantity="two">%1$d маршрута</item>
 			<item quantity="few">%1$d маршрутов</item>
 		</plurals>
-	<plurals name="groups">
-		<item quantity="one">%1$d группа</item>
-		<item quantity="two">%1$d группы</item>
-		<item quantity="few">%1$d групп</item>
-	</plurals>
+		<plurals name="groups">
+			<item quantity="one">%1$d группа</item>
+			<item quantity="two">%1$d группы</item>
+			<item quantity="few">%1$d групп</item>
+		</plurals>
 </resources>

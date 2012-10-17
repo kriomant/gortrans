@@ -60,6 +60,8 @@
 		      <meta-data android:name="android.app.searchable" android:resource="@xml/searchable"/>
 				</activity>
 
+				<activity android:name=".RouteChooseActivity" android:label="@string/choose_routes"/>
+
 	      <provider
 					android:authorities="net.kriomant.gortrans.route_suggestions"
 					android:name=".RouteSearchSuggestionProvider"/>

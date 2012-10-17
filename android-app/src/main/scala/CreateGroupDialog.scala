@@ -1,7 +1,7 @@
 package net.kriomant.gortrans
 
 import android.support.v4.app.DialogFragment
-import android.widget.{TextView, EditText}
+import android.widget.{Toast, TextView, EditText}
 import android.view.{KeyEvent, ViewGroup, LayoutInflater}
 import android.os.Bundle
 import android.widget.TextView.OnEditorActionListener
@@ -10,11 +10,21 @@ import android.view.WindowManager.LayoutParams
 
 object CreateGroupDialog {
 	trait Listener {
-		def onCreateGroup(name: String)
+		def onCreateGroup(dialog: CreateGroupDialog, groupId: Long)
 	}
+
+	private val ARG_ROUTE_IDS = "route-ids"
 }
 
 class CreateGroupDialog extends DialogFragment {
+	def this(routeIds: Set[Long]) {
+		this()
+
+		val args = new Bundle
+		args.putLongArray(CreateGroupDialog.ARG_ROUTE_IDS, routeIds.toArray)
+		setArguments(args)
+	}
+
 	private[this] var nameEdit: EditText = _
 
 	override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle) = {
@@ -27,9 +37,10 @@ class CreateGroupDialog extends DialogFragment {
 		nameEdit.setOnEditorActionListener(new OnEditorActionListener {
 			def onEditorAction(v: TextView, actionId: Int, event: KeyEvent) = actionId match {
 				case EditorInfo.IME_ACTION_DONE =>
+					val groupId = createGroup()
 					val listener = getActivity.asInstanceOf[CreateGroupDialog.Listener]
-					listener.onCreateGroup(nameEdit.getText.toString)
 					dismiss()
+					listener.onCreateGroup(CreateGroupDialog.this, groupId)
 					true
 
 				case _ => false
@@ -43,5 +54,20 @@ class CreateGroupDialog extends DialogFragment {
 		val dialog = super.onCreateDialog(savedInstanceState)
 		dialog.setTitle(R.string.create_group)
 		dialog
+	}
+
+	def createGroup() = {
+		val db = getActivity.getApplication.asInstanceOf[CustomApplication].database
+		val groupName = nameEdit.getText.toString
+		val routeIds = getArguments.getLongArray(CreateGroupDialog.ARG_ROUTE_IDS)
+
+		val groupId = db.transaction {
+			val groupId = db.createGroup(groupName)
+			routeIds.foreach { routeId => db.addRouteToGroup(groupId, routeId) }
+			groupId
+		}
+
+		Toast.makeText(getActivity, getString(R.string.group_created, groupName), Toast.LENGTH_SHORT).show()
+		groupId
 	}
 }

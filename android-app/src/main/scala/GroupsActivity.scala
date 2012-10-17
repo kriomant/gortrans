@@ -11,14 +11,17 @@ import android.text.style.ImageSpan
 import net.kriomant.gortrans.core.VehicleType
 import com.actionbarsherlock.view
 import android.widget.AdapterView.OnItemClickListener
+import android.app.Activity
 
 object GroupsActivity {
+	val REQUEST_CREATE_GROUP = 1
+
 	def createIntent(context: Context): Intent = {
 		new Intent(context, classOf[GroupsActivity])
 	}
 }
 
-class GroupsActivity extends SherlockFragmentActivity with TypedActivity {
+class GroupsActivity extends SherlockFragmentActivity with TypedActivity with CreateGroupDialog.Listener {
 	private[this] var groupList: ListView = _
 
 	override def onCreate(savedInstanceState: Bundle) {
@@ -88,11 +91,53 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity {
 	}
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+		case R.id.create_group =>
+			startActivityForResult(RouteChooseActivity.createIntent(this), GroupsActivity.REQUEST_CREATE_GROUP)
+			true
+
 		case R.id.routes_list =>
 			startActivity(MainActivity.createIntent(this))
 			true
 
 		case _ => super.onOptionsItemSelected(item)
+	}
+
+	var createGroupData: Intent = null
+
+	override def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) = requestCode match {
+		case GroupsActivity.REQUEST_CREATE_GROUP =>
+			if (resultCode == Activity.RESULT_OK) {
+				// There are two bugs in Android which don't allow to show dialog from onActivityResult:
+				// * http://code.google.com/p/android/issues/detail?id=17787
+				// * http://code.google.com/p/android/issues/detail?id=23761
+				// So just set flag here and check it in onResume.
+				createGroupData = data
+			}
+			true
+
+		case _ => super.onActivityResult(requestCode, resultCode, data)
+	}
+
+
+	override def onResume() {
+		super.onResume()
+
+		if (createGroupData != null) {
+			createGroup(createGroupData)
+			createGroupData = null
+		}
+	}
+
+	val TAG_CREATE_GROUP = "tag-create-group"
+
+	def createGroup(data: Intent) {
+		val routeIds = RouteChooseActivity.intentToResult(data)
+		val dialog = new CreateGroupDialog(routeIds)
+		dialog.show(getSupportFragmentManager, TAG_CREATE_GROUP)
+	}
+
+	def onCreateGroup(dialog: CreateGroupDialog, groupId: Long) {
+		loadGroups()
 	}
 }
 

@@ -8,7 +8,7 @@ object Compatibility {
 			listView.getCheckedItemCount
 		} else {
 			val positions = listView.getCheckedItemPositions
-			(0 until positions.size).map(positions.valueAt(_)).count(identity)
+			(0 until positions.size).count(positions.valueAt(_))
 		}
 	}
 }
