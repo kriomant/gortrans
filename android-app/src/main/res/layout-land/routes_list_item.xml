@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<net.kriomant.gortrans.compatibility.CheckableRelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<net.kriomant.gortrans.compatibility.CheckableLinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
   android:orientation="horizontal"
@@ -31,5 +31,5 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 	/>
-</net.kriomant.gortrans.compatibility.CheckableRelativeLayout>
+</net.kriomant.gortrans.compatibility.CheckableLinearLayout>
 
