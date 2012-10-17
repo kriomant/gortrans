@@ -20,6 +20,8 @@ import scala.Left
 import net.kriomant.gortrans.parsing.VehicleInfo
 import net.kriomant.gortrans.geometry.Point
 import scala.collection.mutable
+import java.net.{SocketTimeoutException, SocketException, ConnectException, UnknownHostException}
+import java.io.EOFException
 
 object RouteStopInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteStopInfoActivity].getName
@@ -65,24 +67,37 @@ class RouteStopInfoActivity extends SherlockActivity
 			val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
 
 			val client = getApplication.asInstanceOf[CustomApplication].dataManager.client
-			val (response, serverTime) = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
-			val now = new Date
+			try {
+				val (response, serverTime) = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
+				val now = new Date
 
-			val arrivals = try {
-				parsing.parseExpectedArrivals(response, fixedStopName, now).left.map { message =>
-					getResources.getString(R.string.cant_get_arrivals, message)
+				val arrivals = try {
+					parsing.parseExpectedArrivals(response, fixedStopName, now).left.map { message =>
+						getResources.getString(R.string.cant_get_arrivals, message)
+					}
+				} catch {
+					case _: parsing.ParsingException => Left(getString(R.string.cant_parse_arrivals))
+				}
+
+				arrivals.right.map { times =>
+					// Correct time difference between device and server.
+					val diff = now.getTime - serverTime.getTime
+					if (diff > 30 * 1000) {
+						Log.w(TAG, "Time difference with server: %d ms" format diff)
+					}
+					times.map(t => new Date(t.getTime() + diff))
 				}
 			} catch {
-				case _: parsing.ParsingException => Left(getString(R.string.cant_parse_arrivals))
-			}
-
-			arrivals.right.map { times =>
-				// Correct time difference between device and server.
-				val diff = now.getTime - serverTime.getTime
-				if (diff > 30 * 1000) {
-					Log.w(TAG, "Time difference with server: %d ms" format diff)
+				case ex @ (
+					_: UnknownHostException |
+					_: ConnectException |
+					_: SocketException |
+					_: EOFException |
+					_: SocketTimeoutException
+					) => {
+					Log.v(TAG, "Network failure during arrivals fetching", ex)
+					Left(getString(R.string.cant_fetch_arrivals))
 				}
-				times.map(t => new Date(t.getTime() + diff))
 			}
 		}
 

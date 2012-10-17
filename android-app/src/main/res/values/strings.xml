@@ -56,6 +56,7 @@
 		<string name="no_arrivals">Транспорт уже не ходит. Время ловить такси!</string>
 		<string name="no_route_points">Информация о маршруте недоступна.</string>
 		<string name="no_arrivals">Сервер не предоставляет расписания и графика прибытия для этой остановки</string>
+		<string name="cant_fetch_arrivals">Не удалось получить график транспорта: ошибка сети</string>
 		<string name="cant_get_arrivals">Не удалось получить график транспорта, сервер сообщает: %1$s</string>
 		<string name="cant_parse_arrivals">Не удалось разобрать ответ сервера</string>
 		<string name="refresh_arrivals">Обновить</string>
