@@ -110,7 +110,7 @@ class RouteMapActivity extends SherlockMapActivity
 
 	var balloonController: MapBalloonController = null
 
-  var updatingVehiclesLocationIsOn: Boolean = false
+  var updatingVehiclesLocationIsOn: Boolean = true
 
 	val routes: mutable.Map[(VehicleType.Value, String), RouteInfo] = mutable.Map()
 
