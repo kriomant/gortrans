@@ -7,6 +7,8 @@
 		<string name="search_hint">Поиск маршрута</string>
 
 		<string name="create_group">Объединить в группу</string>
+		<string name="create">Создать</string>
+		<string name="cancel">Отменить</string>
 		<string name="group_created">Создана группа «%1$s»</string>
 		<string name="route_list">Список маршрутов</string>
 		<string name="group_list_empty">

@@ -2,11 +2,12 @@ package net.kriomant.gortrans
 
 import android.support.v4.app.DialogFragment
 import android.widget.{Toast, TextView, EditText}
-import android.view.{KeyEvent, ViewGroup, LayoutInflater}
+import android.view.{View, KeyEvent, ViewGroup, LayoutInflater}
 import android.os.Bundle
 import android.widget.TextView.OnEditorActionListener
 import android.view.inputmethod.EditorInfo
 import android.view.WindowManager.LayoutParams
+import android.view.View.OnClickListener
 
 object CreateGroupDialog {
 	trait Listener {
@@ -37,14 +38,21 @@ class CreateGroupDialog extends DialogFragment {
 		nameEdit.setOnEditorActionListener(new OnEditorActionListener {
 			def onEditorAction(v: TextView, actionId: Int, event: KeyEvent) = actionId match {
 				case EditorInfo.IME_ACTION_DONE =>
-					val groupId = createGroup()
-					val listener = getActivity.asInstanceOf[CreateGroupDialog.Listener]
-					dismiss()
-					listener.onCreateGroup(CreateGroupDialog.this, groupId)
+					doCreate()
 					true
 
 				case _ => false
 			}
+		})
+
+		val confirmButton = view.findViewById(R.id.confirm)
+		confirmButton.setOnClickListener(new OnClickListener {
+			def onClick(v: View) { doCreate() }
+		})
+
+		val cancelButton = view.findViewById(R.id.cancel)
+		cancelButton.setOnClickListener(new OnClickListener {
+			def onClick(v: View) { dismiss() }
 		})
 
 		view
@@ -69,5 +77,12 @@ class CreateGroupDialog extends DialogFragment {
 
 		Toast.makeText(getActivity, getString(R.string.group_created, groupName), Toast.LENGTH_SHORT).show()
 		groupId
+	}
+
+	def doCreate() {
+		val groupId = createGroup()
+		val listener = getActivity.asInstanceOf[CreateGroupDialog.Listener]
+		dismiss()
+		listener.onCreateGroup(CreateGroupDialog.this, groupId)
 	}
 }
