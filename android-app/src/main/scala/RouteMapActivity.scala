@@ -15,7 +15,7 @@ import android.view.View.{MeasureSpec, OnClickListener}
 import com.actionbarsherlock.app.SherlockMapActivity
 import com.actionbarsherlock.view.{MenuItem, Window}
 import android.graphics._
-import drawable.Drawable
+import drawable.{NinePatchDrawable, Drawable}
 import net.kriomant.gortrans.core.{FoldedRouteStop, Direction, VehicleType}
 import net.kriomant.gortrans.geometry.{Point => Pt}
 import net.kriomant.gortrans.CursorIterator.cursorUtils
@@ -56,6 +56,7 @@ object RouteMapActivity {
 	// MapView's zoom level at which whole or significant part of route
 	// is visible.
 	val ZOOM_WHOLE_ROUTE = 14
+	val ZOOM_SHOW_STOP_NAMES = 17
 
 	case class RouteInfo(
 		forwardRoutePoints: Seq[Pt],
@@ -102,6 +103,7 @@ class RouteMapActivity extends SherlockMapActivity
 	// updated on new intent or updated route data only and
 	// volatile which are frequently updated, like vehicles.
 	// At first constant:
+	var routeStopNameOverlayManager: RouteStopNameOverlayManager = null
 	var constantOverlays: mutable.Buffer[Overlay] = mutable.Buffer()
 	// Now volatile ones:
   var vehiclesOverlay: VehiclesOverlay = null
@@ -165,6 +167,7 @@ class RouteMapActivity extends SherlockMapActivity
 
 		balloonController = new MapBalloonController(this, mapView)
 		vehiclesOverlay = new VehiclesOverlay(this, getResources, balloonController)
+		routeStopNameOverlayManager = new RouteStopNameOverlayManager(getResources)
 
 		onNewIntent(getIntent)
 	}
@@ -338,8 +341,9 @@ class RouteMapActivity extends SherlockMapActivity
 	def createConstantOverlays() {
 		// Display stop name next to one of folded stops.
 		val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
+		val stopOverlayManager = routeStopNameOverlayManager
 		val stopNameOverlays: Iterator[Overlay] = stopNames.iterator map { case (pos, name) =>
-			new RouteStopNameOverlay(name, routePointToGeoPoint(pos))
+			new stopOverlayManager.RouteStopNameOverlay(name, routePointToGeoPoint(pos))
 		}
 
 		val stops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
@@ -591,19 +595,48 @@ class RouteStopOverlay(resources: Resources, geoPoint: GeoPoint) extends Overlay
 	}
 }
 
-class RouteStopNameOverlay(name: String, geoPoint: GeoPoint) extends Overlay {
-	final val X_OFFSET = 15
-	final val Y_OFFSET = 5
+class RouteStopNameOverlayManager(resources: Resources) {
+	private val frame = resources.getDrawable(R.drawable.stop_name_frame).asInstanceOf[NinePatchDrawable]
 
-	override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
-		if (! shadow && view.getZoomLevel >= RouteMapActivity.ZOOM_WHOLE_ROUTE) {
-			val point = new Point
-			view.getProjection.toPixels(geoPoint, point)
+	private val framePadding = new Rect
+	frame.getPadding(framePadding)
 
-			val pen = new Paint()
-			pen.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD))
-			pen.setTextSize(20.0f)
-			canvas.drawText(name, point.x + X_OFFSET, point.y + Y_OFFSET, pen)
+	// Shared graphic resources to avoid allocations during drawing.
+	private val pen = new Paint()
+	pen.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD))
+	pen.setTextSize(resources.getDimension(R.dimen.stop_name_font_size))
+	private val fontMetrics = pen.getFontMetricsInt
+
+	private val point = new Point
+	private val bounds = new Rect
+
+	class RouteStopNameOverlay(name: String, geoPoint: GeoPoint) extends Overlay {
+		final val X_OFFSET = 15
+		final val Y_OFFSET = 5
+
+		override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
+			if (! shadow && view.getZoomLevel >= RouteMapActivity.ZOOM_SHOW_STOP_NAMES) {
+				view.getProjection.toPixels(geoPoint, point)
+
+				val textWidth = pen.measureText(name).toInt
+
+				// Bottom-left corner of frame points to stop.
+				bounds.set(
+					point.x,
+					point.y - framePadding.top - framePadding.bottom - (fontMetrics.bottom - fontMetrics.top),
+					point.x + framePadding.left + framePadding.right + textWidth,
+					point.y
+				)
+				frame.setBounds(bounds)
+
+				frame.draw(canvas)
+				canvas.drawText(
+					name,
+					point.x + framePadding.left,
+					point.y - framePadding.bottom - fontMetrics.bottom,
+					pen
+				)
+			}
 		}
 	}
 }
