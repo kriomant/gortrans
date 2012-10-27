@@ -12,12 +12,14 @@ import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar}
 import net.kriomant.gortrans.DataManager.ProcessIndicator
 import android.support.v4.view.ViewPager.OnPageChangeListener
 import android.widget.AdapterView.OnItemLongClickListener
+import android.app.Activity
+import scala.collection.mutable
 
 class RouteListBaseActivity extends SherlockFragmentActivity with TypedActivity {
 	private[this] final val TAG = classOf[RouteListBaseActivity].getSimpleName
 
 	var tabsOrder: Seq[core.VehicleType.Value] = null
-	var tabFragmentsMap: Map[VehicleType.Value, RoutesListFragment] = null
+	var tabFragmentsMap: mutable.Map[VehicleType.Value, RoutesListFragment] = mutable.Map()
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
@@ -36,15 +38,10 @@ class RouteListBaseActivity extends SherlockFragmentActivity with TypedActivity 
 
 		val tabPager = findView(TR.tab_pager)
 
-		//actionModeHelper = new MultiListActionModeHelper(this, ContextActions)
-
 		// Fix tabs order.
 		tabsOrder = Seq(VehicleType.Bus, VehicleType.TrolleyBus, VehicleType.TramWay, VehicleType.MiniBus)
-		val tabFragments = tabsOrder map { vehicleType => new RoutesListFragment(vehicleType) }
-		tabFragmentsMap = tabsOrder.zip(tabFragments).toMap
 
 		tabsOrder.zipWithIndex foreach { case (vehicleType, i) =>
-			val fragment = tabFragments(i)
 			val icon = vehicleTypeDrawables(vehicleType)
 
 			val tab = actionBar.newTab
@@ -61,8 +58,8 @@ class RouteListBaseActivity extends SherlockFragmentActivity with TypedActivity 
 		}
 
 		tabPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager) {
-			def getCount = tabFragments.size
-			def getItem(pos: Int) = tabFragments(pos)
+			def getCount = tabsOrder.size
+			def getItem(pos: Int) = new RoutesListFragment(tabsOrder(pos))
 		})
 		tabPager.setOnPageChangeListener(new OnPageChangeListener {
 			def onPageScrolled(p1: Int, p2: Float, p3: Int) {}
@@ -179,10 +176,6 @@ class RoutesListFragment extends ListFragment {
 		})
 
 		getActivity.asInstanceOf[RouteListBaseActivity].registerRoutesList(this)
-
-		if (savedInstanceState != null) {
-			getListView.onRestoreInstanceState(savedInstanceState.getParcelable("list"))
-		}
 	}
 
 	def refresh() {
@@ -190,9 +183,12 @@ class RoutesListFragment extends ListFragment {
 			cursor.requery()
 	}
 
-	override def onSaveInstanceState(outState: Bundle) {
-		super.onSaveInstanceState(outState)
-		outState.putParcelable("list", getListView.onSaveInstanceState())
+	override def onAttach(activity: Activity) {
+		super.onAttach(activity)
+
+		activity.asInstanceOf[RouteListBaseActivity].tabFragmentsMap(vehicleType) = this
 	}
+
+
 }
 

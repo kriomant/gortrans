@@ -70,6 +70,7 @@ class MainActivity extends RouteListBaseActivity with CreateGroupDialog.Listener
 	}
 
 	override def onSaveInstanceState(outState: Bundle) {
+		super.onSaveInstanceState(outState)
 		// Save index of currently selected tab.
 		outState.putInt("tabIndex", getSupportActionBar.getSelectedNavigationIndex)
 	}
