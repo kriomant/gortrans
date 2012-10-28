@@ -116,11 +116,17 @@ class RouteMapActivity extends SherlockMapActivity
 
 	val routes: mutable.Map[(VehicleType.Value, String), RouteInfo] = mutable.Map()
 
+	// Hack to avoid repositioning map when activity is recreated due to
+	// configuration change. TODO: normal solution.
+	var hasOldState: Boolean = false
+
 	def isRouteDisplayed = false
 	override def isLocationDisplayed = false
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
+
+		hasOldState = (bundle != null)
 
 		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 
@@ -293,10 +299,12 @@ class RouteMapActivity extends SherlockMapActivity
 				val latitude = (top + bottom) / 2
 				val bounds = new RectF(left.toFloat, top.toFloat, right.toFloat, bottom.toFloat)
 
-				// Navigate to show full route.
-				val ctrl = mapView.getController
-				ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
-				ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
+				if (! hasOldState) {
+					// Navigate to show full route.
+					val ctrl = mapView.getController
+					ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
+					ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
+				}
 
 				// Add route markers.
 				val forwardRouteOverlay = new RouteOverlay(
