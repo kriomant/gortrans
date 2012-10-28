@@ -66,8 +66,13 @@ class VehiclesWatcher(
 				new RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)
 			}
 			val res = try {
-				val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(requests) }
-				Right(parsing.parseVehiclesLocation(json, new util.Date))
+				// nskgortrans doesn't allow to query too many vehicles at once.
+				// So split all requests into slices and then merge results.
+				val MAX_ROUTES_PER_QUERY = 30
+				Right(requests.grouped(MAX_ROUTES_PER_QUERY).toSeq.flatMap { reqs =>
+					val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(reqs) }
+					parsing.parseVehiclesLocation(json, new util.Date)
+				})
 			} catch {
 				// TODO: Reuse code from DataManager.
 				case ex @ (
