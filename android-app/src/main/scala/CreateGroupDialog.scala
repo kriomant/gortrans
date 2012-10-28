@@ -8,6 +8,9 @@ import android.widget.TextView.OnEditorActionListener
 import android.view.inputmethod.EditorInfo
 import android.view.WindowManager.LayoutParams
 import android.view.View.OnClickListener
+import android.app.AlertDialog
+import android.content.DialogInterface
+import android.content.DialogInterface.OnShowListener
 
 object CreateGroupDialog {
 	trait Listener {
@@ -26,47 +29,51 @@ class CreateGroupDialog extends DialogFragment {
 		setArguments(args)
 	}
 
-	private[this] var nameEdit: EditText = _
+	override def onCreateDialog(savedInstanceState: Bundle) = {
+		val layoutInflater = getActivity.getLayoutInflater
+		val view = layoutInflater.inflate(R.layout.create_group_dialog, null)
 
-	override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle) = {
-		val view = inflater.inflate(R.layout.create_group_dialog, container)
-		nameEdit = view.findViewById(R.id.group_name).asInstanceOf[EditText]
-
-		// Show soft keyboard automatically
-		getDialog().getWindow().setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+		val nameEdit = view.findViewById(R.id.group_name).asInstanceOf[EditText]
 
 		nameEdit.setOnEditorActionListener(new OnEditorActionListener {
 			def onEditorAction(v: TextView, actionId: Int, event: KeyEvent) = actionId match {
 				case EditorInfo.IME_ACTION_DONE =>
-					doCreate()
+					doCreate(nameEdit.getText.toString)
 					true
 
 				case _ => false
 			}
 		})
 
-		val confirmButton = view.findViewById(R.id.confirm)
-		confirmButton.setOnClickListener(new OnClickListener {
-			def onClick(v: View) { doCreate() }
+		val dialog = (new AlertDialog.Builder(getActivity)
+
+			.setTitle(R.string.create_group)
+
+			.setView(view)
+
+			.setPositiveButton(R.string.create, new DialogInterface.OnClickListener {
+				def onClick(dialog: DialogInterface, which: Int) { doCreate(nameEdit.getText.toString) }
+			})
+
+			.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener {
+				def onClick(dialog: DialogInterface, which: Int) { dialog.cancel() }
+			})
+
+			.create()
+		)
+
+		dialog.setOnShowListener(new OnShowListener {
+			def onShow(d: DialogInterface) {
+				// Show soft keyboard automatically
+				dialog.getWindow.setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+			}
 		})
 
-		val cancelButton = view.findViewById(R.id.cancel)
-		cancelButton.setOnClickListener(new OnClickListener {
-			def onClick(v: View) { dismiss() }
-		})
-
-		view
-	}
-
-	override def onCreateDialog(savedInstanceState: Bundle) = {
-		val dialog = super.onCreateDialog(savedInstanceState)
-		dialog.setTitle(R.string.create_group)
 		dialog
 	}
 
-	def createGroup() = {
+	def createGroup(groupName: String) = {
 		val db = getActivity.getApplication.asInstanceOf[CustomApplication].database
-		val groupName = nameEdit.getText.toString
 		val routeIds = getArguments.getLongArray(CreateGroupDialog.ARG_ROUTE_IDS)
 
 		val groupId = db.transaction {
@@ -79,8 +86,8 @@ class CreateGroupDialog extends DialogFragment {
 		groupId
 	}
 
-	def doCreate() {
-		val groupId = createGroup()
+	def doCreate(name: String) {
+		val groupId = createGroup(name)
 		val listener = getActivity.asInstanceOf[CreateGroupDialog.Listener]
 		dismiss()
 		listener.onCreateGroup(CreateGroupDialog.this, groupId)
