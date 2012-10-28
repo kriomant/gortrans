@@ -269,68 +269,70 @@ class RouteMapActivity extends SherlockMapActivity
 			val points = closing(db.fetchRoutePoints(routeInfo.vehicleType, routeInfo.id)) { cursor =>
 				cursor.map(c => Pt(c.longitude, c.latitude)).toIndexedSeq
 			}
-			val stops = closing(db.fetchRouteStops(routeInfo.vehicleType, routeInfo.id)) {
-				_.map(c => FoldedRouteStop[Int](c.name, c.forwardPointIndex, c.backwardPointIndex)).toIndexedSeq
-			}
-
-			// Split points into forward and backward parts. They will be used
-			// for snapping vehicle position to route.
-			val firstBackwardStop = stops.reverseIterator.find(_.backward.isDefined).get
-			val firstBackwardPointIndex = firstBackwardStop.backward.get
-			val (fwdp, bwdp) = points.splitAt(firstBackwardStop.backward.get)
-			val forwardRoutePoints = points.slice(0, firstBackwardPointIndex+1)
-			val backwardRoutePoints = points.slice(firstBackwardPointIndex, points.length) :+ points.head
-			assert(forwardRoutePoints.last == backwardRoutePoints.head)
-			assert(backwardRoutePoints.last == forwardRoutePoints.head)
-
-			// Calculate rectangle (and it's center) containing whole route.
-			val top = points.map(_.y).min
-			val left = points.map(_.x).min
-			val bottom = points.map(_.y).max
-			val right = points.map(_.x).max
-			val longitude = (left + right) / 2
-			val latitude = (top + bottom) / 2
-			val bounds = new RectF(left.toFloat, top.toFloat, right.toFloat, bottom.toFloat)
-
-			// Navigate to show full route.
-			val ctrl = mapView.getController
-			ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
-			ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
-
-			// Add route markers.
-			val forwardRouteOverlay = new RouteOverlay(
-				getResources, getResources.getColor(R.color.forward_route),
-				forwardRoutePoints map routePointToGeoPoint
-			)
-			val backwardRouteOverlay = new RouteOverlay(
-				getResources, getResources.getColor(R.color.backward_route),
-				backwardRoutePoints map routePointToGeoPoint
-			)
-
-			// Unfold route.
-			val routeStops =
-				stops.collect { case FoldedRouteStop(name, Some(pos), _) => (points(pos), name) } ++
-				stops.reverse.collect { case FoldedRouteStop(name, _, Some(pos)) => (points(pos), name) }
-
-			val stopNames = stops map { p =>
-			// Find stop which is to the east of another.
-				val stop = (p.forward, p.backward) match {
-					case (Some(f), Some(b)) => if (points(f).x > points(b).x) f else b
-					case (Some(f), None) => f
-					case (None, Some(b)) => b
-					case (None, None) => throw new AssertionError
+			if (points.nonEmpty) {
+				val stops = closing(db.fetchRouteStops(routeInfo.vehicleType, routeInfo.id)) {
+					_.map(c => FoldedRouteStop[Int](c.name, c.forwardPointIndex, c.backwardPointIndex)).toIndexedSeq
 				}
-				(points(stop), p.name)
+
+				// Split points into forward and backward parts. They will be used
+				// for snapping vehicle position to route.
+				val firstBackwardStop = stops.reverseIterator.find(_.backward.isDefined).get
+				val firstBackwardPointIndex = firstBackwardStop.backward.get
+				val (fwdp, bwdp) = points.splitAt(firstBackwardStop.backward.get)
+				val forwardRoutePoints = points.slice(0, firstBackwardPointIndex+1)
+				val backwardRoutePoints = points.slice(firstBackwardPointIndex, points.length) :+ points.head
+				assert(forwardRoutePoints.last == backwardRoutePoints.head)
+				assert(backwardRoutePoints.last == forwardRoutePoints.head)
+
+				// Calculate rectangle (and it's center) containing whole route.
+				val top = points.map(_.y).min
+				val left = points.map(_.x).min
+				val bottom = points.map(_.y).max
+				val right = points.map(_.x).max
+				val longitude = (left + right) / 2
+				val latitude = (top + bottom) / 2
+				val bounds = new RectF(left.toFloat, top.toFloat, right.toFloat, bottom.toFloat)
+
+				// Navigate to show full route.
+				val ctrl = mapView.getController
+				ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
+				ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
+
+				// Add route markers.
+				val forwardRouteOverlay = new RouteOverlay(
+					getResources, getResources.getColor(R.color.forward_route),
+					forwardRoutePoints map routePointToGeoPoint
+				)
+				val backwardRouteOverlay = new RouteOverlay(
+					getResources, getResources.getColor(R.color.backward_route),
+					backwardRoutePoints map routePointToGeoPoint
+				)
+
+				// Unfold route.
+				val routeStops =
+					stops.collect { case FoldedRouteStop(name, Some(pos), _) => (points(pos), name) } ++
+					stops.reverse.collect { case FoldedRouteStop(name, _, Some(pos)) => (points(pos), name) }
+
+				val stopNames = stops map { p =>
+				// Find stop which is to the east of another.
+					val stop = (p.forward, p.backward) match {
+						case (Some(f), Some(b)) => if (points(f).x > points(b).x) f else b
+						case (Some(f), None) => f
+						case (None, Some(b)) => b
+						case (None, None) => throw new AssertionError
+					}
+					(points(stop), p.name)
+				}
+
+				routes((routeInfo.vehicleType, routeInfo.id)) = RouteInfo(
+					forwardRoutePoints, backwardRoutePoints,
+					bounds, routeStops.toSet, stopNames.toSet,
+					forwardRouteOverlay, backwardRouteOverlay
+				)
+
+				createConstantOverlays()
+				updateOverlays()
 			}
-
-			routes((routeInfo.vehicleType, routeInfo.id)) = RouteInfo(
-				forwardRoutePoints, backwardRoutePoints,
-				bounds, routeStops.toSet, stopNames.toSet,
-				forwardRouteOverlay, backwardRouteOverlay
-			)
-
-			createConstantOverlays()
-			updateOverlays()
 		}
 	}
 
