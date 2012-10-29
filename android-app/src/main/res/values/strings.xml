@@ -16,6 +16,7 @@
 			Создайте группу маршрутов или откройте полный список для просмотра индивидуальных маршрутов.
 		</string>
 		<string name="choose_routes">Выберите маршруты</string>
+		<string name="groups">Группы</string>
 
     <string name="bus">Автобус</string>
     <string name="trolleybus">Троллейбус</string>
