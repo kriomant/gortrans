@@ -1,6 +1,6 @@
 package net.kriomant.gortrans
 
-import android.view.View
+import android.view.{MotionEvent, View}
 import android.util.AttributeSet
 import android.content.Context
 import android.widget.FrameLayout
@@ -164,6 +164,17 @@ class SidebarContainer(context: Context, attrs: AttributeSet, defStyle: Int) ext
 		if (w != oldw) {
 			openAnimation = null
 			closeAnimation = null
+		}
+	}
+
+	override def onInterceptTouchEvent(ev: MotionEvent) = {
+		// If sidebar is opened, any touch event on content view is
+		// intercepted and causes sidebar to close.
+		if (opened && ev.getX > contentView.getLeft) {
+			animateClose()
+			true
+		} else {
+			super.onInterceptTouchEvent(ev)
 		}
 	}
 
