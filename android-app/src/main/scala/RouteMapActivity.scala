@@ -67,7 +67,9 @@ object RouteMapActivity {
 		stopNames: Set[(Pt, String)],
 
 		forwardRouteOverlay: Overlay,
-		backwardRouteOverlay: Overlay
+		backwardRouteOverlay: Overlay,
+
+		color: Int
 	)
 
 	def routePointToGeoPoint(p: Pt): GeoPoint =
@@ -97,7 +99,7 @@ class RouteMapActivity extends SherlockMapActivity
 
 	var vehiclesWatcher: VehiclesWatcher = null
 
-	var vehiclesData: Seq[(VehicleInfo, Pt, Option[Double])] = Seq()
+	var vehiclesData: Seq[(VehicleInfo, Pt, Option[Double], Int)] = Seq()
 
 	// Overlays are splitted into constant ones which are
 	// updated on new intent or updated route data only and
@@ -109,6 +111,8 @@ class RouteMapActivity extends SherlockMapActivity
   var vehiclesOverlay: VehiclesOverlay = null
 	var locationOverlay: Overlay = null
 	var realVehicleLocationOverlays: Seq[Overlay] = Seq()
+
+	var rainbow: Rainbow = null
 
 	var balloonController: MapBalloonController = null
 
@@ -170,6 +174,8 @@ class RouteMapActivity extends SherlockMapActivity
 				}
 			}
 		})
+
+		rainbow = Rainbow(getResources.getColor(R.color.forward_vehicle))
 
 		balloonController = new MapBalloonController(this, mapView)
 		vehiclesOverlay = new VehiclesOverlay(this, getResources, balloonController)
@@ -259,14 +265,14 @@ class RouteMapActivity extends SherlockMapActivity
 	}
 
 	def loadRoutesData() {
-		routesInfo foreach (loadData _)
+		routesInfo.zipWithIndex foreach Function.tupled(loadData _)
 	}
 
-	def loadData(routeInfo: core.Route) {
+	def loadData(routeInfo: core.Route, index: Int) {
 		// Load route details.
 		dataManager.requestRoutePoints(
 			routeInfo.vehicleType, routeInfo.id, routeInfo.name, routeInfo.begin, routeInfo.end,
-			new ForegroundProcessIndicator(this, () => loadData(routeInfo)),
+			new ForegroundProcessIndicator(this, () => loadData(routeInfo, index)),
 			new MapActionBarProcessIndicator(this)
 		) {
 			val db = getApplication.asInstanceOf[CustomApplication].database
@@ -335,7 +341,8 @@ class RouteMapActivity extends SherlockMapActivity
 				routes((routeInfo.vehicleType, routeInfo.id)) = RouteInfo(
 					forwardRoutePoints, backwardRoutePoints,
 					bounds, routeStops.toSet, stopNames.toSet,
-					forwardRouteOverlay, backwardRouteOverlay
+					forwardRouteOverlay, backwardRouteOverlay,
+					rainbow(index)
 				)
 
 				createConstantOverlays()
@@ -482,7 +489,7 @@ class RouteMapActivity extends SherlockMapActivity
 				val vehiclesPointsAndAngles = android_utils.measure(TAG, "snapping %d vehicles" format vehicles.length) {
 					vehicles map { v =>
 						routes.get((v.vehicleType, v.routeId)) match {
-							case None => (v, Pt(v.latitude, v.longitude), Some(v.azimuth/180.0*math.Pi))
+							case None => (v, Pt(v.latitude, v.longitude), Some(v.azimuth/180.0*math.Pi), getResources.getColor(R.color.forward_vehicle))
 							case Some(route) =>
 								val (pt, segment) = v.direction match {
 									case Some(Direction.Forward) => core.snapVehicleToRoute(v, route.forwardRoutePoints)
@@ -493,13 +500,13 @@ class RouteMapActivity extends SherlockMapActivity
 								val angle = segment map { s =>
 									math.atan2(s._2.y - s._1.y, s._2.x - s._1.x) * 180 / math.Pi
 								}
-								(v, pt, angle)
+								(v, pt, angle, route.color)
 						}
 					}
 				}
 
 				vehiclesData = vehiclesPointsAndAngles
-				realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle) =>
+				realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle, color) =>
 					new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
 				}
 
@@ -891,18 +898,18 @@ class VehiclesOverlay(
 	var balloonVehicle: (VehicleType.Value, String, Int) = null
 	val balloon = balloonController.inflateView(R.layout.map_vehicle_popup)
 
-	var infos: Seq[(VehicleInfo, Pt, Option[Double])] = Seq()
+	var infos: Seq[(VehicleInfo, Pt, Option[Double], Int)] = Seq()
 
 	/**
 	 * @note This method manages balloon view, so it must be called from UI thread.
 	 */
-	def setVehicles(vehicles: Seq[(VehicleInfo, Pt, Option[Double])]) {
+	def setVehicles(vehicles: Seq[(VehicleInfo, Pt, Option[Double], Int)]) {
 		infos = vehicles
 		populate()
 
 		if (balloonVehicle != null && balloonController.isViewShown(balloon)) {
 			// Find vehicle to show balloon for.
-			infos.indexWhere{case (info, _, _) => (info.vehicleType, info.routeId, info.scheduleNr) == balloonVehicle} match {
+			infos.indexWhere{case (info, _, _, _) => (info.vehicleType, info.routeId, info.scheduleNr) == balloonVehicle} match {
 				case -1 => balloonController.hideView(balloon)
 				case pos => showBalloon(infos(pos)._1, getItem(pos))
 			}
@@ -914,13 +921,13 @@ class VehiclesOverlay(
   def size = infos.length
 
   def createItem(pos: Int) = {
-    val (info, point, angle) = infos(pos)
+    val (info, point, angle, baseColor) = infos(pos)
 
 	  val marker = info.direction match {
 		  case Some(dir) =>
 			  val color = dir match {
-					case Direction.Forward => resources.getColor(R.color.forward_vehicle)
-					case Direction.Backward => resources.getColor(R.color.backward_vehicle)
+					case Direction.Forward => baseColor
+					case Direction.Backward => baseColor
 				}
 			  new VehicleMarker(resources, angle.map(_.toFloat), color)
 

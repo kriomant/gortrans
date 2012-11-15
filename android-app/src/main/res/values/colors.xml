@@ -4,7 +4,7 @@
 	<color name="forward_route">#ff006e0c</color>
 	<color name="backward_route">#ffa94f00</color>
 
-	<color name="forward_vehicle">#ff668000</color>
+	<color name="forward_vehicle">#ff008040</color>
 	<color name="backward_vehicle">#ffaa8800</color>
 
 	<color name="schedule_past">@android:color/secondary_text_dark</color>
