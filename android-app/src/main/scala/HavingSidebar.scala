@@ -34,15 +34,13 @@ trait HavingSidebar extends SherlockFragmentActivity {
 
 		val sidebar = new Sidebar(this, decorView, new SidebarListener {
 			def onItemSelected(intent: Intent) {
-				val callback: () => Unit =
-					if (intent.filterEquals(getIntent))
-						null
-					else
-						() => {
-							startActivity(intent)
-							finish()
-						}
-				sidebarContainer.animateClose(callback)
+				sidebarContainer.animateClose(() => {
+					if (! intent.filterEquals(getIntent)) {
+						startActivity(intent)
+						finish()
+						overridePendingTransition(0, 0)
+					}
+				})
 			}
 		})
 

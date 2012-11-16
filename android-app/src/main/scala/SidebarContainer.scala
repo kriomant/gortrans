@@ -79,24 +79,24 @@ class SidebarContainer(context: Context, attrs: AttributeSet, defStyle: Int) ext
 	def animateClose(onClosed: () => Unit = null) {
 		if (opened && contentView.getAnimation == null) {
 			if (closeAnimation == null) {
-				val endPosition = getPaddingLeft
-
 				closeAnimation = new TranslateAnimation(0, -sidebarView.getMeasuredWidth, 0, 0)
 				closeAnimation.setDuration(500)
-				closeAnimation.setAnimationListener(new AnimationListener {
-					def onAnimationEnd(animation: Animation) {
-						contentView.clearAnimation() // To avoid flickering.
-						contentView.offsetLeftAndRight(endPosition - contentView.getLeft)
-						opened = false
-						invalidate()
-
-						if (onClosed != null) onClosed()
-					}
-
-					def onAnimationStart(animation: Animation) {}
-					def onAnimationRepeat(animation: Animation) {}
-				})
 			}
+
+			val endPosition = getPaddingLeft
+			closeAnimation.setAnimationListener(new AnimationListener {
+				def onAnimationEnd(animation: Animation) {
+					contentView.clearAnimation() // To avoid flickering.
+					contentView.offsetLeftAndRight(endPosition - contentView.getLeft)
+					opened = false
+					invalidate()
+
+					if (onClosed != null) onClosed()
+				}
+
+				def onAnimationStart(animation: Animation) {}
+				def onAnimationRepeat(animation: Animation) {}
+			})
 
 			contentView.startAnimation(closeAnimation)
 		}
