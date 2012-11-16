@@ -25,7 +25,7 @@ object MainActivity {
 	}
 }
 
-class MainActivity extends RouteListBaseActivity with CreateGroupDialog.Listener {
+class MainActivity extends RouteListBaseActivity with HavingSidebar with CreateGroupDialog.Listener {
 	import MainActivity._
 
 	private[this] final val TAG = classOf[MainActivity].getSimpleName
@@ -56,12 +56,6 @@ class MainActivity extends RouteListBaseActivity with CreateGroupDialog.Listener
 	}
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
-		case android.R.id.home =>
-			val intent = GroupsActivity.createIntent(this)
-			intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-			startActivity(intent)
-			true
-
 		case R.id.search =>
 			onSearchRequested()
 			true

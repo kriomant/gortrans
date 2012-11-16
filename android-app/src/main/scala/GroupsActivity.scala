@@ -3,7 +3,7 @@ package net.kriomant.gortrans
 import com.actionbarsherlock.app.{SherlockFragmentActivity, SherlockActivity}
 import android.os.Bundle
 import com.actionbarsherlock.view.{ActionMode, Menu, MenuItem}
-import android.view.View
+import android.view.{ViewGroup, View}
 import android.widget._
 import android.content.{Intent, Context}
 import android.text.{Spanned, SpannableStringBuilder}
@@ -21,7 +21,7 @@ object GroupsActivity {
 	}
 }
 
-class GroupsActivity extends SherlockFragmentActivity with TypedActivity with CreateGroupDialog.Listener {
+class GroupsActivity extends SherlockFragmentActivity with TypedActivity with CreateGroupDialog.Listener with HavingSidebar {
 	private[this] var groupList: ListView = _
 
 	override def onCreate(savedInstanceState: Bundle) {
@@ -93,10 +93,6 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case R.id.create_group =>
 			startActivityForResult(RouteChooseActivity.createIntent(this), GroupsActivity.REQUEST_CREATE_GROUP)
-			true
-
-		case R.id.routes_list =>
-			startActivity(MainActivity.createIntent(this))
 			true
 
 		case _ => super.onOptionsItemSelected(item)

@@ -6,9 +6,4 @@
 		android:title="@string/create_group"
 		android:icon="@drawable/add"
 	/>
-	<item android:id="@+id/routes_list"
-		android:showAsAction="always"
-		android:title="@string/route_list"
-		android:icon="@drawable/route_list"
-	/>
 </menu>
