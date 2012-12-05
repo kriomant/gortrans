@@ -172,7 +172,7 @@ object parsing {
 	case class RoutePoint(stop: Option[RouteStop], latitude: Double, longitude: Double)
 
 	def parseRoutesPoints(obj: JSONObject): Map[String, Seq[RoutePoint]] = {
-		obj.getJSONArray("all").ofObjects flatMap {
+		obj.getJSONArray("trasses").ofObjects flatMap {
 			o =>
 				o.getJSONArray("r").ofObjects map {
 					m =>

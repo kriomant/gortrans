@@ -62,7 +62,7 @@ class Client(logger: Logger) {
 		val params = requests map { r =>
 			"%d-%s-%s-%s" format (r.vehicleType.id+1, r.routeId, directionsExCodes(r.direction), r.routeName)
 		} mkString "|"
-		fetch(new URL(MAPS_HOST, "gsearch.php?r=" + URLEncoder.encode(params, "UTF-8")))
+		fetch(new URL(MAPS_HOST, "trasses.php?r=" + URLEncoder.encode(params, "UTF-8")))
 	}
 
 	def getStopsList(query: String = ""): String = {
