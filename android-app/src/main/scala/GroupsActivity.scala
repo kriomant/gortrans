@@ -124,6 +124,24 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 		}
 	}
 
+
+	override def onWindowFocusChanged(hasFocus: Boolean) {
+		super.onWindowFocusChanged(hasFocus)
+
+		if (hasFocus) {
+			// If this activity is shown for the first time after upgrade,
+			// show sidebar to present new functionality to user.
+			// This can't be done from onResume, because views are not yet
+			// laid out there.
+			val prefs = getPreferences(Context.MODE_PRIVATE)
+			val SHOW_SIDEBAR_ON_START = "showSidebarOnStart"
+			if (prefs.getBoolean(SHOW_SIDEBAR_ON_START, true)) {
+				prefs.edit().putBoolean(SHOW_SIDEBAR_ON_START, false).commit()
+				sidebarContainer.animateOpen()
+			}
+		}
+	}
+
 	val TAG_CREATE_GROUP = "tag-create-group"
 
 	def createGroup(data: Intent) {
