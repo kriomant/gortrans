@@ -8,6 +8,7 @@ import xml.XML
 object General {
   val apiLevel = SettingKey[Int]("api-level", "Target Android API level")
   val googleMapsJar = SettingKey[File]("google-maps-jar", "Google Maps JAR path")
+	val googlePlayServices = SettingKey[File]("google-play-services-sdk", "Google Play services SDK")
 	val androidSupportJar = SettingKey[File]("android-support-jar", "Google Support Library JAR path")
 
 	// Generating custom resources file containing some project settings.
@@ -57,14 +58,30 @@ object General {
       proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep class android.support.v4.content.Loader* -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
 	    proguardOption in Android ~= { _ + " -keep class net.kriomant.gortrans.compatibility.* { *; } " },
 
+	    // Add Google Maps library.
       googleMapsJar <<= (sdkPath in Android, apiLevel in Android) { (path, apiLevel) =>
           (path / "add-ons" / "addon-google_apis-google-%d".format(apiLevel)
           / "libs" / "maps.jar")
       },
-
-      // Add Google Maps library.
       unmanagedJars in Compile <+= googleMapsJar map { jar => Attributed.blank(jar) },
       libraryJarPath in Android <+= googleMapsJar,
+
+      // Use Google Play services SDK.
+	    googlePlayServices <<= (sdkPath in Android) { path =>
+		    path / "extras" / "google" / "google_play_services" / "libproject" / "google-play-services_lib"
+	    },
+      extractApkLibDependencies in Android <+= googlePlayServices map { path =>
+	      LibraryProject(
+					pkgName = "com.google.android.gms",
+					manifest = path / "AndroidManifest.xml",
+		      sources = Set(),
+	        resDir = Some(path / "res"),
+		      assetsDir = None
+				)
+      },
+	    unmanagedJars in Compile <+= googlePlayServices map { path => Attributed.blank(path / "libs" / "google-play-services.jar") },
+      proguardOption in Android ~= { _ + " -keep class * extends java.util.ListResourceBundle { protected Object[][] getContents(); } " },
+	    proguardOption in Android ~= { _ + " -keep class com.google.android.gms.maps.SupportMapFragment { *; } " },
 
       customResourcesPath in Android <<= (mainResPath in Android) map { _ / "values" / "generated.xml" },
       customResources in Android := Seq(),
