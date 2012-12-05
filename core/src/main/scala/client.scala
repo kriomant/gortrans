@@ -94,9 +94,6 @@ class Client(logger: Logger) {
 	}
 
 	def getVehiclesLocation(requests: Iterable[Client.RouteInfoRequest]) = {
-		if (mapsSessionId == null)
-			updateSessionId()
-
 		val params = requests map {
 			r =>
 				"%d-%s-%s-%s" format(r.vehicleType.id + 1, r.routeId, directionsExCodes(r.direction), r.routeName)
