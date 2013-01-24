@@ -10,19 +10,31 @@ import android.view.ViewTreeObserver.OnGlobalLayoutListener
 import net.kriomant.gortrans.geometry.Point
 import net.kriomant.gortrans.parsing.VehicleInfo
 import com.google.android.gms.maps.GoogleMap.OnCameraChangeListener
+import android.graphics.{Canvas, Bitmap}
+import net.kriomant.gortrans.core.Direction
+import android.graphics.drawable.Drawable
+
+object RouteMapV2Activity {
+	object StopMarkersState extends Enumeration {
+		val Hidden, Small, Large = Value
+	}
+}
 
 class RouteMapV2Activity extends SherlockFragmentActivity
 	with RouteMapLike
 	with TypedActivity
 {
+	import RouteMapV2Activity._
+
 	// Padding between route markers and map edge in pixels.
 	final val ROUTE_PADDING = 10
 
 	var map: GoogleMap = null
-	var previousZoom: Float = 0
+	var previousStopMarkersState: StopMarkersState.Value = StopMarkersState.Hidden
 
 	var routeMarkers = Traversable[Polyline]()
 	var stopMarkers = Traversable[Marker]()
+	var smallStopMarkers = Traversable[Marker]()
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
@@ -35,15 +47,31 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 		map.setOnCameraChangeListener(new OnCameraChangeListener {
 			def onCameraChange(camera: CameraPosition) {
+				val stopMarkersState =
+					if (camera.zoom < RouteMapLike.ZOOM_WHOLE_ROUTE)
+						StopMarkersState.Hidden
+					else if (camera.zoom < RouteMapLike.ZOOM_WHOLE_ROUTE+2)
+						StopMarkersState.Small
+					else
+						StopMarkersState.Large
 
-				if ((previousZoom >= RouteMapLike.ZOOM_WHOLE_ROUTE+1) != (camera.zoom >= RouteMapLike.ZOOM_WHOLE_ROUTE+1)) {
-					stopMarkers.foreach(_.setVisible(camera.zoom >= RouteMapLike.ZOOM_WHOLE_ROUTE+1))
+				if (stopMarkersState != previousStopMarkersState) {
+					stopMarkersState match {
+						case StopMarkersState.Hidden =>
+							stopMarkers      foreach { _.setVisible(false) }
+							smallStopMarkers foreach { _.setVisible(false) }
+						case StopMarkersState.Small =>
+							stopMarkers      foreach { _.setVisible(false) }
+							smallStopMarkers foreach { _.setVisible(true) }
+						case StopMarkersState.Large =>
+							stopMarkers      foreach { _.setVisible(true) }
+							smallStopMarkers foreach { _.setVisible(false) }
+					}
+					previousStopMarkersState = stopMarkersState
 				}
 
 				// TODO: optimize.
 				routeMarkers.foreach(_.setWidth(getRouteStrokeWidth(camera.zoom)))
-
-				previousZoom = camera.zoom
 			}
 		})
 
@@ -69,22 +97,25 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			new stopOverlayManager.RouteStopNameOverlay(name, routePointToGeoPoint(pos))
 		}*/
 
-		previousZoom = map.getCameraPosition.zoom
-
 		val stops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
-		/*val stopOverlays: Iterator[Overlay] = stops.iterator map { case (point, name) =>
-			new RouteStopOverlay(getResources, routePointToGeoPoint(point))
-		}*/
-		stopMarkers.foreach(_.remove())
-		stopMarkers = stops.toSeq.map { case (point, name) =>
-			map.addMarker(new MarkerOptions()
-				.icon(BitmapDescriptorFactory.fromResource(R.drawable.route_stop_marker))
+		def createStopMarker(point: Point, name: String, iconRes: Int): Marker = {
+			val marker = map.addMarker(new MarkerOptions()
+				.icon(BitmapDescriptorFactory.fromResource(iconRes))
 				.anchor(0.5f, 0.5f)
 				.position(new LatLng(point.y, point.x))
 				.title(name)
-				.visible(map.getCameraPosition.zoom >= RouteMapLike.ZOOM_WHOLE_ROUTE+1)
+				.visible(false)
 			)
+			// `MarkerOptions.visible` has no effect (http://code.google.com/p/gmaps-api-issues/issues/detail?id=4677),
+			// so hide marker manually after creation. Call to 'visible' is left so it will work (and possible)
+			// avoid flicker when bug is fixed.
+			marker.setVisible(false)
+			marker
 		}
+		stopMarkers.foreach(_.remove())
+		stopMarkers = stops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker) }
+		smallStopMarkers.foreach(_.remove())
+		smallStopMarkers = stops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker_small) }
 
 		routeMarkers.foreach(_.remove())
 		routeMarkers = routes.values map { route =>

@@ -303,23 +303,22 @@ class RouteOverlay(resources: Resources, color: Int, geoPoints: Seq[GeoPoint]) e
 
 class RouteStopOverlay(resources: Resources, geoPoint: GeoPoint) extends Overlay {
 	val img = BitmapFactory.decodeResource(resources, R.drawable.route_stop_marker)
+	val imgSmall = BitmapFactory.decodeResource(resources, R.drawable.route_stop_marker_small)
 
 	override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
 		if (! shadow && view.getZoomLevel >= RouteMapLike.ZOOM_WHOLE_ROUTE) {
 			val point = new Point
 			view.getProjection.toPixels(geoPoint, point)
 
-			if (
+			val icon = if (
 				view.getZoomLevel == RouteMapLike.ZOOM_WHOLE_ROUTE ||
 				view.getZoomLevel == RouteMapLike.ZOOM_WHOLE_ROUTE+1
 			)
-				canvas.drawBitmap(img,
-					new Rect(0, 0, img.getWidth, img.getHeight),
-					new Rect(point.x - img.getWidth/4, point.y - img.getHeight/4, point.x + img.getWidth/4, point.y + img.getHeight/4),
-					null
-				)
+				imgSmall
 			else
-				canvas.drawBitmap(img, point.x - img.getWidth/2, point.y - img.getHeight/2, null)
+				img
+
+			canvas.drawBitmap(icon, point.x - icon.getWidth/2, point.y - icon.getHeight/2, null)
 		}
 	}
 }
