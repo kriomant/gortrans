@@ -15,6 +15,8 @@ import net.kriomant.gortrans.core.Direction
 import android.graphics.drawable.Drawable
 
 object RouteMapV2Activity {
+	final val TAG = getClass.getName
+
 	object StopMarkersState extends Enumeration {
 		val Hidden, Small, Large = Value
 	}
@@ -35,11 +37,16 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	var routeMarkers = Traversable[Polyline]()
 	var stopMarkers = Traversable[Marker]()
 	var smallStopMarkers = Traversable[Marker]()
+	var vehicleMarkers = Traversable[Marker]()
+
+	var vehicleUnknown: Drawable = null
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
 
 		setContentView(R.layout.route_map_v2)
+
+		vehicleUnknown = getResources.getDrawable(R.drawable.vehicle_stopped_marker)
 
 		val mapFragment = getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment]
 		map = mapFragment.getMap
@@ -132,8 +139,6 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		constantOverlays ++= stopNameOverlays*/
 	}
 
-	def updateOverlays() {}
-
 	def navigateTo(left: Double, top: Double, right: Double, bottom: Double) {
 		val motion = CameraUpdateFactory.newLatLngBounds(
 			new LatLngBounds(new LatLng(bottom, left), new LatLng(top, right)),
@@ -153,9 +158,44 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 	def stopBackgroundProcessIndication() {}
 
-	def clearVehicleMarkers() {}
+	def clearVehicleMarkers() {
+		vehicleMarkers.foreach(_.remove())
+		vehicleMarkers = Seq()
+	}
 
-	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {}
+	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
+	}
+
+	def updateOverlays() {
+		vehicleMarkers.foreach(_.remove())
+		vehicleMarkers = vehiclesData map { case (info, point, angle, baseColor) =>
+			val bitmap = android_utils.measure(TAG, "Render vehicle marker") {
+				val drawable = info.direction match {
+					case Some(dir) =>
+						val color = dir match {
+							case Direction.Forward => baseColor
+							case Direction.Backward => baseColor
+						}
+						new VehicleMarker(getResources, angle.map(_.toFloat), color)
+
+					case None => vehicleUnknown
+				}
+				drawable.setBounds(0, 0, drawable.getIntrinsicWidth, drawable.getIntrinsicHeight)
+				val bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth, drawable.getIntrinsicHeight, Bitmap.Config.ARGB_8888)
+				val canvas = new Canvas(bitmap)
+				drawable.draw(canvas)
+				bitmap
+			}
+
+			android_utils.measure(TAG, "Add vehicle marker") {
+				map.addMarker(new MarkerOptions()
+					.icon(BitmapDescriptorFactory.fromBitmap(bitmap))
+					.position(new LatLng(point.y, point.x))
+					.anchor(0.5f, 1)
+				)
+			}
+		} toList
+	}
 
 	def setLocationMarker(location: Location) {}
 }

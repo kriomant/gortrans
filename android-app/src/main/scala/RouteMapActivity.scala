@@ -139,20 +139,6 @@ class RouteMapActivity extends SherlockMapActivity
 	  mapView.postInvalidate()
   }
 
-  override def onResume() {
-    super.onResume()
-
-    if (updatingVehiclesLocationIsOn && vehiclesWatcher != null)
-      vehiclesWatcher.startUpdatingVehiclesLocation()
-  }
-
-  override def onPause() {
-    if (updatingVehiclesLocationIsOn && vehiclesWatcher != null)
-      vehiclesWatcher.stopUpdatingVehiclesLocation()
-
-    super.onPause()
-  }
-
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case android.R.id.home => {
 			val intent = getIntent

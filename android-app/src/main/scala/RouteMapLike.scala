@@ -228,6 +228,16 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 
 	override def onResume() {
 		super.onResume()
+
+		if (updatingVehiclesLocationIsOn && vehiclesWatcher != null)
+			vehiclesWatcher.startUpdatingVehiclesLocation()
+	}
+
+	override def onPause() {
+		if (updatingVehiclesLocationIsOn && vehiclesWatcher != null)
+			vehiclesWatcher.stopUpdatingVehiclesLocation()
+
+		super.onPause()
 	}
 
 	def loadRouteInfo(vehicleType: VehicleType.Value, routeId: String, routeName: String) {
