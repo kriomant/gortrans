@@ -62,6 +62,8 @@
 
 				<activity android:name=".RouteChooseActivity" android:label="@string/choose_routes"/>
 
+	      <activity android:name=".SettingsActivity" android:label="@string/settings"/>
+
 	      <provider
 					android:authorities="net.kriomant.gortrans.route_suggestions"
 					android:name=".RouteSearchSuggestionProvider"/>

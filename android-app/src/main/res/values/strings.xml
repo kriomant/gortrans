@@ -86,8 +86,10 @@
 		<string name="vehicle_schedule_row">%1$s %2$s</string>
 		<string name="vehicle_speed_format">%1$d км/ч</string>
 		<string name="vehicle_schedule_number">график №%1$d</string>
+	  <string name="screen_wake_lock">Не выключать экран</string>
+		<string name="settings">Настройки</string>
 
-		<plurals name="routes">
+	<plurals name="routes">
 			<item quantity="one">%1$d маршрут</item>
 			<item quantity="two">%1$d маршрута</item>
 			<item quantity="few">%1$d маршрутов</item>
