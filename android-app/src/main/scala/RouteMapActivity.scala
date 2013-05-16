@@ -18,45 +18,14 @@ import android.graphics._
 import drawable.{NinePatchDrawable, Drawable}
 import net.kriomant.gortrans.core.{FoldedRouteStop, Direction, VehicleType}
 import net.kriomant.gortrans.geometry.{Point => Pt}
-import net.kriomant.gortrans.CursorIterator.cursorUtils
-import utils.closing
 import scala.collection.mutable
 import android.graphics.Point
 import scala.Some
-import net.kriomant.gortrans.core.FoldedRouteStop
-import scala.Left
-import scala.Right
 import scala.collection.JavaConverters.asJavaCollectionConverter
-import net.kriomant.gortrans.VehiclesWatcher.Listener
-import utils.functionAsRunnable
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
 	final val TAG = CLASS_NAME
-
-	private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
-	private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
-	private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
-	private final val EXTRA_GROUP_ID = CLASS_NAME + ".VEHICLE_TYPE"
-
-	def createIntent(caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value): Intent = {
-		val intent = new Intent(caller, classOf[RouteMapActivity])
-		intent.putExtra(EXTRA_ROUTE_ID, routeId)
-		intent.putExtra(EXTRA_ROUTE_NAME, routeName)
-		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
-		intent
-	}
-
-	def createShowGroupIntent(context: Context, groupId: Long): Intent = {
-		val intent = new Intent(context, classOf[RouteMapActivity])
-		intent.putExtra(EXTRA_GROUP_ID, groupId)
-		intent
-	}
-
-	// MapView's zoom level at which whole or significant part of route
-	// is visible.
-	val ZOOM_WHOLE_ROUTE = 14
-	val ZOOM_SHOW_STOP_NAMES = 17
 
 	case class RouteInfo(
 		forwardRoutePoints: Seq[Pt],
@@ -71,35 +40,17 @@ object RouteMapActivity {
 
 		color: Int
 	)
-
-	def routePointToGeoPoint(p: Pt): GeoPoint =
-		new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
-
-	val routeNameResourceByVehicleType = Map(
-		VehicleType.Bus -> R.string.bus_n,
-		VehicleType.TrolleyBus -> R.string.trolleybus_n,
-		VehicleType.TramWay -> R.string.tramway_n,
-		VehicleType.MiniBus -> R.string.minibus_n
-	)
 }
 
 class RouteMapActivity extends SherlockMapActivity
+	with RouteMapLike
 	with TypedActivity
-	with TrackLocation
 	with MapShortcutTarget {
 
+	import RouteMapLike._
 	import RouteMapActivity._
 
 	private[this] var mapView: MapView = null
-  private[this] var trackVehiclesToggle: ToggleButton = null
-
-	private[this] var dataManager: DataManager = null
-
-	var routesInfo: Set[core.Route] = null
-
-	var vehiclesWatcher: VehiclesWatcher = null
-
-	var vehiclesData: Seq[(VehicleInfo, Pt, Option[Double], Int)] = Seq()
 
 	// Overlays are splitted into constant ones which are
 	// updated on new intent or updated route data only and
@@ -112,27 +63,13 @@ class RouteMapActivity extends SherlockMapActivity
 	var locationOverlay: Overlay = null
 	var realVehicleLocationOverlays: Seq[Overlay] = Seq()
 
-	var rainbow: Rainbow = null
-
 	var balloonController: MapBalloonController = null
-
-  var updatingVehiclesLocationIsOn: Boolean = true
-
-	val routes: mutable.Map[(VehicleType.Value, String), RouteInfo] = mutable.Map()
-
-	// Hack to avoid repositioning map when activity is recreated due to
-	// configuration change. TODO: normal solution.
-	var hasOldState: Boolean = false
 
 	def isRouteDisplayed = false
 	override def isLocationDisplayed = false
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
-
-		hasOldState = (bundle != null)
-
-		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 
     // Enable to show indeterminate progress indicator in activity header.
     requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
@@ -143,212 +80,16 @@ class RouteMapActivity extends SherlockMapActivity
 		mapView.setBuiltInZoomControls(true)
 		mapView.setSatellite(false)
 
-    trackVehiclesToggle = findView(TR.track_vehicles)
-    trackVehiclesToggle.setOnCheckedChangeListener(new OnCheckedChangeListener {
-      def onCheckedChanged(button: CompoundButton, checked: Boolean) {
-        if (checked) {
-          updatingVehiclesLocationIsOn = true
-          if (vehiclesWatcher != null) vehiclesWatcher.startUpdatingVehiclesLocation()
-        } else {
-	        updatingVehiclesLocationIsOn = false
-          if (vehiclesWatcher != null) vehiclesWatcher.stopUpdatingVehiclesLocation()
-        }
-      }
-    })
-    trackVehiclesToggle.setChecked(updatingVehiclesLocationIsOn)
-
-		val gpsToggle = findView(TR.toggle_gps)
-		gpsToggle.setOnCheckedChangeListener(new OnCheckedChangeListener {
-			def onCheckedChanged(button: CompoundButton, checked: Boolean) {
-				setGpsEnabled(checked)
-			}
-		})
-
-		val showMyLocationButton = findView(TR.show_my_location)
-		showMyLocationButton.setOnClickListener(new OnClickListener {
-			def onClick(view: View) {
-				val location = currentLocation
-				if (location != null) {
-					val ctrl = mapView.getController
-					ctrl.animateTo(new GeoPoint((location.getLatitude * 1e6).toInt, (location.getLongitude * 1e6).toInt))
-				}
-			}
-		})
-
-		rainbow = Rainbow(getResources.getColor(R.color.forward_vehicle))
-
 		balloonController = new MapBalloonController(this, mapView)
 		vehiclesOverlay = new VehiclesOverlay(this, getResources, balloonController)
 		routeStopNameOverlayManager = new RouteStopNameOverlayManager(getResources)
-
-		onNewIntent(getIntent)
 	}
 
 	override def onNewIntent(intent: Intent) {
-		setIntent(intent)
+		super.onNewIntent(intent)
 
 		val actionBar = getSupportActionBar
 		actionBar.setDisplayHomeAsUpEnabled(true)
-
-		if (vehiclesWatcher != null)
-			vehiclesWatcher.stopUpdatingVehiclesLocation()
-		vehiclesWatcher = null
-
-		routes.clear()
-		createConstantOverlays()
-		updateOverlays()
-
-		val db = getApplication.asInstanceOf[CustomApplication].database
-
-		val groupId = intent.getLongExtra(EXTRA_GROUP_ID, -1)
-		if (groupId != -1) {
-			val (groupName, dbRouteIds) = db.transaction {
-				(db.getGroupName(groupId), db.getGroupItems(groupId))
-			}
-			routesInfo = dbRouteIds map { rid =>
-				closing(db.fetchRoute(rid)) { c =>
-					core.Route(c.vehicleType, c.externalId, c.name, c.firstStopName, c.lastStopName)
-				}
-			}
-
-			actionBar.setTitle(groupName)
-
-			loadRoutesData()
-
-		} else {
-			// Get route reference.
-			val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
-			val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
-			val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
-
-			Log.d(TAG, "New intent received, route ID: %s" format routeId)
-
-			routesInfo = Set(core.Route(vehicleType, routeId, routeName, "", ""))
-
-			actionBar.setTitle(getString(routeNameResourceByVehicleType(vehicleType), routeName))
-
-			loadRouteInfo(vehicleType, routeId, routeName)
-		}
-
-		vehiclesWatcher = new VehiclesWatcher(this, routesInfo.map(r => (r.vehicleType, r.id, r.name)), new Listener {
-			def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]]) {
-				RouteMapActivity.this.onVehiclesLocationUpdated()
-			}
-
-			def onVehiclesLocationUpdateCancelled() {
-				RouteMapActivity.this.onVehiclesLocationUpdateCancelled()
-			}
-
-			def onVehiclesLocationUpdateStarted() {
-				RouteMapActivity.this.onVehiclesLocationUpdateStarted()
-			}
-		})
-
-		vehiclesWatcher.subscribe (updateVehiclesLocation _)
-	}
-
-	def loadRouteInfo(vehicleType: VehicleType.Value, routeId: String, routeName: String) {
-		val db = getApplication.asInstanceOf[CustomApplication].database
-
-		dataManager.requestRoutesList(
-			new ForegroundProcessIndicator(this, () => loadRouteInfo(vehicleType, routeId, routeName)),
-			new MapActionBarProcessIndicator(this)
-		) {
-			routesInfo = closing(db.fetchRoute(vehicleType, routeId)) { cursor =>
-				val routeBegin = cursor.firstStopName
-				val routeEnd = cursor.lastStopName
-				Set(core.Route(vehicleType, routeId, routeName, routeBegin, routeEnd))
-			}
-
-			loadRoutesData()
-		}
-	}
-
-	def loadRoutesData() {
-		routesInfo.zipWithIndex foreach Function.tupled(loadData _)
-	}
-
-	def loadData(routeInfo: core.Route, index: Int) {
-		// Load route details.
-		dataManager.requestRoutePoints(
-			routeInfo.vehicleType, routeInfo.id, routeInfo.name, routeInfo.begin, routeInfo.end,
-			new ForegroundProcessIndicator(this, () => loadData(routeInfo, index)),
-			new MapActionBarProcessIndicator(this)
-		) {
-			val db = getApplication.asInstanceOf[CustomApplication].database
-
-			// Load route data from database.
-			val points = closing(db.fetchRoutePoints(routeInfo.vehicleType, routeInfo.id)) { cursor =>
-				cursor.map(c => Pt(c.longitude, c.latitude)).toIndexedSeq
-			}
-			if (points.nonEmpty) {
-				val stops = closing(db.fetchRouteStops(routeInfo.vehicleType, routeInfo.id)) {
-					_.map(c => FoldedRouteStop[Int](c.name, c.forwardPointIndex, c.backwardPointIndex)).toIndexedSeq
-				}
-
-				// Split points into forward and backward parts. They will be used
-				// for snapping vehicle position to route.
-				val firstBackwardStop = stops.reverseIterator.find(_.backward.isDefined).get
-				val firstBackwardPointIndex = firstBackwardStop.backward.get
-				val (fwdp, bwdp) = points.splitAt(firstBackwardStop.backward.get)
-				val forwardRoutePoints = points.slice(0, firstBackwardPointIndex+1)
-				val backwardRoutePoints = points.slice(firstBackwardPointIndex, points.length) :+ points.head
-				assert(forwardRoutePoints.last == backwardRoutePoints.head)
-				assert(backwardRoutePoints.last == forwardRoutePoints.head)
-
-				// Calculate rectangle (and it's center) containing whole route.
-				val top = points.map(_.y).min
-				val left = points.map(_.x).min
-				val bottom = points.map(_.y).max
-				val right = points.map(_.x).max
-				val longitude = (left + right) / 2
-				val latitude = (top + bottom) / 2
-				val bounds = new RectF(left.toFloat, top.toFloat, right.toFloat, bottom.toFloat)
-
-				if (! hasOldState) {
-					// Navigate to show full route.
-					val ctrl = mapView.getController
-					ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
-					ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
-				}
-
-				// Add route markers.
-				val forwardRouteOverlay = new RouteOverlay(
-					getResources, getResources.getColor(R.color.forward_route),
-					forwardRoutePoints map routePointToGeoPoint
-				)
-				val backwardRouteOverlay = new RouteOverlay(
-					getResources, getResources.getColor(R.color.backward_route),
-					backwardRoutePoints map routePointToGeoPoint
-				)
-
-				// Unfold route.
-				val routeStops =
-					stops.collect { case FoldedRouteStop(name, Some(pos), _) => (points(pos), name) } ++
-					stops.reverse.collect { case FoldedRouteStop(name, _, Some(pos)) => (points(pos), name) }
-
-				val stopNames = stops map { p =>
-				// Find stop which is to the east of another.
-					val stop = (p.forward, p.backward) match {
-						case (Some(f), Some(b)) => if (points(f).x > points(b).x) f else b
-						case (Some(f), None) => f
-						case (None, Some(b)) => b
-						case (None, None) => throw new AssertionError
-					}
-					(points(stop), p.name)
-				}
-
-				routes((routeInfo.vehicleType, routeInfo.id)) = RouteInfo(
-					forwardRoutePoints, backwardRoutePoints,
-					bounds, routeStops.toSet, stopNames.toSet,
-					forwardRouteOverlay, backwardRouteOverlay,
-					rainbow(index)
-				)
-
-				createConstantOverlays()
-				updateOverlays()
-			}
-		}
 	}
 
 	/** Create overlays which are changed on new intent only.
@@ -398,20 +139,6 @@ class RouteMapActivity extends SherlockMapActivity
 	  mapView.postInvalidate()
   }
 
-  override def onResume() {
-    super.onResume()
-
-    if (updatingVehiclesLocationIsOn && vehiclesWatcher != null)
-      vehiclesWatcher.startUpdatingVehiclesLocation()
-  }
-
-  override def onPause() {
-    if (updatingVehiclesLocationIsOn && vehiclesWatcher != null)
-      vehiclesWatcher.stopUpdatingVehiclesLocation()
-
-    super.onPause()
-  }
-
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case android.R.id.home => {
 			val intent = getIntent
@@ -428,20 +155,6 @@ class RouteMapActivity extends SherlockMapActivity
 			true
 		}
 		case _ => super.onOptionsItemSelected(item)
-	}
-
-	def onLocationUpdated(location: Location) {
-		Log.d("RouteMapActivity", "Location updated: %s" format location)
-		if (location != null) {
-			val point = new GeoPoint((location.getLatitude * 1e6).toInt, (location.getLongitude * 1e6).toInt)
-			val drawable = getResources.getDrawable(R.drawable.location_marker)
-			locationOverlay = new MarkerOverlay(drawable, point, new PointF(0.5f, 0.5f))
-		} else {
-			locationOverlay = null
-		}
-		updateOverlays()
-		
-		findView(TR.show_my_location).setVisibility(if (location != null) View.VISIBLE else View.INVISIBLE)
 	}
 
 	def getShortcutNameAndIcon: (String, Int) = {
@@ -467,62 +180,50 @@ class RouteMapActivity extends SherlockMapActivity
 	}
 
 
-	def onVehiclesLocationUpdateStarted() {
+	def createProcessIndicator() = new MapActionBarProcessIndicator(this)
+
+	def navigateTo(left: Double, top: Double, right: Double, bottom: Double) {
+		val ctrl = mapView.getController
+		ctrl.animateTo(new GeoPoint(((bottom + top)/2 * 1e6).toInt, ((left + right)/2 * 1e6).toInt))
+		ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
+	}
+
+
+	def navigateTo(latitude: Double, longitude: Double) {
+		val ctrl = mapView.getController
+		ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
+	}
+
+	def setTitle(title: String) {
+		getSupportActionBar.setTitle(title)
+	}
+
+	def startBackgroundProcessIndication() {
 		setSupportProgressBarIndeterminateVisibility(true)
 	}
 
-	def onVehiclesLocationUpdateCancelled() {
+	def stopBackgroundProcessIndication() {
 		setSupportProgressBarIndeterminateVisibility(false)
+	}
 
+	def clearVehicleMarkers() {
 		vehiclesOverlay.clear()
 		realVehicleLocationOverlays = Seq()
-		updateOverlays()
 	}
 
-	def onVehiclesLocationUpdated() {
-		setSupportProgressBarIndeterminateVisibility(false)
+	def setVehicles(vehicles: Seq[(VehicleInfo, geometry.Point, Option[Double], Int)]) {
+		realVehicleLocationOverlays = vehicles map { case (info, pos, angle, color) =>
+			new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
+		}
 	}
 
-	def updateVehiclesLocation(result: Either[String, Seq[VehicleInfo]]) {
-		result match {
-			case Right(vehicles) => {
-				val vehiclesPointsAndAngles = android_utils.measure(TAG, "snapping %d vehicles" format vehicles.length) {
-					vehicles map { v =>
-						routes.get((v.vehicleType, v.routeId)) match {
-							case None => (v, Pt(v.latitude, v.longitude), Some(v.azimuth/180.0*math.Pi), getResources.getColor(R.color.forward_vehicle))
-							case Some(route) =>
-								val (pt, segment) = v.direction match {
-									case Some(Direction.Forward) => core.snapVehicleToRoute(v, route.forwardRoutePoints)
-									case Some(Direction.Backward) => core.snapVehicleToRoute(v, route.backwardRoutePoints)
-									case None => (Pt(v.longitude, v.latitude), None)
-								}
-
-								val angle = segment map { s =>
-									math.atan2(s._2.y - s._1.y, s._2.x - s._1.x) * 180 / math.Pi
-								}
-								(v, pt, angle, route.color)
-						}
-					}
-				}
-
-				vehiclesData = vehiclesPointsAndAngles
-				realVehicleLocationOverlays = vehiclesPointsAndAngles map { case (info, pos, angle, color) =>
-					new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
-				}
-
-				runOnUiThread { () =>
-					updateOverlays()
-				}
-			}
-
-			case Left(message) => {
-				vehiclesData = Seq()
-				realVehicleLocationOverlays = Seq()
-				runOnUiThread { () =>
-					Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-					updateOverlays()
-				}
-			}
+	def setLocationMarker(location: Location) {
+		if (location != null) {
+			val point = new GeoPoint((location.getLatitude * 1e6).toInt, (location.getLongitude * 1e6).toInt)
+			val drawable = getResources.getDrawable(R.drawable.location_marker)
+			locationOverlay = new MarkerOverlay(drawable, point, new PointF(0.5f, 0.5f))
+		} else {
+			locationOverlay = null
 		}
 	}
 }
@@ -550,9 +251,6 @@ class MarkerOverlay(drawable: Drawable, location: GeoPoint, anchorPosition: Poin
 }
 
 class RouteOverlay(resources: Resources, color: Int, geoPoints: Seq[GeoPoint]) extends Overlay {
-	final val PHYSICAL_ROUTE_STROKE_WIDTH: Float = 3 // meters
-	final val MIN_ROUTE_STROKE_WIDTH: Float = 2 // pixels
-
 	// Place here to avoid path allocation on each drawing.
 	val path = new Path
 	path.incReserve(geoPoints.length+1)
@@ -579,7 +277,7 @@ class RouteOverlay(resources: Resources, color: Int, geoPoints: Seq[GeoPoint]) e
 			// We want to fix physical width of route stroke (in meters), but make it still visible
 			// on zoom level 1 by limiting minimum width in pixels.
 			val metersPerPixel = (40e6 / (128 * Math.pow(2, view.getZoomLevel))).toFloat
-			val strokeWidth = Math.max(PHYSICAL_ROUTE_STROKE_WIDTH / metersPerPixel, MIN_ROUTE_STROKE_WIDTH)
+			val strokeWidth = Math.max(RouteMapLike.PHYSICAL_ROUTE_STROKE_WIDTH / metersPerPixel, RouteMapLike.MIN_ROUTE_STROKE_WIDTH)
 			paint.setStrokeWidth(strokeWidth)
 
 			paint.setColor(color)
@@ -591,23 +289,22 @@ class RouteOverlay(resources: Resources, color: Int, geoPoints: Seq[GeoPoint]) e
 
 class RouteStopOverlay(resources: Resources, geoPoint: GeoPoint) extends Overlay {
 	val img = BitmapFactory.decodeResource(resources, R.drawable.route_stop_marker)
+	val imgSmall = BitmapFactory.decodeResource(resources, R.drawable.route_stop_marker_small)
 
 	override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
-		if (! shadow && view.getZoomLevel >= RouteMapActivity.ZOOM_WHOLE_ROUTE) {
+		if (! shadow && view.getZoomLevel >= RouteMapLike.ZOOM_WHOLE_ROUTE) {
 			val point = new Point
 			view.getProjection.toPixels(geoPoint, point)
 
-			if (
-				view.getZoomLevel == RouteMapActivity.ZOOM_WHOLE_ROUTE ||
-				view.getZoomLevel == RouteMapActivity.ZOOM_WHOLE_ROUTE+1
+			val icon = if (
+				view.getZoomLevel == RouteMapLike.ZOOM_WHOLE_ROUTE ||
+				view.getZoomLevel == RouteMapLike.ZOOM_WHOLE_ROUTE+1
 			)
-				canvas.drawBitmap(img,
-					new Rect(0, 0, img.getWidth, img.getHeight),
-					new Rect(point.x - img.getWidth/4, point.y - img.getHeight/4, point.x + img.getWidth/4, point.y + img.getHeight/4),
-					null
-				)
+				imgSmall
 			else
-				canvas.drawBitmap(img, point.x - img.getWidth/2, point.y - img.getHeight/2, null)
+				img
+
+			canvas.drawBitmap(icon, point.x - icon.getWidth/2, point.y - icon.getHeight/2, null)
 		}
 	}
 }
@@ -632,7 +329,7 @@ class RouteStopNameOverlayManager(resources: Resources) {
 		final val Y_OFFSET = 5
 
 		override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
-			if (! shadow && view.getZoomLevel >= RouteMapActivity.ZOOM_SHOW_STOP_NAMES) {
+			if (! shadow && view.getZoomLevel >= RouteMapLike.ZOOM_SHOW_STOP_NAMES) {
 				view.getProjection.toPixels(geoPoint, point)
 
 				val textWidth = pen.measureText(name).toInt
@@ -948,7 +645,7 @@ class VehiclesOverlay(
 
 	private def showBalloon(vehicleInfo: VehicleInfo, item: OverlayItem) {
 		val title = context.getString(
-			RouteMapActivity.routeNameResourceByVehicleType(vehicleInfo.vehicleType),
+			RouteMapLike.routeNameResourceByVehicleType(vehicleInfo.vehicleType),
 			vehicleInfo.routeName
 		)
 		balloon.findViewById(R.id.vehicle_title).asInstanceOf[TextView].setText(title)

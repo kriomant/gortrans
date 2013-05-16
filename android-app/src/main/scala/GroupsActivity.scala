@@ -33,7 +33,7 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 		groupList.setEmptyView(findView(TR.group_list_empty))
 		groupList.setOnItemClickListener(new OnItemClickListener {
 			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
-				startActivity(RouteMapActivity.createShowGroupIntent(GroupsActivity.this, id))
+				startActivity(RouteMapLike.createShowGroupIntent[RouteMapV2Activity](GroupsActivity.this, id))
 			}
 		})
 

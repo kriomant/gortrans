@@ -55,7 +55,7 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar://$USER_HOME$/.ivy2/cache/com.actionbarsherlock/plugin-maps/jars/plugin-maps-4.0.0.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.actionbarsherlock/plugin-maps/jars/plugin-maps-4.1.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -72,6 +72,15 @@
       </library>
     </orderEntry>
     <orderEntry type="module" module-name="core" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$USER_HOME$/dev/android-sdk-linux/extras/google/google_play_services/libproject/google-play-services_lib/libs/google-play-services.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>
 
