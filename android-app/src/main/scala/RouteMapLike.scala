@@ -20,6 +20,7 @@ import android.widget.CompoundButton.OnCheckedChangeListener
 import android.view.View.OnClickListener
 import android.view.View
 import android.location.Location
+import android.preference.PreferenceManager
 
 object RouteMapLike {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -30,16 +31,25 @@ object RouteMapLike {
 	final val EXTRA_VEHICLE_TYPE = "VEHICLE_TYPE"
 	final val EXTRA_GROUP_ID = "VEHICLE_TYPE"
 
-	def createIntent[T <: RouteMapLike: ClassManifest](caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value): Intent = {
-		val intent = new Intent(caller, classManifest[T].erasure)
+	private def getMapActivityClass(context: Context): Class[_] = {
+		val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+		val use_new_map = prefs.getBoolean(SettingsActivity.KEY_USE_NEW_MAP, false)
+		if (use_new_map)
+			classOf[RouteMapV2Activity]
+		else
+			classOf[RouteMapActivity]
+	}
+
+	def createIntent(caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value): Intent = {
+		val intent = new Intent(caller, getMapActivityClass(caller))
 		intent.putExtra(EXTRA_ROUTE_ID, routeId)
 		intent.putExtra(EXTRA_ROUTE_NAME, routeName)
 		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
 		intent
 	}
 
-	def createShowGroupIntent[T <: RouteMapLike: ClassManifest](context: Context, groupId: Long): Intent = {
-		val intent = new Intent(context, classManifest[T].erasure)
+	def createShowGroupIntent(context: Context, groupId: Long): Intent = {
+		val intent = new Intent(context, getMapActivityClass(context))
 		intent.putExtra(EXTRA_GROUP_ID, groupId)
 		intent
 	}

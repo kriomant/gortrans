@@ -156,7 +156,7 @@ class RouteInfoActivity extends SherlockActivity with TypedActivity {
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
 		case R.id.show_map => {
-			val intent = RouteMapLike.createIntent[RouteMapV2Activity](this, routeId, routeName, vehicleType)
+			val intent = RouteMapLike.createIntent(this, routeId, routeName, vehicleType)
 			startActivity(intent)
 			true
 		}

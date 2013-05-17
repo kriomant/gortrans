@@ -99,4 +99,8 @@
 			<item quantity="two">%1$d группы</item>
 			<item quantity="few">%1$d групп</item>
 		</plurals>
+
+	<!-- Preferences -->
+	<string name="use_new_map">Новая карта</string>
+	<string name="use_new_map_summary">Использовать новый компонент карт</string>
 </resources>
