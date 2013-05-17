@@ -167,8 +167,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	}
 
 	def updateOverlays() {
-		vehicleMarkers.foreach(_.remove())
-		vehicleMarkers = vehiclesData map { case (info, point, angle, baseColor) =>
+		val markerOptions = vehiclesData map { case (info, point, angle, baseColor) =>
 			val bitmap = android_utils.measure(TAG, "Render vehicle marker") {
 				val drawable = info.direction match {
 					case Some(dir) =>
@@ -187,14 +186,16 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 				bitmap
 			}
 
-			android_utils.measure(TAG, "Add vehicle marker") {
-				map.addMarker(new MarkerOptions()
-					.icon(BitmapDescriptorFactory.fromBitmap(bitmap))
-					.position(new LatLng(point.y, point.x))
-					.anchor(0.5f, 1)
-				)
-			}
-		} toList
+			new MarkerOptions()
+				.icon(BitmapDescriptorFactory.fromBitmap(bitmap))
+				.position(new LatLng(point.y, point.x))
+				.anchor(0.5f, 1)
+		}
+
+		android_utils.measure(TAG, "Remove %d and add %d vehicle marker" format (vehicleMarkers.size, markerOptions.size)) {
+			vehicleMarkers.foreach(_.remove())
+			vehicleMarkers = markerOptions map { options => map.addMarker(options) } toList
+		}
 	}
 
 	def setLocationMarker(location: Location) {}
