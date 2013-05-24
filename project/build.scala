@@ -52,8 +52,8 @@ object General {
       libraryDependencies += "org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
 
 			resolvers += "ActionBarSherlock" at  "http://r.jakewharton.com/maven/release/",
-			libraryDependencies += "com.actionbarsherlock" % "library" % "4.1.0" artifacts(Artifact("library", "apklib", "apklib")),
-	    libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.1.0",
+			libraryDependencies += "com.actionbarsherlock" % "actionbarsherlock" % "4.3.1" artifacts(Artifact("actionbarsherlock", "apklib", "apklib")),
+	    libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.2.0",
       // Prevent ProGuard from stripping ActionBarSherlock implementation classes which are used through reflection.
       proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep class android.support.v4.content.Loader* -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
 	    proguardOption in Android ~= { _ + " -keep class net.kriomant.gortrans.compatibility.* { *; } " },
@@ -88,6 +88,25 @@ object General {
       generateCustomResources in (Android, packageDebug) <<= (customResourcesPath in Android, customResources in (Android, packageDebug), streams) map generateCustomResourcesTask,
 	    generateCustomResources in (Android, packageRelease) <<= (customResourcesPath in Android, customResources in (Android, packageRelease), streams) map generateCustomResourcesTask,
 
+      // Generate BuildConfig.java for library projects.
+      aaptGenerate in Android <<= (aaptGenerate in Android, manifestPackage in Android, extractApkLibDependencies in Android, managedJavaPath in Android) map {
+	      (sources, package_, apklibs, javaPath) =>
+
+		    def createBuildConfig(packageName: String) = {
+		      var path = javaPath
+		      packageName.split('.').foreach { path /= _ }
+          path.mkdirs()
+		      val buildConfig = path / "BuildConfig.java"
+					IO.write(buildConfig, """
+						package %s;
+						public final class BuildConfig {
+							public static final boolean DEBUG = %s;
+						}""".format(packageName, false))
+          buildConfig
+        }
+
+		    sources ++ Seq(createBuildConfig(package_)) ++ apklibs.map(lib => createBuildConfig(lib.pkgName))
+      },
       packageDebug in Android <<= (packageDebug in Android) dependsOn (generateCustomResources in (Android, packageDebug)),
 	    packageRelease in Android <<= (packageRelease in Android) dependsOn (generateCustomResources in (Android, packageRelease))
     )
@@ -97,7 +116,7 @@ object AndroidBuild extends Build {
   lazy val root = Project (
     "root",
     file(".")
-  ) aggregate (core, androidApp, androidTests, explorer, checker)
+  ) aggregate (core, androidApp, explorer, checker)
 
 	lazy val core = Project(
 	  "core",
