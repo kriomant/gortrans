@@ -9,10 +9,12 @@ import android.location.Location
 import android.view.ViewTreeObserver.OnGlobalLayoutListener
 import net.kriomant.gortrans.geometry.Point
 import net.kriomant.gortrans.parsing.VehicleInfo
-import com.google.android.gms.maps.GoogleMap.OnCameraChangeListener
+import com.google.android.gms.maps.GoogleMap.{InfoWindowAdapter, OnCameraChangeListener}
 import android.graphics.{Canvas, Bitmap}
 import net.kriomant.gortrans.core.Direction
 import android.graphics.drawable.Drawable
+import android.view.View
+import android.widget.TextView
 
 object RouteMapV2Activity {
 	final val TAG = getClass.getName
@@ -51,6 +53,22 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		val mapFragment = getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment]
 		map = mapFragment.getMap
 		// `map` may be null if Google Play services are not available or not updated.
+
+		// Default marker info window shows snippet text all in one line.
+		// Use own layout in order to show multi-line schedule.
+		locally {
+			val infoWindowView = getLayoutInflater.inflate(R.layout.map_v2_info_window, null, false)
+			val titleView = infoWindowView.findViewById(R.id.marker_info_title).asInstanceOf[TextView]
+			val scheduleView = infoWindowView.findViewById(R.id.marker_info_schedule).asInstanceOf[TextView]
+			map.setInfoWindowAdapter(new InfoWindowAdapter {
+				def getInfoWindow(marker: Marker): View = null
+				def getInfoContents(marker: Marker): View = {
+					titleView.setText(marker.getTitle)
+					scheduleView.setText(marker.getSnippet)
+					infoWindowView
+				}
+			})
+		}
 
 		map.setOnCameraChangeListener(new OnCameraChangeListener {
 			def onCameraChange(camera: CameraPosition) {
@@ -190,6 +208,8 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 				.icon(BitmapDescriptorFactory.fromBitmap(bitmap))
 				.position(new LatLng(point.y, point.x))
 				.anchor(0.5f, 1)
+				.title(getString(RouteMapLike.routeNameResourceByVehicleType(info.vehicleType), info.routeName))
+				.snippet(formatVehicleSchedule(info))
 		}
 
 		android_utils.measure(TAG, "Remove %d and add %d vehicle marker" format (vehicleMarkers.size, markerOptions.size)) {

@@ -584,7 +584,7 @@ class VehicleMarker private (state: VehicleMarker.ConstantState) extends Drawabl
 }
 
 class VehiclesOverlay(
-	context: Context, resources: Resources, balloonController: MapBalloonController
+	context: RouteMapActivity, resources: Resources, balloonController: MapBalloonController
 ) extends ItemizedOverlay[OverlayItem](null)
 {
   def boundCenterBottom = ItemizedOverlayBridge.boundCenterBottom_(_)
@@ -657,14 +657,7 @@ class VehiclesOverlay(
 			resources.getString(R.string.vehicle_schedule_number, vehicleInfo.scheduleNr.asInstanceOf[AnyRef])
 		)
 
-		val schedule = vehicleInfo.schedule match {
-			case VehicleSchedule.Schedule(schedule) =>
-				schedule.map{ case (time, stop) =>
-					resources.getString(R.string.vehicle_schedule_row, time, stop)
-				}.mkString("\n")
-			case VehicleSchedule.Status(status) => status
-			case VehicleSchedule.NotProvided => ""
-		}
+		val schedule = context.formatVehicleSchedule(vehicleInfo)
 		balloon.findViewById(R.id.vehicle_schedule).asInstanceOf[TextView].setText(schedule)
 
 		balloon.findViewById(R.id.vehicle_speed).asInstanceOf[TextView].setText(

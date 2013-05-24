@@ -12,7 +12,7 @@ import scala.collection.mutable
 import net.kriomant.gortrans.CursorIterator.cursorUtils
 import android.content.{Context, Intent}
 import android.util.Log
-import net.kriomant.gortrans.parsing.VehicleInfo
+import net.kriomant.gortrans.parsing.{VehicleSchedule, VehicleInfo}
 import net.kriomant.gortrans.VehiclesWatcher.Listener
 import android.widget.{CompoundButton, ToggleButton, Toast}
 import utils.functionAsRunnable
@@ -416,5 +416,14 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 		// on zoom level 1 by limiting minimum width in pixels.
 		val metersPerPixel = (40e6 / (128 * math.pow(2, zoomLevel))).toFloat
 		math.max(PHYSICAL_ROUTE_STROKE_WIDTH / metersPerPixel, MIN_ROUTE_STROKE_WIDTH)
+	}
+
+	def formatVehicleSchedule(vehicleInfo: parsing.VehicleInfo): String = {
+		vehicleInfo.schedule match {
+			case VehicleSchedule.Schedule(schedule) =>
+				schedule.map { case (time, stop) => getString(R.string.vehicle_schedule_row, time, stop) }.mkString("\n")
+			case VehicleSchedule.Status(status) => status
+			case VehicleSchedule.NotProvided => ""
+		}
 	}
 }
