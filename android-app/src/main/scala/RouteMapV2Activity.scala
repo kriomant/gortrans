@@ -10,8 +10,8 @@ import android.view.ViewTreeObserver.OnGlobalLayoutListener
 import net.kriomant.gortrans.geometry.Point
 import net.kriomant.gortrans.parsing.VehicleInfo
 import com.google.android.gms.maps.GoogleMap.{InfoWindowAdapter, OnCameraChangeListener}
-import android.graphics.{Canvas, Bitmap}
-import net.kriomant.gortrans.core.Direction
+import android.graphics.{Color, LightingColorFilter, Canvas, Bitmap}
+import net.kriomant.gortrans.core.{VehicleType, Direction}
 import android.graphics.drawable.Drawable
 import android.view.View
 import android.widget.TextView
@@ -44,7 +44,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	var smallStopMarkers = mutable.Buffer[Marker]()
 	var vehicleMarkers = Traversable[Marker]()
 
-	var vehicleUnknown: Drawable = null
+	var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Direction.Value), Bitmap]
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
@@ -54,8 +54,6 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		setSupportProgressBarIndeterminateVisibility(false)
 
 		setContentView(R.layout.route_map_v2)
-
-		vehicleUnknown = getResources.getDrawable(R.drawable.vehicle_stopped_marker)
 
 		val mapFragment = getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment]
 		map = mapFragment.getMap
@@ -121,7 +119,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 	def createProcessIndicator() = new FragmentActionBarProcessIndicator(this)
 
-	def createRouteOverlays(route: RouteInfo) {
+	def createRouteOverlays(routeInfo: core.Route, routeParams: RouteInfo) {
 		// Display stop name next to one of folded stops.
 		/*val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
 		val stopOverlayManager = routeStopNameOverlayManager
@@ -130,7 +128,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		}*/
 
 		val knownStops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
-		val newStops = route.stops &~ knownStops
+		val newStops = routeParams.stops &~ knownStops
 		def createStopMarker(point: Point, name: String, iconRes: Int): Marker = {
 			val marker = map.addMarker(new MarkerOptions()
 				.icon(BitmapDescriptorFactory.fromResource(iconRes))
@@ -149,10 +147,30 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		smallStopMarkers ++= newStops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker_small) }
 
 		routeMarkers += map.addPolyline(new PolylineOptions()
-			.addAll(route.forwardRoutePoints.map(p => new LatLng(p.y, p.x)).asJava)
+			.addAll(routeParams.forwardRoutePoints.map(p => new LatLng(p.y, p.x)).asJava)
 			.width(getRouteStrokeWidth(map.getCameraPosition.zoom))
 			.geodesic(true)
 		)
+
+		// Create vehicle marker bitmap for route.
+		def renderVehicle(color: Int, direction: Direction.Value): Bitmap = {
+			val drawable = direction match {
+				case Direction.Forward => new VehicleMarker(getResources, None, color)
+				case Direction.Backward => {
+					val dr = getResources.getDrawable(R.drawable.vehicle_marker_back)
+					dr.setColorFilter(new LightingColorFilter(Color.BLACK, color))
+					dr
+				}
+			}
+			drawable.setBounds(0, 0, drawable.getIntrinsicWidth, drawable.getIntrinsicHeight)
+			val bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth, drawable.getIntrinsicHeight, Bitmap.Config.ARGB_8888)
+			val canvas = new Canvas(bitmap)
+			drawable.draw(canvas)
+			bitmap
+		}
+
+		vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Direction.Forward)) = renderVehicle(routeParams.color, Direction.Forward)
+		vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Direction.Backward)) = renderVehicle(routeParams.color, Direction.Backward)
 	}
 
 	def removeAllRouteOverlays() {
@@ -198,26 +216,13 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
 		val markerOptions = vehiclesData map { case (info, point, angle, baseColor) =>
-			val bitmap = android_utils.measure(TAG, "Render vehicle marker") {
-				val drawable = info.direction match {
-					case Some(dir) =>
-						val color = dir match {
-							case Direction.Forward => baseColor
-							case Direction.Backward => baseColor
-						}
-						new VehicleMarker(getResources, angle.map(_.toFloat), color)
-
-					case None => vehicleUnknown
-				}
-				drawable.setBounds(0, 0, drawable.getIntrinsicWidth, drawable.getIntrinsicHeight)
-				val bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth, drawable.getIntrinsicHeight, Bitmap.Config.ARGB_8888)
-				val canvas = new Canvas(bitmap)
-				drawable.draw(canvas)
-				bitmap
+			val bitmapDescriptor = info.direction match {
+				case Some(dir) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, dir))
+				case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
 			}
 
 			new MarkerOptions()
-				.icon(BitmapDescriptorFactory.fromBitmap(bitmap))
+				.icon(bitmapDescriptor)
 				.position(new LatLng(point.y, point.x))
 				.anchor(0.5f, 1)
 				.title(getString(RouteMapLike.routeNameResourceByVehicleType(info.vehicleType), info.routeName))

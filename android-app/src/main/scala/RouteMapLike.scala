@@ -107,7 +107,7 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 	def createProcessIndicator(): DataManager.ProcessIndicator
 
 	def removeAllRouteOverlays()
-	def createRouteOverlays(routeInfo: RouteInfo)
+	def createRouteOverlays(routeInfo: core.Route, routeParams: RouteInfo)
 
 	def navigateTo(left: Double, top: Double, right: Double, bottom: Double)
 	def navigateTo(latitude: Double, longitude: Double)
@@ -347,15 +347,15 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 					(points(stop), p.name)
 				}
 
-				val route = RouteInfo(
+				val routeParams = RouteInfo(
 					forwardRoutePoints, backwardRoutePoints,
 					bounds, routeStops.toSet, stopNames.toSet,
 					forwardRouteOverlay, backwardRouteOverlay,
 					rainbow(index)
 				)
 
-				createRouteOverlays(route)
-				routes((routeInfo.vehicleType, routeInfo.id)) = route
+				createRouteOverlays(routeInfo, routeParams)
+				routes((routeInfo.vehicleType, routeInfo.id)) = routeParams
 			}
 		}
 	}

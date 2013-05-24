@@ -83,11 +83,11 @@ class RouteMapActivity extends SherlockMapActivity
 		constantOverlays.clear()
 	}
 
-	def createRouteOverlays(route: RouteInfo) {
+	def createRouteOverlays(routeInfo: core.Route, routeParams: RouteInfo) {
 		// Get stop names which are already shown on map.
 		val knownStopNames = (routes.values map(_.stopNames.map(_._2)) reduceLeftOption  (_ | _) getOrElse Set())
 		// Create overlays for new stop names only.
-		val newStopNames = route.stopNames filterNot {case (pos, name) => knownStopNames contains name}
+		val newStopNames = routeParams.stopNames filterNot {case (pos, name) => knownStopNames contains name}
 
 		val stopOverlayManager = routeStopNameOverlayManager
 		val stopNameOverlays: Iterator[Overlay] = newStopNames.iterator map { case (pos, name) =>
@@ -95,12 +95,12 @@ class RouteMapActivity extends SherlockMapActivity
 		}
 
 		val knownStops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
-		val newStops = route.stops &~ knownStops
+		val newStops = routeParams.stops &~ knownStops
 		val stopOverlays: Iterator[Overlay] = newStops.iterator map { case (point, name) =>
 			new RouteStopOverlay(getResources, routePointToGeoPoint(point))
 		}
 
-		val routeOverlays = Iterator(route.forwardRouteOverlay, route.backwardRouteOverlay)
+		val routeOverlays = Iterator(routeParams.forwardRouteOverlay, routeParams.backwardRouteOverlay)
 
 		constantOverlays ++= routeOverlays
 		constantOverlays ++= stopOverlays
