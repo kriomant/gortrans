@@ -104,6 +104,7 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 	// configuration change. TODO: normal solution.
 	var hasOldState: Boolean = false
 
+	def isInitialized: Boolean = true
 	def createProcessIndicator(): DataManager.ProcessIndicator
 
 	def removeAllRouteOverlays()
@@ -130,6 +131,9 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 
 	override def onPostCreate(savedInstanceState: Bundle) {
 		super.onPostCreate(savedInstanceState)
+
+		if (! isInitialized)
+			return
 
 		trackVehiclesToggle = findView(TR.track_vehicles)
 		trackVehiclesToggle.setOnCheckedChangeListener(new OnCheckedChangeListener {

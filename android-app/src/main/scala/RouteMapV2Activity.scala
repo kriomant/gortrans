@@ -14,10 +14,13 @@ import android.graphics.{Color, LightingColorFilter, Canvas, Bitmap}
 import net.kriomant.gortrans.core.{VehicleType, Direction}
 import android.graphics.drawable.Drawable
 import android.view.View
-import android.widget.TextView
+import android.widget.{Toast, TextView}
 import com.actionbarsherlock.view.Window
 import net.kriomant.gortrans.RouteMapLike.RouteInfo
 import scala.collection.mutable
+import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
+import android.preference.PreferenceManager
+import android.util.Log
 
 object RouteMapV2Activity {
 	final val TAG = getClass.getName
@@ -54,6 +57,34 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		setSupportProgressBarIndeterminateVisibility(false)
 
 		setContentView(R.layout.route_map_v2)
+
+		val googlePlayServicesStatus = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this)
+		Log.d(TAG, "Google Play Services status: %d" format googlePlayServicesStatus)
+
+		if (googlePlayServicesStatus == ConnectionResult.SUCCESS) {
+			if (! GooglePlayServicesUtil.isUserRecoverableError(googlePlayServicesStatus)) {
+				Log.e(TAG, "Non-recoverable Google Play Services error, disable new map")
+
+				// Show error message.
+				Toast.makeText(this, R.string.new_map_not_supported, Toast.LENGTH_LONG).show()
+
+				// Turn off new maps.
+				val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+				prefs.edit().putBoolean(SettingsActivity.KEY_USE_NEW_MAP, false).commit()
+
+				// Redirect to old maps.
+				val intent = getIntent
+				intent.setClass(this, classOf[RouteMapActivity])
+				startActivity(intent)
+
+				finish()
+			}
+
+			// If error is recoverable, do nothing. Corresponding message with action button
+			// will be shown instead of map by Google Play Services library.
+
+			return
+		}
 
 		val mapFragment = getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment]
 		map = mapFragment.getMap
@@ -115,6 +146,10 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 				}
 			})
 		}
+	}
+
+	override def isInitialized = {
+		getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment].getMap != null
 	}
 
 	def createProcessIndicator() = new FragmentActionBarProcessIndicator(this)
