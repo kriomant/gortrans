@@ -16,6 +16,8 @@ import android.graphics.drawable.Drawable
 import android.view.View
 import android.widget.TextView
 import com.actionbarsherlock.view.Window
+import net.kriomant.gortrans.RouteMapLike.RouteInfo
+import scala.collection.mutable
 
 object RouteMapV2Activity {
 	final val TAG = getClass.getName
@@ -37,9 +39,9 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	var map: GoogleMap = null
 	var previousStopMarkersState: StopMarkersState.Value = StopMarkersState.Hidden
 
-	var routeMarkers = Traversable[Polyline]()
-	var stopMarkers = Traversable[Marker]()
-	var smallStopMarkers = Traversable[Marker]()
+	var routeMarkers = mutable.Buffer[Polyline]()
+	var stopMarkers = mutable.Buffer[Marker]()
+	var smallStopMarkers = mutable.Buffer[Marker]()
 	var vehicleMarkers = Traversable[Marker]()
 
 	var vehicleUnknown: Drawable = null
@@ -119,7 +121,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 	def createProcessIndicator() = new FragmentActionBarProcessIndicator(this)
 
-	def createConstantOverlays() {
+	def createRouteOverlays(route: RouteInfo) {
 		// Display stop name next to one of folded stops.
 		/*val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
 		val stopOverlayManager = routeStopNameOverlayManager
@@ -127,7 +129,8 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			new stopOverlayManager.RouteStopNameOverlay(name, routePointToGeoPoint(pos))
 		}*/
 
-		val stops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
+		val knownStops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
+		val newStops = route.stops &~ knownStops
 		def createStopMarker(point: Point, name: String, iconRes: Int): Marker = {
 			val marker = map.addMarker(new MarkerOptions()
 				.icon(BitmapDescriptorFactory.fromResource(iconRes))
@@ -142,24 +145,25 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			marker.setVisible(false)
 			marker
 		}
+		stopMarkers ++= newStops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker) }
+		smallStopMarkers ++= newStops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker_small) }
+
+		routeMarkers += map.addPolyline(new PolylineOptions()
+			.addAll(route.forwardRoutePoints.map(p => new LatLng(p.y, p.x)).asJava)
+			.width(getRouteStrokeWidth(map.getCameraPosition.zoom))
+			.geodesic(true)
+		)
+	}
+
+	def removeAllRouteOverlays() {
 		stopMarkers.foreach(_.remove())
-		stopMarkers = stops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker) }
+		stopMarkers.clear()
+
 		smallStopMarkers.foreach(_.remove())
-		smallStopMarkers = stops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker_small) }
+		smallStopMarkers.clear()
 
 		routeMarkers.foreach(_.remove())
-		routeMarkers = routes.values map { route =>
-			map.addPolyline(new PolylineOptions()
-				.addAll(route.forwardRoutePoints.map(p => new LatLng(p.y, p.x)).asJava)
-				.width(getRouteStrokeWidth(map.getCameraPosition.zoom))
-				.geodesic(true)
-			)
-		}
-
-		/*constantOverlays.clear()
-		constantOverlays ++= routeOverlays
-		constantOverlays ++= stopOverlays
-		constantOverlays ++= stopNameOverlays*/
+		routeMarkers.clear()
 	}
 
 	def navigateTo(left: Double, top: Double, right: Double, bottom: Double) {
@@ -193,9 +197,6 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	}
 
 	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
-	}
-
-	def updateOverlays() {
 		val markerOptions = vehiclesData map { case (info, point, angle, baseColor) =>
 			val bitmap = android_utils.measure(TAG, "Render vehicle marker") {
 				val drawable = info.direction match {

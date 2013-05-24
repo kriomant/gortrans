@@ -4,6 +4,7 @@ import android.util.Log
 import android.content.res.Resources
 import java.lang.Math
 import android.widget.CompoundButton.OnCheckedChangeListener
+import utils.functionAsRunnable
 import android.os.Bundle
 import com.google.android.maps._
 import net.kriomant.gortrans.parsing.{VehicleSchedule, VehicleInfo, RoutePoint}
@@ -26,20 +27,6 @@ import scala.collection.JavaConverters.asJavaCollectionConverter
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
 	final val TAG = CLASS_NAME
-
-	case class RouteInfo(
-		forwardRoutePoints: Seq[Pt],
-		backwardRoutePoints: Seq[Pt],
-
-		bounds: RectF,
-		stops: Set[(Pt, String)], // (position, name)
-		stopNames: Set[(Pt, String)],
-
-		forwardRouteOverlay: Overlay,
-		backwardRouteOverlay: Overlay,
-
-		color: Int
-	)
 }
 
 class RouteMapActivity extends SherlockMapActivity
@@ -92,31 +79,34 @@ class RouteMapActivity extends SherlockMapActivity
 		actionBar.setDisplayHomeAsUpEnabled(true)
 	}
 
-	/** Create overlays which are changed on new intent only.
-	  *
-	  * @note This method doesn't call updateOverlays.
-		*/
-	def createConstantOverlays() {
-		// Display stop name next to one of folded stops.
-		val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
+	def removeAllRouteOverlays() {
+		constantOverlays.clear()
+	}
+
+	def createRouteOverlays(route: RouteInfo) {
+		// Get stop names which are already shown on map.
+		val knownStopNames = (routes.values map(_.stopNames.map(_._2)) reduceLeftOption  (_ | _) getOrElse Set())
+		// Create overlays for new stop names only.
+		val newStopNames = route.stopNames filterNot {case (pos, name) => knownStopNames contains name}
+
 		val stopOverlayManager = routeStopNameOverlayManager
-		val stopNameOverlays: Iterator[Overlay] = stopNames.iterator map { case (pos, name) =>
+		val stopNameOverlays: Iterator[Overlay] = newStopNames.iterator map { case (pos, name) =>
 			new stopOverlayManager.RouteStopNameOverlay(name, routePointToGeoPoint(pos))
 		}
 
-		val stops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
-		val stopOverlays: Iterator[Overlay] = stops.iterator map { case (point, name) =>
+		val knownStops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
+		val newStops = route.stops &~ knownStops
+		val stopOverlays: Iterator[Overlay] = newStops.iterator map { case (point, name) =>
 			new RouteStopOverlay(getResources, routePointToGeoPoint(point))
 		}
 
-		val routeOverlays: Iterator[Overlay] = routes.values.iterator flatMap { r =>
-			Iterator(r.forwardRouteOverlay, r.backwardRouteOverlay)
-		}
+		val routeOverlays = Iterator(route.forwardRouteOverlay, route.backwardRouteOverlay)
 
-		constantOverlays.clear()
 		constantOverlays ++= routeOverlays
 		constantOverlays ++= stopOverlays
 		constantOverlays ++= stopNameOverlays
+
+		updateOverlays()
 	}
 
   def updateOverlays() {
@@ -209,12 +199,14 @@ class RouteMapActivity extends SherlockMapActivity
 	def clearVehicleMarkers() {
 		vehiclesOverlay.clear()
 		realVehicleLocationOverlays = Seq()
+		updateOverlays()
 	}
 
 	def setVehicles(vehicles: Seq[(VehicleInfo, geometry.Point, Option[Double], Int)]) {
 		realVehicleLocationOverlays = vehicles map { case (info, pos, angle, color) =>
 			new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
 		}
+		updateOverlays()
 	}
 
 	def setLocationMarker(location: Location) {
@@ -225,6 +217,7 @@ class RouteMapActivity extends SherlockMapActivity
 		} else {
 			locationOverlay = null
 		}
+		updateOverlays()
 	}
 }
 

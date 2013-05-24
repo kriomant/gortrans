@@ -6,8 +6,7 @@ import net.kriomant.gortrans.core.{Direction, FoldedRouteStop, VehicleType}
 import utils.closing
 import net.kriomant.gortrans.geometry.{Point => Pt}
 import android.graphics.{PointF, RectF}
-import com.google.android.maps.GeoPoint
-import net.kriomant.gortrans.RouteMapActivity.RouteInfo
+import com.google.android.maps.{Overlay, GeoPoint}
 import scala.collection.mutable
 import net.kriomant.gortrans.CursorIterator.cursorUtils
 import android.content.{Context, Intent}
@@ -71,6 +70,20 @@ object RouteMapLike {
 
 	final val PHYSICAL_ROUTE_STROKE_WIDTH: Float = 3 // meters
 	final val MIN_ROUTE_STROKE_WIDTH: Float = 2 // pixels
+
+	case class RouteInfo(
+		forwardRoutePoints: Seq[Pt],
+		backwardRoutePoints: Seq[Pt],
+
+		bounds: RectF,
+		stops: Set[(Pt, String)], // (position, name)
+		stopNames: Set[(Pt, String)],
+
+		forwardRouteOverlay: Overlay,
+		backwardRouteOverlay: Overlay,
+
+		color: Int
+	)
 }
 
 trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
@@ -92,8 +105,10 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 	var hasOldState: Boolean = false
 
 	def createProcessIndicator(): DataManager.ProcessIndicator
-	def createConstantOverlays()
-	def updateOverlays()
+
+	def removeAllRouteOverlays()
+	def createRouteOverlays(routeInfo: RouteInfo)
+
 	def navigateTo(left: Double, top: Double, right: Double, bottom: Double)
 	def navigateTo(latitude: Double, longitude: Double)
 	def setTitle(title: String)
@@ -101,6 +116,7 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 	def stopBackgroundProcessIndication()
 	def clearVehicleMarkers()
 	def setVehicles(vehicles: Seq[(VehicleInfo, Pt, Option[Double], Int)])
+
 	def setLocationMarker(location: Location)
 
 	override def onCreate(savedInstanceState: Bundle) {
@@ -157,8 +173,7 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 		vehiclesWatcher = null
 
 		routes.clear()
-		createConstantOverlays()
-		updateOverlays()
+		removeAllRouteOverlays()
 
 		val db = getApplication.asInstanceOf[CustomApplication].database
 
@@ -332,15 +347,15 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 					(points(stop), p.name)
 				}
 
-				routes((routeInfo.vehicleType, routeInfo.id)) = RouteInfo(
+				val route = RouteInfo(
 					forwardRoutePoints, backwardRoutePoints,
 					bounds, routeStops.toSet, stopNames.toSet,
 					forwardRouteOverlay, backwardRouteOverlay,
 					rainbow(index)
 				)
 
-				createConstantOverlays()
-				updateOverlays()
+				createRouteOverlays(route)
+				routes((routeInfo.vehicleType, routeInfo.id)) = route
 			}
 		}
 	}
@@ -353,7 +368,6 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 		stopBackgroundProcessIndication()
 
 		clearVehicleMarkers()
-		updateOverlays()
 	}
 
 	def onVehiclesLocationUpdated() {
@@ -363,7 +377,6 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 	def onLocationUpdated(location: Location) {
 		Log.d("RouteMapActivity", "Location updated: %s" format location)
 		setLocationMarker(location)
-		updateOverlays()
 
 		findView(TR.show_my_location).setVisibility(if (location != null) View.VISIBLE else View.INVISIBLE)
 	}
@@ -391,19 +404,17 @@ trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
 				}
 
 				vehiclesData = vehiclesPointsAndAngles
-				setVehicles(vehiclesData)
 
 				runOnUiThread { () =>
-					updateOverlays()
+					setVehicles(vehiclesData)
 				}
 			}
 
 			case Left(message) => {
 				vehiclesData = Seq()
-				setVehicles(vehiclesData)
 				runOnUiThread { () =>
+					setVehicles(vehiclesData)
 					Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-					updateOverlays()
 				}
 			}
 		}
