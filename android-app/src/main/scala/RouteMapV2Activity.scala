@@ -15,6 +15,7 @@ import net.kriomant.gortrans.core.Direction
 import android.graphics.drawable.Drawable
 import android.view.View
 import android.widget.TextView
+import com.actionbarsherlock.view.Window
 
 object RouteMapV2Activity {
 	final val TAG = getClass.getName
@@ -45,6 +46,10 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
+
+		// Enable to show indeterminate progress indicator in activity header.
+		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
+		setSupportProgressBarIndeterminateVisibility(false)
 
 		setContentView(R.layout.route_map_v2)
 
@@ -170,11 +175,17 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		map.animateCamera(motion)
 	}
 
-	def setTitle(title: String) {}
+	def setTitle(title: String) {
+		getSupportActionBar.setTitle(title)
+	}
 
-	def startBackgroundProcessIndication() {}
+	def startBackgroundProcessIndication() {
+		setSupportProgressBarIndeterminateVisibility(true)
+	}
 
-	def stopBackgroundProcessIndication() {}
+	def stopBackgroundProcessIndication() {
+		setSupportProgressBarIndeterminateVisibility(true)
+	}
 
 	def clearVehicleMarkers() {
 		vehicleMarkers.foreach(_.remove())
