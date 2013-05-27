@@ -25,10 +25,12 @@ object MainActivity {
 	}
 }
 
-class MainActivity extends RouteListBaseActivity with HavingSidebar with CreateGroupDialog.Listener {
+class MainActivity extends MainActivityBase with HavingSidebar
+
+class MainActivityBase extends RouteListBaseActivity with CreateGroupDialog.Listener {
 	import MainActivity._
 
-	private[this] final val TAG = classOf[MainActivity].getSimpleName
+	private[this] final val TAG = classOf[MainActivityBase].getSimpleName
 
 	var actionModeHelper: MultiListActionModeHelper = null
 
@@ -80,7 +82,7 @@ class MainActivity extends RouteListBaseActivity with HavingSidebar with CreateG
 			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
 				cursor.moveToPosition(position)
 
-				val intent = RouteInfoActivity.createIntent(MainActivity.this, cursor.externalId, cursor.name, cursor.vehicleType)
+				val intent = RouteInfoActivity.createIntent(MainActivityBase.this, cursor.externalId, cursor.name, cursor.vehicleType)
 				startActivity(intent)
 
 				true
@@ -112,7 +114,7 @@ class MainActivity extends RouteListBaseActivity with HavingSidebar with CreateG
 
 		def itemCheckedStateChanged(mode: ActionMode) {
 			val count = actionModeHelper.getListViews.map(Compatibility.getCheckedItemCount(_)).sum
-			mode.setTitle(compatibility.plurals.getQuantityString(MainActivity.this, R.plurals.routes, count, count))
+			mode.setTitle(compatibility.plurals.getQuantityString(MainActivityBase.this, R.plurals.routes, count, count))
 		}
 	}
 

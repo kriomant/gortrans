@@ -52,7 +52,7 @@ object General {
       libraryDependencies += "org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
 
 			resolvers += "ActionBarSherlock" at  "http://r.jakewharton.com/maven/release/",
-			libraryDependencies += "com.actionbarsherlock" % "actionbarsherlock" % "4.3.1" artifacts(Artifact("actionbarsherlock", "apklib", "apklib")),
+			libraryDependencies += "com.actionbarsherlock" % "actionbarsherlock" % "4.3.1" artifacts(Artifact("actionbarsherlock", "apklib", "apklib")) exclude("com.google.android", "support-v4"),
 	    libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.2.0",
       // Prevent ProGuard from stripping ActionBarSherlock implementation classes which are used through reflection.
       proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep class android.support.v4.content.Loader* -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
@@ -65,6 +65,12 @@ object General {
       },
       unmanagedJars in Compile <+= googleMapsJar map { jar => Attributed.blank(jar) },
       libraryJarPath in Android <+= googleMapsJar,
+
+	    // Add Android support library.
+	    androidSupportJar <<= (sdkPath in Android) { path =>
+		    (path / "extras" / "android" / "support" / "v13" / "android-support-v13.jar")
+	    },
+	    unmanagedJars in Compile <+= androidSupportJar map { jar => Attributed.blank(jar) },
 
       // Use Google Play services SDK.
 	    googlePlayServices <<= (sdkPath in Android) { path =>

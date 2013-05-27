@@ -105,4 +105,8 @@
 	<string name="use_new_map_summary">Использовать новый компонент карт</string>
 
 	<string name="new_map_not_supported">Новые карты не поддерживаются на вашем устройстве, будут использоваться старые карты.</string>
+
+	<!-- Navigation drawer -->
+	<string name="open_drawer">Открыть панель навигации</string>
+	<string name="close_drawer">Закрыть панель навигации</string>
 </resources>

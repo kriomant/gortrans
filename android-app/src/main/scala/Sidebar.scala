@@ -25,15 +25,8 @@ object Sidebar {
 		}
 	}
 }
-class Sidebar(activity: Activity, parentView: ViewGroup, listener: Sidebar.SidebarListener) {
-	def getView = sidebarView
-
-	val sidebarView = {
-		val inflater = activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
-		inflater.inflate(R.layout.sidebar, parentView, false)
-	}
-
-	val sidebarList = sidebarView.findViewById(R.id.sidebar_content).asInstanceOf[ListView]
+class Sidebar(activity: Activity, navigationDrawer: View, listener: Sidebar.SidebarListener) {
+	val list = navigationDrawer.findViewById(R.id.sidebar_content).asInstanceOf[ListView]
 
 	val items = Seq(
 		Sidebar.Entry(R.string.groups, {
@@ -47,14 +40,14 @@ class Sidebar(activity: Activity, parentView: ViewGroup, listener: Sidebar.Sideb
 			intent
 		})
 	)
-	sidebarList.setAdapter(new Sidebar.Adapter(activity, items))
-	sidebarList.setOnItemClickListener(new OnItemClickListener {
+	list.setAdapter(new Sidebar.Adapter(activity, items))
+	list.setOnItemClickListener(new OnItemClickListener {
 		def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
 			listener.onItemSelected(items(position).intent)
 		}
 	})
 
-	val settingsButton = sidebarView.findViewById(R.id.settings).asInstanceOf[ImageButton]
+	val settingsButton = navigationDrawer.findViewById(R.id.settings).asInstanceOf[ImageButton]
 	settingsButton.setOnClickListener(new View.OnClickListener {
 		def onClick(view: View) {
 			activity.startActivity(SettingsActivity.createIntent(activity))

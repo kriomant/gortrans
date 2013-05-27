@@ -21,7 +21,27 @@ object GroupsActivity {
 	}
 }
 
-class GroupsActivity extends SherlockFragmentActivity with TypedActivity with CreateGroupDialog.Listener with HavingSidebar {
+class GroupsActivity extends GroupsActivityBase with HavingSidebar {
+	override def onWindowFocusChanged(hasFocus: Boolean) {
+		super.onWindowFocusChanged(hasFocus)
+
+		if (hasFocus) {
+			// If this activity is shown for the first time after upgrade,
+			// show sidebar to present new functionality to user.
+			// This can't be done from onResume, because views are not yet
+			// laid out there.
+			val prefs = getPreferences(Context.MODE_PRIVATE)
+			val SHOW_SIDEBAR_ON_START = "showSidebarOnStart"
+			if (prefs.getBoolean(SHOW_SIDEBAR_ON_START, true)) {
+				prefs.edit().putBoolean(SHOW_SIDEBAR_ON_START, false).commit()
+				drawerLayout.openDrawer(drawer)
+			}
+		}
+	}
+
+}
+
+class GroupsActivityBase extends SherlockFragmentActivity with TypedActivity with CreateGroupDialog.Listener {
 	private[this] var groupList: ListView = _
 
 	override def onCreate(savedInstanceState: Bundle) {
@@ -33,7 +53,7 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 		groupList.setEmptyView(findView(TR.group_list_empty))
 		groupList.setOnItemClickListener(new OnItemClickListener {
 			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
-				val intent = RouteMapLike.createShowGroupIntent(GroupsActivity.this, id)
+				val intent = RouteMapLike.createShowGroupIntent(GroupsActivityBase.this, id)
 				startActivity(intent)
 			}
 		})
@@ -67,7 +87,7 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 				if (checkedItemCount == 0)
 					mode.finish()
 				else
-					mode.setTitle(compatibility.plurals.getQuantityString(GroupsActivity.this, R.plurals.groups, checkedItemCount, checkedItemCount))
+					mode.setTitle(compatibility.plurals.getQuantityString(GroupsActivityBase.this, R.plurals.groups, checkedItemCount, checkedItemCount))
 			}
 		})
 		actionModeHelper.attach(groupList)
@@ -122,24 +142,6 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 		if (createGroupData != null) {
 			createGroup(createGroupData)
 			createGroupData = null
-		}
-	}
-
-
-	override def onWindowFocusChanged(hasFocus: Boolean) {
-		super.onWindowFocusChanged(hasFocus)
-
-		if (hasFocus) {
-			// If this activity is shown for the first time after upgrade,
-			// show sidebar to present new functionality to user.
-			// This can't be done from onResume, because views are not yet
-			// laid out there.
-			val prefs = getPreferences(Context.MODE_PRIVATE)
-			val SHOW_SIDEBAR_ON_START = "showSidebarOnStart"
-			if (prefs.getBoolean(SHOW_SIDEBAR_ON_START, true)) {
-				prefs.edit().putBoolean(SHOW_SIDEBAR_ON_START, false).commit()
-				sidebarContainer.animateOpen()
-			}
 		}
 	}
 
