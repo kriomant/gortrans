@@ -4,7 +4,7 @@ import com.actionbarsherlock.app.SherlockPreferenceActivity
 import android.content.{Context, Intent}
 import android.os.Bundle
 import android.preference.CheckBoxPreference
-import com.google.android.gms.common.GooglePlayServicesUtil
+import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
 
 object SettingsActivity {
 	def createIntent(caller: Context): Intent = {
@@ -23,9 +23,10 @@ class SettingsActivity extends SherlockPreferenceActivity {
 		addPreferencesFromResource(R.xml.preferences)
 
 		val useNewMapPref = findPreference(KEY_USE_NEW_MAP).asInstanceOf[CheckBoxPreference]
-		useNewMapPref.setEnabled(
-			GooglePlayServicesUtil.isUserRecoverableError(GooglePlayServicesUtil.isGooglePlayServicesAvailable(this))
-		)
+		useNewMapPref.setEnabled({
+			val status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this)
+			status == ConnectionResult.SUCCESS || GooglePlayServicesUtil.isUserRecoverableError(status)
+		})
 	}
 }
 
