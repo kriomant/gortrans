@@ -21,6 +21,7 @@ import scala.collection.mutable
 import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
 import android.preference.PreferenceManager
 import android.util.Log
+import android.content.Intent
 
 object RouteMapV2Activity {
 	final val TAG = getClass.getName
@@ -61,7 +62,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		val googlePlayServicesStatus = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this)
 		Log.d(TAG, "Google Play Services status: %d" format googlePlayServicesStatus)
 
-		if (googlePlayServicesStatus == ConnectionResult.SUCCESS) {
+		if (googlePlayServicesStatus != ConnectionResult.SUCCESS) {
 			if (! GooglePlayServicesUtil.isUserRecoverableError(googlePlayServicesStatus)) {
 				Log.e(TAG, "Non-recoverable Google Play Services error, disable new map")
 
@@ -75,6 +76,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 				// Redirect to old maps.
 				val intent = getIntent
 				intent.setClass(this, classOf[RouteMapActivity])
+				intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 				startActivity(intent)
 
 				finish()

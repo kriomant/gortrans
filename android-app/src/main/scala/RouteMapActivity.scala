@@ -9,7 +9,7 @@ import android.os.Bundle
 import com.google.android.maps._
 import net.kriomant.gortrans.parsing.{VehicleSchedule, VehicleInfo, RoutePoint}
 import android.widget._
-import android.content.{Context, Intent}
+import android.content.{DialogInterface, Context, Intent}
 import android.location.{Location}
 import android.view.{LayoutInflater, ViewGroup, View}
 import android.view.View.{MeasureSpec, OnClickListener}
@@ -23,10 +23,14 @@ import scala.collection.mutable
 import android.graphics.Point
 import scala.Some
 import scala.collection.JavaConverters.asJavaCollectionConverter
+import android.preference.PreferenceManager
+import android.app.AlertDialog
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
 	final val TAG = CLASS_NAME
+
+	private val DIALOG_NEW_MAP_NOTICE = 1
 }
 
 class RouteMapActivity extends SherlockMapActivity
@@ -38,6 +42,7 @@ class RouteMapActivity extends SherlockMapActivity
 	import RouteMapActivity._
 
 	private[this] var mapView: MapView = null
+	private[this] var newMapNotice: View = null
 
 	// Overlays are splitted into constant ones which are
 	// updated on new intent or updated route data only and
@@ -70,6 +75,18 @@ class RouteMapActivity extends SherlockMapActivity
 		balloonController = new MapBalloonController(this, mapView)
 		vehiclesOverlay = new VehiclesOverlay(this, getResources, balloonController)
 		routeStopNameOverlayManager = new RouteStopNameOverlayManager(getResources)
+
+		newMapNotice = findView(TR.new_map_notice)
+
+		val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+		if (!prefs.contains(SettingsActivity.KEY_USE_NEW_MAP) && SettingsActivity.isNewMapAvailable(this)) {
+			newMapNotice.setVisibility(View.VISIBLE)
+			newMapNotice.setOnClickListener(new OnClickListener {
+				def onClick(v: View) {
+					showDialog(DIALOG_NEW_MAP_NOTICE)
+				}
+			})
+		}
 	}
 
 	override def onNewIntent(intent: Intent) {
@@ -218,6 +235,44 @@ class RouteMapActivity extends SherlockMapActivity
 			locationOverlay = null
 		}
 		updateOverlays()
+	}
+
+	override def onCreateDialog(id: Int) = {
+		id match {
+			case DIALOG_NEW_MAP_NOTICE =>
+				new AlertDialog.Builder(this)
+					.setTitle(R.string.new_map_dialog_title)
+					.setMessage(R.string.new_map_dialog_message)
+					.setPositiveButton(R.string.new_map_try_button, new DialogInterface.OnClickListener {
+						def onClick(dialog: DialogInterface, which: Int) {
+							PreferenceManager.getDefaultSharedPreferences(RouteMapActivity.this)
+								.edit()
+								.putBoolean(SettingsActivity.KEY_USE_NEW_MAP, true)
+								.commit()
+
+							// Redirect to new maps.
+							val intent = getIntent
+							intent.setClass(RouteMapActivity.this, classOf[RouteMapV2Activity])
+							intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+							startActivity(intent)
+
+							finish()
+						}
+					})
+					.setNegativeButton(R.string.new_map_reject_button, new DialogInterface.OnClickListener {
+						def onClick(dialog: DialogInterface, which: Int) {
+							PreferenceManager.getDefaultSharedPreferences(RouteMapActivity.this)
+								.edit()
+								.putBoolean(SettingsActivity.KEY_USE_NEW_MAP, false)
+								.commit()
+
+							newMapNotice.setVisibility(View.GONE)
+							removeDialog(DIALOG_NEW_MAP_NOTICE)
+						}
+					})
+					.create()
+			case _ => super.onCreateDialog(id)
+		}
 	}
 }
 
