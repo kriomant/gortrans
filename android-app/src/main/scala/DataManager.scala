@@ -1,7 +1,7 @@
 package net.kriomant.gortrans
 
 import java.io._
-import net.kriomant.gortrans.utils.{closing, readerUtils}
+import net.kriomant.gortrans.utils.{closing, ReaderUtils}
 import net.kriomant.gortrans.core._
 import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint, RoutesInfo}
 import net.kriomant.gortrans.Client.{RouteInfoRequest}

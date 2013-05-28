@@ -1,7 +1,7 @@
 package net.kriomant.gortrans
 
 import java.io.{InputStream, InputStreamReader, BufferedInputStream}
-import utils.readerUtils
+import utils.ReaderUtils
 import java.net.{URLEncoder, HttpURLConnection, URL}
 import net.kriomant.gortrans.core.{ScheduleType, VehicleType, Direction, DirectionsEx}
 import scala.collection.JavaConverters._

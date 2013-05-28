@@ -8,7 +8,7 @@ import android.util.Log
 import android.database.{Cursor, CursorWrapper}
 import net.kriomant.gortrans.core.{ScheduleType, Direction, DirectionsEx, VehicleType}
 import java.util
-import utils.booleanUtils
+import utils.BooleanUtils
 import CursorIterator.cursorUtils
 import net.kriomant.gortrans.parsing.RoutePoint
 

@@ -5,8 +5,7 @@ import Predef._
 
 import net.kriomant.gortrans.geometry.{Point => Pt, closestSegmentPoint, closestSegmentPointPortion}
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint, RouteStop}
-import net.kriomant.gortrans.utils.traversableOnceUtils
-import net.kriomant.gortrans.utils.booleanUtils
+import net.kriomant.gortrans.utils.BooleanUtils
 
 object core {
 

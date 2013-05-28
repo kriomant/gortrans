@@ -3,7 +3,7 @@ package net.kriomant.gortrans
 import org.json._
 
 import net.kriomant.gortrans.core._
-import net.kriomant.gortrans.utils.booleanUtils
+import net.kriomant.gortrans.utils.BooleanUtils
 import org.xml.sax.helpers.DefaultHandler
 import java.io.StringReader
 import org.xml.sax._
