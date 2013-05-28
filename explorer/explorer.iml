@@ -17,10 +17,10 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="scala-2.8.2" level="application" />
     <orderEntry type="library" name="swt" level="application" />
     <orderEntry type="module" module-name="core" />
     <orderEntry type="library" name="org.json:json:20090211" level="project" />
+    <orderEntry type="library" name="scala-2.10.1" level="application" />
   </component>
 </module>
 
