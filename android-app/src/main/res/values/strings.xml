@@ -80,6 +80,7 @@
 		<string name="background_update_error">Не удалось обновить данные</string>
 
 		<string name="delete">Удалить</string>
+		<string name="edit">Изменить</string>
 		<string name="accept">Подтвердить</string>
 
 		<!-- One schedule row for vehicle popup on map. Parameters: time, stop name. -->
@@ -88,6 +89,8 @@
 		<string name="vehicle_schedule_number">график №%1$d</string>
 	  <string name="screen_wake_lock">Не выключать экран</string>
 		<string name="settings">Настройки</string>
+
+		<string name="edit_group_title">Группа маршрутов</string>
 
 	<plurals name="routes">
 			<item quantity="one">%1$d маршрут</item>

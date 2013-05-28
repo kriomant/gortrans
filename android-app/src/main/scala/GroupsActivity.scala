@@ -39,8 +39,11 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 		})
 
 		val actionModeHelper = new MultiListActionModeHelper(this, new ActionMode.Callback with ListSelectionActionModeCallback {
+			var menu_ : Menu = null
+
 			def onCreateActionMode(mode: ActionMode, menu: Menu) = {
 				mode.getMenuInflater.inflate(R.menu.route_groups_actions, menu)
+				menu_ = menu
 				true
 			}
 
@@ -57,6 +60,16 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 					mode.finish()
 					loadGroups()
 					true
+
+				case R.id.edit_group =>
+					val groupId = groupList.getCheckedItemIds.head
+					mode.finish()
+
+					val intent = EditGroupActivity.createIntent(GroupsActivity.this, groupId)
+					startActivity(intent)
+
+					true
+
 				case _ => false
 			}
 
@@ -64,10 +77,12 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 
 			def itemCheckedStateChanged(mode: ActionMode) {
 				val checkedItemCount = Compatibility.getCheckedItemCount(groupList)
-				if (checkedItemCount == 0)
+				if (checkedItemCount == 0) {
 					mode.finish()
-				else
+				} else {
 					mode.setTitle(compatibility.plurals.getQuantityString(GroupsActivity.this, R.plurals.groups, checkedItemCount, checkedItemCount))
+					menu_.setGroupVisible(R.id.single_item_actions, checkedItemCount == 1)
+				}
 			}
 		})
 		actionModeHelper.attach(groupList)
@@ -77,12 +92,6 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 		super.onCreateOptionsMenu(menu)
 		getSupportMenuInflater.inflate(R.menu.route_groups_menu, menu)
 		true
-	}
-
-	override def onStart() {
-		super.onStart()
-
-		loadGroups()
 	}
 
 	private def loadGroups() {
@@ -123,6 +132,8 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 			createGroup(createGroupData)
 			createGroupData = null
 		}
+
+		loadGroups()
 	}
 
 

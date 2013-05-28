@@ -559,6 +559,20 @@ class Database(db: SQLiteDatabase) {
 		db.delete(RouteGroupsTable.NAME, "%s=?" format RouteGroupsTable.ID_COLUMN, Array(groupId.toString))
 	}
 
+	def updateGroup(groupId: Long, name: String, routes: Set[Long]) {
+		val values = new ContentValues
+		values.put(RouteGroupsTable.NAME_COLUMN, name)
+		db.update(
+			RouteGroupsTable.NAME, values,
+			RouteGroupsTable.ID_COLUMN formatted "%s=?", Array(groupId.toString)
+		)
+		db.delete(
+			RouteGroupItemsTable.NAME,
+			RouteGroupItemsTable.GROUP_ID_COLUMN formatted "%s=?", Array(groupId.toString)
+		)
+		routes foreach { r => addRouteToGroup(groupId, r) }
+	}
+
 	def fetchOne[C <: Cursor, T](cursor: C)(f: C => T): T = {
 		closing(cursor) { _ =>
 			if (cursor.moveToNext())

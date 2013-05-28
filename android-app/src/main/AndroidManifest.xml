@@ -70,6 +70,8 @@
 
 	      <activity android:name=".SettingsActivity" android:label="@string/settings"/>
 
+	      <activity android:name=".EditGroupActivity" android:label="@string/edit_group_title"/>
+
 	      <provider
 					android:authorities="net.kriomant.gortrans.route_suggestions"
 					android:name=".RouteSearchSuggestionProvider"/>
