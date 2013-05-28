@@ -82,8 +82,6 @@ class MainActivity extends RouteListBaseActivity with HavingSidebar with CreateG
 
 				val intent = RouteInfoActivity.createIntent(MainActivity.this, cursor.externalId, cursor.name, cursor.vehicleType)
 				startActivity(intent)
-
-				true
 			}
 		})
 

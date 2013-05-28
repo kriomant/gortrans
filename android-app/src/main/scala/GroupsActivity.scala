@@ -119,7 +119,6 @@ class GroupsActivity extends SherlockFragmentActivity with TypedActivity with Cr
 				// So just set flag here and check it in onResume.
 				createGroupData = data
 			}
-			true
 
 		case _ => super.onActivityResult(requestCode, resultCode, data)
 	}

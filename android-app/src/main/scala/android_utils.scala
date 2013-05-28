@@ -17,7 +17,7 @@ object android_utils {
 			Log.d(tag, "%s takes %d milliseconds and %d allocations" format (title, end - start, allocs))
 			result
 		} catch {
-			case e =>
+			case e: Throwable =>
 				Log.d(tag, "%s failed" format title)
 				throw e
 		} finally {
