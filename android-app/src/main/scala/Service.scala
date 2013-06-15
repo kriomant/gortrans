@@ -10,6 +10,7 @@ object Service {
 	private final val TAG = classOf[Service].getName
 
 	private final val ACTION_UPDATE_NEWS = "update-news"
+	private final val ACTION_NEWS_SHOWN = "news-shown"
 
 	private final val SHARED_PREFS_USER_ACTIVITY = "user-activity"
 
@@ -24,14 +25,17 @@ object Service {
 	private final val NEWS_SOURCE_NAME = "news"
 	private final val NEWS_UPDATE_PERIOD = AlarmManager.INTERVAL_DAY /* milliseconds */
 
-	def createUpdateNewsIntent(context: Context): Intent = {
-		val intent = new Intent(context, classOf[Service])
-		intent.setAction(ACTION_UPDATE_NEWS)
-		intent
+	private def createUpdateNewsIntent(context: Context): Intent = {
+		new Intent(ACTION_UPDATE_NEWS, null, context, classOf[Service])
 	}
 
 	def updateNews(context: Context) {
 		context.startService(createUpdateNewsIntent(context))
+	}
+
+	/** Notify service about user opened news activity. */
+	def notifyNewsAreShown(context: Context) {
+		context.startService(new Intent(ACTION_NEWS_SHOWN, null, context, classOf[Service]))
 	}
 
 	def init(app: CustomApplication) {
@@ -61,6 +65,7 @@ class Service extends IntentService("Service") {
 	def onHandleIntent(intent: Intent) {
 		intent.getAction match {
 			case ACTION_UPDATE_NEWS => doUpdateNews()
+			case ACTION_NEWS_SHOWN => doAknowledgeNewsAreShown()
 		}
 	}
 
@@ -100,6 +105,17 @@ class Service extends IntentService("Service") {
 		}
 	}
 
+	def doAknowledgeNewsAreShown() {
+		Log.d(TAG, "Acknowledge news are shown")
+
+		val prefs = getSharedPreferences(SHARED_PREFS_USER_ACTIVITY, Context.MODE_PRIVATE)
+		val now = new util.Date
+
+		prefs.edit().putLong(PREF_LAST_NEWS_READING_TIME, now.getTime).commit()
+
+		hideNewsNotification()
+	}
+
 	def showNewsNotification(freshNews: Database.NewsTable.Cursor) {
 		Log.d(TAG, "Show news notification")
 
@@ -126,5 +142,12 @@ class Service extends IntentService("Service") {
 
 		val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager]
 		notificationManager.notify(NOTIFICATION_ID_NEWS, notification)
+	}
+
+	def hideNewsNotification() {
+		Log.d(TAG, "Hide news notification")
+
+		val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager]
+		notificationManager.cancel(NOTIFICATION_ID_NEWS)
 	}
 }

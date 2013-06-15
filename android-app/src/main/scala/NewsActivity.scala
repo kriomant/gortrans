@@ -55,6 +55,13 @@ class NewsActivity extends SherlockFragmentActivity with TypedActivity with Havi
 		})
 	}
 
+
+	override def onResume() {
+		super.onResume()
+
+		Service.notifyNewsAreShown(this)
+	}
+
 	override def onCreateOptionsMenu(menu: Menu): Boolean = {
 		super.onCreateOptionsMenu(menu)
 		getSupportMenuInflater.inflate(R.menu.news_menu, menu)
