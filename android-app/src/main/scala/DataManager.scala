@@ -150,6 +150,23 @@ object DataManager {
 			}
 		}
 	}
+
+	object NewsSource extends Source[Seq[NewsStory], Database.NewsTable.Cursor] {
+		val name: String = "news"
+		val maxAge = 1 * 24 * 60 * 60 * 1000l /* ms = 1 day */
+
+		def fetch(client: Client): Seq[NewsStory] = {
+			parsing.parseNews(client.getNews())
+		}
+
+		def update(db: Database, old: Boolean, fresh: Seq[NewsStory]) {
+			val loadedAt = new util.Date
+			val latestExternalId = db.loadLatestNewsStoryExternalId()
+			for (story <- fresh.takeWhile(_.id != latestExternalId)) {
+				db.addNews(story, loadedAt)
+			}
+		}
+	}
 }
 
 class DataManager(context: Context, db: Database) {

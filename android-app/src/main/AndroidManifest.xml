@@ -72,6 +72,11 @@
 
 	      <activity android:name=".EditGroupActivity" android:label="@string/edit_group_title"/>
 
+	      <activity android:name=".NewsActivity" android:label="@string/news"
+		      android:theme="@style/Theme.Sherlock.Light"/>
+
+	      <service android:name=".Service" android:exported="false"/>
+
 	      <provider
 					android:authorities="net.kriomant.gortrans.route_suggestions"
 					android:name=".RouteSearchSuggestionProvider"/>

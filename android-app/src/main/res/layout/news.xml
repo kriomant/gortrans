@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_height="match_parent" android:layout_width="match_parent"
+>
+	<ListView
+		android:id="@+id/news_list"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:divider="@color/card_list_background"
+		android:dividerHeight="8dip"
+		android:footerDividersEnabled="false"
+		android:headerDividersEnabled="false"
+	/>
+	<TextView android:id="@+id/no_news"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="16dip"
+		android:gravity="center_horizontal"
+		android:visibility="gone"
+		android:text="@string/no_news"
+	/>
+</FrameLayout>

@@ -6,6 +6,7 @@ import Predef._
 import net.kriomant.gortrans.geometry.{Point => Pt, closestSegmentPoint, closestSegmentPointPortion}
 import net.kriomant.gortrans.parsing.{VehicleInfo, RoutePoint, RouteStop}
 import net.kriomant.gortrans.utils.BooleanUtils
+import java.net.URI
 
 object core {
 
@@ -38,6 +39,8 @@ object core {
 		val Workdays = Value(11)
 		val Daily = Value(23)
 	}
+
+	case class NewsStory(id: String, title: String, content: String, readMoreLink: Option[URI])
 
 	class RouteFoldingException(msg: String) extends Exception(msg)
 
