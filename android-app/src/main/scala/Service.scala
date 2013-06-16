@@ -12,10 +12,6 @@ object Service {
 	private final val ACTION_UPDATE_NEWS = "update-news"
 	private final val ACTION_NEWS_SHOWN = "news-shown"
 
-	private final val SHARED_PREFS_USER_ACTIVITY = "user-activity"
-
-	private final val PREF_LAST_NEWS_READING_TIME = "last-news-reading-time"
-
 	private final val NOTIFICATION_ID_NEWS = 1
 
 	private final val UPDATE_NEWS_ALARM = 1
@@ -96,8 +92,8 @@ class Service extends IntentService("Service") {
 		//db.updateLastUpdateTime(NEWS_SOURCE_NAME, loadedAt)
 
 		if (freshNews.nonEmpty) {
-			val prefs = getSharedPreferences(SHARED_PREFS_USER_ACTIVITY, Context.MODE_PRIVATE)
-			val lastNewsReadingTime = new java.util.Date(prefs.getLong(PREF_LAST_NEWS_READING_TIME, 0))
+			val prefs = new UserActivityPreferences(this)
+			val lastNewsReadingTime = prefs.lastNewsReadingTime
 
 			utils.closing (db.loadNewsLoadedSince(lastNewsReadingTime)) { cursor =>
 				showNewsNotification(cursor)
@@ -108,10 +104,10 @@ class Service extends IntentService("Service") {
 	def doAknowledgeNewsAreShown() {
 		Log.d(TAG, "Acknowledge news are shown")
 
-		val prefs = getSharedPreferences(SHARED_PREFS_USER_ACTIVITY, Context.MODE_PRIVATE)
 		val now = new util.Date
 
-		prefs.edit().putLong(PREF_LAST_NEWS_READING_TIME, now.getTime).commit()
+		val prefs = new UserActivityPreferences(this)
+		prefs.lastNewsReadingTime = now
 
 		hideNewsNotification()
 	}
