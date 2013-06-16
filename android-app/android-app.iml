@@ -68,6 +68,17 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="scala-2.10.1" level="application" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/libGoogleAnalyticsV2.jar!/" />
+        </CLASSES>
+        <JAVADOC>
+          <root url="jar://$MODULE_DIR$/lib/libGoogleAnalyticsV2-javadocs.zip!/" />
+        </JAVADOC>
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>
 
