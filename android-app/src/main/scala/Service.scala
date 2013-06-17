@@ -115,27 +115,24 @@ class Service extends IntentService("Service") {
 	def showNewsNotification(freshNews: Database.NewsTable.Cursor) {
 		Log.d(TAG, "Show news notification")
 
-		val notification = if (freshNews.getCount == 1) {
+		val builder = new NotificationCompat.Builder(this)
+		builder
+			.setSmallIcon(R.drawable.notification)
+			.setAutoCancel(true)
+			.setOnlyAlertOnce(true)
+			.setContentIntent(PendingIntent.getActivity(this, REQUEST_NEWS, NewsActivity.createIntent(this), 0))
+
+		if (freshNews.getCount == 1) {
 			freshNews.moveToFirst()
-			new NotificationCompat.Builder(this)
+			builder
 				.setContentTitle(freshNews.title)
 				.setContentText(freshNews.content)
-				.setSmallIcon(R.drawable.application_icon)
-				.setAutoCancel(true)
-				.setOnlyAlertOnce(true)
-				.setContentIntent(PendingIntent.getActivity(this, REQUEST_NEWS, NewsActivity.createIntent(this), 0))
-				.getNotification()
 		} else {
-			val builder = new NotificationCompat.Builder(this)
 			builder
 				.setContentTitle(compatibility.plurals.getQuantityString(this, R.plurals.n_news, freshNews.getCount, freshNews.getCount))
-				.setSmallIcon(R.drawable.application_icon)
-				.setAutoCancel(true)
-				.setContentIntent(PendingIntent.getActivity(this, REQUEST_NEWS, NewsActivity.createIntent(this), 0))
-				.setOnlyAlertOnce(true)
-				.getNotification()
 		}
 
+		val notification = builder.getNotification()
 		val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager]
 		notificationManager.notify(NOTIFICATION_ID_NEWS, notification)
 	}
