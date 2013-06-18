@@ -1,0 +1,9 @@
+CREATE TABLE news (
+	 _id INTEGER PRIMARY KEY AUTOINCREMENT
+	, externalId TEXT NOT NULL
+	, title TEXT NOT NULL
+	, content TEXT NOT NULL
+	, readMoreLink TEXT
+	, loadedAt INTEGER NOT NULL
+);
+

@@ -23,10 +23,10 @@
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/target/scala-2.8.2/src_managed/main/scala" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/main/scala" isTestSource="false" packagePrefix="net.kriomant.gortrans" />
-      <sourceFolder url="file://$MODULE_DIR$/target/scala-2.8.2/src_managed/main/java" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/gen" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/scala-2.10/src_managed/main/scala" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/scala-2.10/src_managed/main/java" isTestSource="false" />
     </content>
     <orderEntry type="jdk" jdkName="Android 4 Google APIs" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
@@ -48,7 +48,6 @@
         <SOURCES />
       </library>
     </orderEntry>
-    <orderEntry type="library" name="scala-2.8.2" level="application" />
     <orderEntry type="module-library" scope="PROVIDED">
       <library>
         <CLASSES>
@@ -68,6 +67,7 @@
         <SOURCES />
       </library>
     </orderEntry>
+    <orderEntry type="library" name="scala-2.10.1" level="application" />
   </component>
 </module>
 

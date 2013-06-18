@@ -92,3 +92,14 @@ CREATE VIEW routeGroupList AS
 SELECT g._id AS _id, g.name AS groupName, r.vehicleType AS vehicleType, r.name AS routeName
 FROM routeGroups AS g INNER JOIN routeGroupItems AS i ON g._id = i.groupId INNER JOIN routes AS r ON i.routeId = r._id
 
+---x
+
+CREATE TABLE news (
+	 _id INTEGER PRIMARY KEY AUTOINCREMENT
+	, externalId TEXT NOT NULL
+	, title TEXT NOT NULL
+	, content TEXT NOT NULL
+	, readMoreLink TEXT
+	, loadedAt INTEGER NOT NULL
+);
+

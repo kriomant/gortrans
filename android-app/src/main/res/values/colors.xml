@@ -9,4 +9,6 @@
 
 	<color name="schedule_past">@android:color/secondary_text_dark</color>
 	<color name="schedule_future">@android:color/primary_text_dark</color>
+
+	<color name="card_list_background">#ffcccccc</color>
 </resources>

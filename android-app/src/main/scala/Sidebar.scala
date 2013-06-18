@@ -45,6 +45,11 @@ class Sidebar(activity: Activity, parentView: ViewGroup, listener: Sidebar.Sideb
 			val intent = MainActivity.createIntent(activity)
 			intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION)
 			intent
+		}),
+		Sidebar.Entry(R.string.news, {
+			val intent = NewsActivity.createIntent(activity)
+			intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION)
+			intent
 		})
 	)
 	sidebarList.setAdapter(new Sidebar.Adapter(activity, items))

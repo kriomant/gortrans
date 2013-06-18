@@ -28,5 +28,9 @@
 	</style>
 
 	<dimen name="stop_name_font_size">15sp</dimen>
+
+	<style name="SidebarItemTextAppearance" parent="@android:style/TextAppearance.Large">
+		<item name="android:textColor">#ffffffff</item>
+	</style>
 </resources>
 

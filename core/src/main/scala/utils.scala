@@ -6,7 +6,7 @@ import java.security.Key
 
 object utils {
 
-	class ReaderUtils(reader: Reader) {
+	implicit class ReaderUtils(val reader: Reader) extends AnyVal {
 		def readAll(bufferSize: Int = 1024): String = {
 			val builder = new StringBuilder
 			val buffer = new Array[Char](bufferSize)
@@ -21,8 +21,6 @@ object utils {
 		}
 	}
 
-	implicit def readerUtils(r: Reader) = new ReaderUtils(r)
-
 	type Closable = {def close()}
 
 	def closing[R <: Closable, T](resource: R)(block: R => T): T = {
@@ -34,29 +32,27 @@ object utils {
 		}
 	}
 
-	class BooleanUtils(value: Boolean) {
+	implicit class BooleanUtils(val value: Boolean) extends AnyVal {
 		def ?[T](t: => T): Option[T] = {
 			if (value) Some(t) else None
 		}
 	}
 
-	implicit def booleanUtils(b: Boolean) = new BooleanUtils(b)
+	// This class is not placed inside TraversableOnceUtils because of error:
+	//   implementation restriction: nested class is not allowed in value class
+	private class MappedOrdering[T, K](cmp: Ordering[K], f: T => K) extends Ordering[T] {
+		def compare(x: T, y: T): Int = cmp.compare(f(x), f(y))
+	}
 
-	class TraversableOnceUtils[T](traversable: TraversableOnce[T]) {
+	implicit class TraversableOnceUtils[T](val traversable: TraversableOnce[T]) extends AnyVal {
 		def maxBy[K](f: T => K)(implicit cmp: Ordering[K]): T = {
-			traversable.max(new Ordering[T] {
-				def compare(x: T, y: T): Int = cmp.compare(f(x), f(y))
-			})
+			traversable.max(new MappedOrdering(cmp, f))
 		}
 
 		def minBy[K](f: T => K)(implicit cmp: Ordering[K]): T = {
-			traversable.min(new Ordering[T] {
-				def compare(x: T, y: T): Int = cmp.compare(f(x), f(y))
-			})
+			traversable.min(new MappedOrdering(cmp, f))
 		}
 	}
-
-	implicit def traversableOnceUtils[T](traversable: TraversableOnce[T]) = new TraversableOnceUtils(traversable)
 
 	/** Convert function without arguments into runnable.
 	  *

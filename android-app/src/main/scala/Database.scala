@@ -6,9 +6,9 @@ import android.content.{ContentValues, Context}
 import utils.closing
 import android.util.Log
 import android.database.{Cursor, CursorWrapper}
-import net.kriomant.gortrans.core.{ScheduleType, Direction, DirectionsEx, VehicleType}
+import net.kriomant.gortrans.core._
 import java.util
-import utils.booleanUtils
+import utils.BooleanUtils
 import CursorIterator.cursorUtils
 import net.kriomant.gortrans.parsing.RoutePoint
 
@@ -16,7 +16,7 @@ object Database {
 	val TAG = getClass.getName
 
 	val NAME = "gortrans"
-	val VERSION = 5
+	val VERSION = 6
 
 	class Helper(context: Context) extends SQLiteOpenHelper(context, NAME, null, VERSION) {
 		def onCreate(db: SQLiteDatabase) {
@@ -286,6 +286,37 @@ object Database {
 			def groupName = cursor.getString(GROUP_NAME_COLUMN_INDEX)
 			def vehicleType = VehicleType(cursor.getInt(VEHICLE_TYPE_COLUMN_INDEX))
 			def routeName = cursor.getString(ROUTE_NAME_COLUMN_INDEX)
+		}
+	}
+
+	object NewsTable {
+		val NAME = "news"
+
+		val ID_COLUMN = "_id"
+		val EXTERNAL_ID_COLUMN = "externalId"
+		val TITLE_COLUMN = "title"
+		val CONTENT_COLUMN = "content"
+		val READ_MORE_LINK_COLUMN = "readMoreLink"
+		val LOADED_AT_COLUMN = "loadedAt"
+
+		val ALL_COLUMNS = Array(
+			ID_COLUMN, EXTERNAL_ID_COLUMN, TITLE_COLUMN, CONTENT_COLUMN,
+			READ_MORE_LINK_COLUMN, LOADED_AT_COLUMN
+		)
+
+		val ID_COLUMN_INDEX = 0
+		val EXTERNAL_ID_COLUMN_INDEX = 1
+		val TITLE_COLUMN_INDEX = 2
+		val CONTENT_COLUMN_INDEX = 3
+		val READ_MORE_LINK_COLUMN_INDEX = 4
+		val LOADED_AT_COLUMN_INDEX = 5
+
+		class Cursor(cursor: android.database.Cursor) extends CursorWrapper(cursor) {
+			def externalId = cursor.getString(EXTERNAL_ID_COLUMN_INDEX)
+			def title = cursor.getString(TITLE_COLUMN_INDEX)
+			def content = cursor.getString(CONTENT_COLUMN_INDEX)
+			def readMoreLink = !cursor.isNull(READ_MORE_LINK_COLUMN_INDEX) ? cursor.getString(READ_MORE_LINK_COLUMN_INDEX)
+			def loadedAt = new util.Date(cursor.getLong(LOADED_AT_COLUMN_INDEX))
 		}
 	}
 
@@ -571,6 +602,46 @@ class Database(db: SQLiteDatabase) {
 			RouteGroupItemsTable.GROUP_ID_COLUMN formatted "%s=?", Array(groupId.toString)
 		)
 		routes foreach { r => addRouteToGroup(groupId, r) }
+	}
+
+	def loadNews(): NewsTable.Cursor = {
+		new NewsTable.Cursor(db.query(
+			NewsTable.NAME, NewsTable.ALL_COLUMNS,
+			null, null, null, null, NewsTable.ID_COLUMN formatted "%s DESC"
+		))
+	}
+
+	def loadLatestNewsStoryExternalId(): Option[String] = {
+		val cursor = db.query(
+			NewsTable.NAME, Array(NewsTable.EXTERNAL_ID_COLUMN),
+			null, null, null, null,
+			"%s DESC" format NewsTable.ID_COLUMN, "1"
+		)
+		closing(cursor) { _ =>
+			if (cursor.moveToNext())
+				Some(cursor.getString(0))
+			else
+				None
+		}
+	}
+
+	def addNews(story: NewsStory, loadedAt: util.Date) {
+		val values = new ContentValues
+		values.put(NewsTable.EXTERNAL_ID_COLUMN, story.id)
+		values.put(NewsTable.TITLE_COLUMN, story.title)
+		values.put(NewsTable.CONTENT_COLUMN, story.content)
+		values.put(NewsTable.READ_MORE_LINK_COLUMN, story.readMoreLink.map(_.toString).orNull)
+		values.put(NewsTable.LOADED_AT_COLUMN, loadedAt.getTime: java.lang.Long)
+
+		db.insert(NewsTable.NAME, null, values)
+	}
+
+	def loadNewsLoadedSince(time: util.Date): NewsTable.Cursor = {
+		new NewsTable.Cursor(db.query(
+			NewsTable.NAME, NewsTable.ALL_COLUMNS,
+			NewsTable.LOADED_AT_COLUMN formatted "%s>?", Array(time.getTime.toString),
+			null, null, NewsTable.ID_COLUMN formatted "%s DESC"
+		))
 	}
 
 	def fetchOne[C <: Cursor, T](cursor: C)(f: C => T): T = {

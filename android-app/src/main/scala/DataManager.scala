@@ -1,7 +1,7 @@
 package net.kriomant.gortrans
 
 import java.io._
-import net.kriomant.gortrans.utils.{closing, readerUtils}
+import net.kriomant.gortrans.utils.{closing, ReaderUtils}
 import net.kriomant.gortrans.core._
 import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint, RoutesInfo}
 import net.kriomant.gortrans.Client.{RouteInfoRequest}
@@ -147,6 +147,23 @@ object DataManager {
 
 			for ((name, stopId) <- stops) {
 				db.addStop(name, stopId)
+			}
+		}
+	}
+
+	object NewsSource extends Source[Seq[NewsStory], Database.NewsTable.Cursor] {
+		val name: String = "news"
+		val maxAge = 1 * 24 * 60 * 60 * 1000l /* ms = 1 day */
+
+		def fetch(client: Client): Seq[NewsStory] = {
+			parsing.parseNews(client.getNews())
+		}
+
+		def update(db: Database, old: Boolean, fresh: Seq[NewsStory]) {
+			val loadedAt = new util.Date
+			val latestExternalId = db.loadLatestNewsStoryExternalId()
+			for (story <- fresh.takeWhile(_.id != latestExternalId)) {
+				db.addNews(story, loadedAt)
 			}
 		}
 	}
