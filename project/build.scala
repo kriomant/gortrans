@@ -63,7 +63,7 @@ object General {
 	    proguardOption in Android ~= { _ + " -keep class net.kriomant.gortrans.compatibility.* { *; } " },
 
       // Workaround for https://issues.scala-lang.org/browse/SI-5397. Doesn't work for me, unfortunately.
-      proguardOption in Android ~= { _ + " -keep class scala.collection.immutable.StringLike { public protected *; } -keep class scala.collection.SeqLike { public protected *; } " },
+      proguardOption in Android ~= { _ + " -keep class scala.collection.immutable.StringLike { public protected *; } -keep class scala.collection.SeqLike { public java.lang.String toString(); } " },
 
 	    // Add Google Maps library.
       googleMapsJar <<= (sdkPath in Android, apiLevel in Android) { (path, apiLevel) =>
