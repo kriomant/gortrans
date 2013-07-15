@@ -25,7 +25,7 @@ object parsing {
 
 	class ParsingException(msg: String) extends Exception(msg)
 
-	implicit def jsonArrayUtils(arr: JSONArray) = new {
+	implicit class JsonArrayUtils(val arr: JSONArray) {
 		def ofObjects: IndexedSeq[JSONObject] = new scala.collection.IndexedSeq[JSONObject] {
 			def length = arr.length
 			def apply(idx: Int) = arr.getJSONObject(idx)
