@@ -48,6 +48,7 @@ object General {
     General.settings ++
 		General.scalaSettings ++
     AndroidProject.androidSettings ++
+		BuketanPlugin.buketanSettings ++
     TypedResources.settings ++
     proguardSettings ++
     AndroidManifestGenerator.settings ++

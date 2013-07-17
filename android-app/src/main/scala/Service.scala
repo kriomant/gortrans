@@ -117,7 +117,7 @@ class Service extends IntentService("Service") {
 
 		val builder = new NotificationCompat.Builder(this)
 		builder
-			.setSmallIcon(R.drawable.notification)
+			.setSmallIcon(R.drawable.news)
 			.setAutoCancel(true)
 			.setOnlyAlertOnce(true)
 			.setContentIntent(PendingIntent.getActivity(this, REQUEST_NEWS, NewsActivity.createIntent(this), 0))
