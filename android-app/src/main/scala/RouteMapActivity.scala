@@ -158,6 +158,7 @@ class RouteMapActivity extends SherlockMapActivity
 				case groupId =>
 					GroupsActivity.createIntent(this)
 			}
+			parentIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 			startActivity(parentIntent)
 			true
 		}

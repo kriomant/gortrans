@@ -15,7 +15,7 @@ import net.kriomant.gortrans.core.{VehicleType, Direction}
 import android.graphics.drawable.Drawable
 import android.view.View
 import android.widget.{Toast, TextView}
-import com.actionbarsherlock.view.Window
+import com.actionbarsherlock.view.{MenuItem, Window}
 import net.kriomant.gortrans.RouteMapLike.RouteInfo
 import scala.collection.mutable
 import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
@@ -58,6 +58,9 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		setSupportProgressBarIndeterminateVisibility(false)
 
 		setContentView(R.layout.route_map_v2)
+
+		getSupportActionBar.setDisplayShowHomeEnabled(true)
+		getSupportActionBar.setDisplayHomeAsUpEnabled(true)
 
 		val googlePlayServicesStatus = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this)
 		Log.d(TAG, "Google Play Services status: %d" format googlePlayServicesStatus)
@@ -152,6 +155,29 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 	override def isInitialized = {
 		getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment].getMap != null
+	}
+
+	override def onOptionsItemSelected(item: MenuItem): Boolean = {
+		import RouteMapLike._
+
+		item.getItemId match {
+			case android.R.id.home => {
+				val intent = getIntent
+				val parentIntent = intent.getLongExtra(EXTRA_GROUP_ID, -1) match {
+					case -1 =>
+						val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
+						val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
+						val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
+						RouteInfoActivity.createIntent(this, routeId, routeName, vehicleType)
+					case groupId =>
+						GroupsActivity.createIntent(this)
+				}
+				parentIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+				startActivity(parentIntent)
+				true
+			}
+			case _ => super.onOptionsItemSelected(item)
+		}
 	}
 
 	def createProcessIndicator() = new FragmentActionBarProcessIndicator(this)
