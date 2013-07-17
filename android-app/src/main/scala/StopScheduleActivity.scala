@@ -41,7 +41,7 @@ object StopScheduleActivity {
 	}
 }
 
-class StopScheduleActivity extends SherlockActivity with TypedActivity with ShortcutTarget {
+class StopScheduleActivity extends SherlockActivity with BaseActivity with TypedActivity with ShortcutTarget {
 	import StopScheduleActivity._
 
 	private[this] final val TAG = "StopScheduleActivity"

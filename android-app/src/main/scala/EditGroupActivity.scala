@@ -24,7 +24,7 @@ object EditGroupActivity {
 	}
 }
 
-class EditGroupActivity extends SherlockActivity with TypedActivity { self =>
+class EditGroupActivity extends SherlockActivity with BaseActivity with TypedActivity { self =>
 	import EditGroupActivity._
 
 	var groupId: Long = -1

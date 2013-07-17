@@ -19,7 +19,7 @@ object SettingsActivity {
 	}
 }
 
-class SettingsActivity extends SherlockPreferenceActivity {
+class SettingsActivity extends SherlockPreferenceActivity with BaseActivity {
 	import SettingsActivity._
 
 	override def onCreate(savedInstanceState: Bundle) {

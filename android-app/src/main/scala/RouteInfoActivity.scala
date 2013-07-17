@@ -30,7 +30,7 @@ object RouteInfoActivity {
 	}
 }
 
-class RouteInfoActivity extends SherlockActivity with TypedActivity {
+class RouteInfoActivity extends SherlockActivity with BaseActivity with TypedActivity {
 	import RouteInfoActivity._
 
 	private[this] final val TAG = "RouteInfoActivity"

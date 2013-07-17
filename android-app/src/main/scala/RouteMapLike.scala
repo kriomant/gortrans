@@ -86,7 +86,7 @@ object RouteMapLike {
 	)
 }
 
-trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
+trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 	import RouteMapLike._
 
 	var rainbow: Rainbow = null

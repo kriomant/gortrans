@@ -15,7 +15,7 @@ import com.actionbarsherlock.view.MenuItem
 
 import utils.closing
 
-class SearchActivity extends SherlockActivity with TypedActivity {
+class SearchActivity extends SherlockActivity with TypedActivity with BaseActivity {
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
 

@@ -34,22 +34,6 @@ class CustomApplication extends Application {
 
 	private def initializeGoogleAnalytics() {
 		EasyTracker.getInstance().setContext(this)
-
-		registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks {
-			def onActivityStarted(activity: Activity) {
-				EasyTracker.getInstance().activityStart(activity)
-			}
-
-			def onActivityStopped(activity: Activity) {
-				EasyTracker.getInstance().activityStop(activity)
-			}
-
-			def onActivityResumed(activity: Activity) {}
-			def onActivityPaused(activity: Activity) {}
-			def onActivityCreated(activity: Activity, savedInstanceState: Bundle) {}
-			def onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
-			def onActivityDestroyed(activity: Activity) {}
-		})
 	}
 
 	override def onTerminate() {

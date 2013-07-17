@@ -29,7 +29,7 @@ object RouteChooseActivity {
 		intent.getLongArrayExtra(EXTRA_ROUTE_IDS).toSet
 	}
 }
-class RouteChooseActivity extends RouteListBaseActivity {
+class RouteChooseActivity extends RouteListBaseActivity with BaseActivity {
 	import RouteChooseActivity._
 
 	val listViews = mutable.Buffer[ListView]()

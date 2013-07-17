@@ -54,6 +54,7 @@ object RouteStopInfoActivity {
 /** List of closest vehicle arrivals for given route stop.
  */
 class RouteStopInfoActivity extends SherlockActivity
+	with BaseActivity
 	with TypedActivity
 	with ShortcutTarget
 	with SherlockAsyncTaskIndicator

@@ -21,7 +21,7 @@ object NewsActivity {
 	def createIntent(context: Context): Intent = new Intent(context, classOf[NewsActivity])
 }
 
-class NewsActivity extends SherlockFragmentActivity with TypedActivity with HavingSidebar {
+class NewsActivity extends SherlockFragmentActivity with BaseActivity with TypedActivity with HavingSidebar {
 	import NewsActivity._
 
 	var listView: ListView = null
