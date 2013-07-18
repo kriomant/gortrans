@@ -28,5 +28,6 @@
 		android:layout_alignParentRight="true"
 		android:layout_above="@id/sidebar_buttons"
 		android:choiceMode="singleChoice"
+		android:background="@android:color/transparent"
 		/>
 </RelativeLayout>
