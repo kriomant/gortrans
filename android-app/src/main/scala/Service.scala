@@ -50,8 +50,7 @@ object Service {
 		Log.d(TAG, "Next news check time: %s" format nextUpdateTime)
 
 		val pendingIntent = PendingIntent.getService(app, UPDATE_NEWS_ALARM, createUpdateNewsIntent(app), 0)
-		//alarmManager.setInexactRepeating(AlarmManager.RTC, nextUpdateTime.getTime, NEWS_UPDATE_PERIOD, pendingIntent)
-		alarmManager.setRepeating(AlarmManager.RTC, nextUpdateTime.getTime, NEWS_UPDATE_PERIOD, pendingIntent)
+		alarmManager.setInexactRepeating(AlarmManager.RTC, nextUpdateTime.getTime, NEWS_UPDATE_PERIOD, pendingIntent)
 	}
 }
 
@@ -89,7 +88,7 @@ class Service extends IntentService("Service") {
 			}
 		}
 
-		//db.updateLastUpdateTime(NEWS_SOURCE_NAME, loadedAt)
+		db.updateLastUpdateTime(NEWS_SOURCE_NAME, loadedAt)
 
 		if (freshNews.nonEmpty) {
 			val prefs = new UserActivityPreferences(this)
