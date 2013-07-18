@@ -351,11 +351,20 @@ object parsing {
 
 		def parseStory(e: Element): Option[NewsStory] = {
 			for (
-				title <- e.single("h2").filter(withClass("contentheading")).map(_.getTextContent.trim);
-				content = e.getChildNodes.filter(_.getNodeType == Node.TEXT_NODE).map(_.getTextContent).mkString(" ").trim;
+				titleNode <- e.single("h2").filter(withClass("contentheading"));
+				title = titleNode.getTextContent.trim;
+
 				links <- (e \ "div").filter(withClass("jcomments-links")).headOption;
 				readMoreLink = (links \ "a").filter(withClass("readmore-link")).headOption.flatMap(a => Option(a.getAttribute("href")));
 				commentsLink <- (links \ "a").filter(withClass("comment-link")).headOption.flatMap(a => Option(a.getAttribute("href")));
+
+				// All content between title and links is content.
+				content = Stream
+					.iterate[Node](titleNode.getNextSibling)(_.getNextSibling)
+					.takeWhile(_ ne links)
+					.map(_.getTextContent)
+					.mkString(" ").trim;
+
 				id <- decodeQueryString(new URI(commentsLink).getQuery).get("id")
 			) yield NewsStory(id, title, content, readMoreLink.map(l => Client.HOST.toURI.resolve(l)))
 		}

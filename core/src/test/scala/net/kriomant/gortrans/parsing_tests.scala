@@ -126,7 +126,7 @@ class ParseNewsTest extends FunSuite {
 		             |<p class="buttonheading">
 		             |	<a href="/index.php?view=article&amp;catid=1:newscat&amp;id=170:2013-05-15-02-14-55&amp;tmpl=component&amp;print=1&amp;layout=default&amp;page=" title="Печать" onclick="window.open(this.href,'win2','status=no,toolbar=no,scrollbars=yes,titlebar=no,menubar=no,resizable=yes,width=640,height=480,directories=no,location=no'); return false;" rel="nofollow"><span class="icon print"></span></a></p>
 		             |
-		             | content2<br />
+		             | <div>content2<br /></div>
 		             |<div class="jcomments-links"><a class="readmore-link" href="/index.php?option=com_content&amp;view=article&amp;id=170:2013-05-15-02-14-55&amp;catid=1:newscat&amp;Itemid=15" title="Изменение нумерации маршрутов ">Подробнее...</a> <a href="/index.php?option=com_content&amp;view=article&amp;id=170:2013-05-15-02-14-55&amp;catid=1:newscat&amp;Itemid=15#addcomments" class="comment-link">Добавить комментарий</a></div>
 		             |
 		             |		</div>
