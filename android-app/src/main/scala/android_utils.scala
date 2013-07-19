@@ -4,8 +4,17 @@ import android.util.Log
 import android.os.{Debug, SystemClock}
 
 import scala.collection.mutable
+import android.text.{Spanned, SpannableStringBuilder}
 
 object android_utils {
+
+	implicit class SpannableStringBuilderUtils(val builder: SpannableStringBuilder) extends AnyVal {
+		def appendWithSpan(text: CharSequence, span: AnyRef) {
+			val len = builder.length
+			builder.append(text)
+			builder.setSpan(span, len, builder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+		}
+	}
 
 	def measure[T](tag: String, title: String)(f: => T): T = {
 		try {

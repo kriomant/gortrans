@@ -6,7 +6,7 @@ import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.style.ImageSpan
 
-import SpannableStringBuilderUtils.conversion
+import android_utils.SpannableStringBuilderUtils
 import android.widget.{TextView, EditText, Button}
 import android.view.View.OnClickListener
 import android.view.View

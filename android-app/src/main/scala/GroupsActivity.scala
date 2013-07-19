@@ -166,16 +166,6 @@ class GroupsActivity extends SherlockFragmentActivity with BaseActivity with Typ
 	}
 }
 
-object SpannableStringBuilderUtils {
-	implicit def conversion(builder: SpannableStringBuilder) = new Object {
-		def appendWithSpan(text: CharSequence, span: AnyRef) {
-			val len = builder.length
-			builder.append(text)
-			builder.setSpan(span, len, builder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-		}
-	}
-}
-
 object RouteGroupsAdapter {
 	val vehicleTypeDrawables = Map(
 		VehicleType.Bus -> R.drawable.tab_bus,
@@ -186,7 +176,7 @@ object RouteGroupsAdapter {
 }
 
 class RouteGroupsAdapter(val context: Context, val items: Seq[Database.GroupInfo]) extends SeqAdapter with EasyAdapter {
-	import SpannableStringBuilderUtils.conversion
+	import android_utils.SpannableStringBuilderUtils
 
 	case class SubViews(name: TextView, routes: TextView)
 	val itemLayout = R.layout.group_list_item_layout
