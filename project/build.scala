@@ -29,8 +29,8 @@ object General {
 
   val settings = Defaults.defaultSettings ++ Seq (
     name := "GorTrans",
-    version := "1.0.3",
-    versionCode := 30,
+    version := "1.0.4",
+    versionCode := 31,
     apiLevel := 15,
     platformName in Android <<= (apiLevel in Android) { _ formatted "android-%d" }
   )
