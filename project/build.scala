@@ -36,7 +36,7 @@ object General {
   )
 
 	val scalaSettings = Seq(
-		scalaVersion := "2.10.1"
+		scalaVersion := "2.10.2"
 	)
 
   val proguardSettings = Seq (
