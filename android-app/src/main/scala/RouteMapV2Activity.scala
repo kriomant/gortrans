@@ -29,6 +29,8 @@ object RouteMapV2Activity {
 	object StopMarkersState extends Enumeration {
 		val Hidden, Small, Large = Value
 	}
+
+	private final val DIRECTION_SECTORS_NUMBER = 16
 }
 
 class RouteMapV2Activity extends SherlockFragmentActivity
@@ -46,9 +48,9 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	var routeMarkers = mutable.Buffer[Polyline]()
 	var stopMarkers = mutable.Buffer[Marker]()
 	var smallStopMarkers = mutable.Buffer[Marker]()
-	var vehicleMarkers = Traversable[Marker]()
+	var vehicleMarkers = Traversable[(Marker, VehicleInfo, Option[Double])]()
 
-	var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Direction.Value), Bitmap]
+	var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Option[Int]), Bitmap]
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
@@ -138,6 +140,10 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 				// TODO: optimize.
 				routeMarkers.foreach(_.setWidth(getRouteStrokeWidth(camera.zoom)))
+
+				vehicleMarkers.foreach { case (marker, vehicleInfo, angle) =>
+					marker.setIcon(getVehicleIcon(vehicleInfo, angle, camera.bearing))
+				}
 			}
 		})
 
@@ -216,15 +222,8 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		)
 
 		// Create vehicle marker bitmap for route.
-		def renderVehicle(color: Int, direction: Direction.Value): Bitmap = {
-			val drawable = direction match {
-				case Direction.Forward => new VehicleMarker(getResources, None, color)
-				case Direction.Backward => {
-					val dr = getResources.getDrawable(R.drawable.vehicle_marker_back)
-					dr.setColorFilter(new LightingColorFilter(Color.BLACK, color))
-					dr
-				}
-			}
+		def renderVehicle(color: Int, direction: Direction.Value, angle: Option[Float]): Bitmap = {
+			val drawable = new VehicleMarker(getResources, angle, color)
 			drawable.setBounds(0, 0, drawable.getIntrinsicWidth, drawable.getIntrinsicHeight)
 			val bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth, drawable.getIntrinsicHeight, Bitmap.Config.ARGB_8888)
 			val canvas = new Canvas(bitmap)
@@ -232,8 +231,12 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			bitmap
 		}
 
-		vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Direction.Forward)) = renderVehicle(routeParams.color, Direction.Forward)
-		vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Direction.Backward)) = renderVehicle(routeParams.color, Direction.Backward)
+		val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
+		(0 until DIRECTION_SECTORS_NUMBER) foreach { angleSector =>
+			val angle = angleSector * sectorAngle
+			vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Some(angleSector))) = renderVehicle(routeParams.color, Direction.Forward, Some(angle.toFloat))
+		}
+		vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, None)) = renderVehicle(routeParams.color, Direction.Forward, None)
 	}
 
 	def removeAllRouteOverlays() {
@@ -273,28 +276,38 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	}
 
 	def clearVehicleMarkers() {
-		vehicleMarkers.foreach(_.remove())
+		vehicleMarkers.foreach(_._1.remove())
 		vehicleMarkers = Seq()
 	}
 
-	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
-		val markerOptions = vehiclesData map { case (info, point, angle, baseColor) =>
-			val bitmapDescriptor = info.direction match {
-				case Some(dir) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, dir))
-				case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
-			}
+	def getVehicleIcon(info: VehicleInfo, angle: Option[Double], cameraBearing: Float): BitmapDescriptor = {
+		val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
+		val angleSector = angle map { a =>
+			((a + cameraBearing + 360 + sectorAngle/2) % 360 / sectorAngle).toInt
+		}
+		Log.d(TAG, s"angle: $angle, bearing: $cameraBearing, sector: $angleSector")
+		info.direction match {
+			case Some(dir) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, angleSector))
+			case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
+		}
+	}
 
-			new MarkerOptions()
+	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
+		val cameraPosition = map.getCameraPosition
+
+		vehicleMarkers.foreach(_._1.remove())
+
+		vehicleMarkers = vehiclesData map { case (info, point, angle, baseColor) =>
+			val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
+
+			val options = new MarkerOptions()
 				.icon(bitmapDescriptor)
 				.position(new LatLng(point.y, point.x))
 				.anchor(0.5f, 1)
 				.title(getString(RouteMapLike.routeNameResourceByVehicleType(info.vehicleType), info.routeName))
 				.snippet(formatVehicleSchedule(info))
-		}
 
-		android_utils.measure(TAG, "Remove %d and add %d vehicle marker" format (vehicleMarkers.size, markerOptions.size)) {
-			vehicleMarkers.foreach(_.remove())
-			vehicleMarkers = markerOptions map { options => map.addMarker(options) } toList
+			(map.addMarker(options), info, angle)
 		}
 	}
 
