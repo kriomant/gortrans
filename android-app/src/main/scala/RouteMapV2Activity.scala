@@ -48,7 +48,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	var routeMarkers = mutable.Buffer[Polyline]()
 	var stopMarkers = mutable.Buffer[Marker]()
 	var smallStopMarkers = mutable.Buffer[Marker]()
-	var vehicleMarkers = Map.empty[Marker, (VehicleInfo, Option[Double])]
+	val vehicleMarkers = mutable.Map.empty[Marker, (VehicleInfo, Option[Double])]
 
 	var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Option[Int]), Bitmap]
 
@@ -286,7 +286,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 	def clearVehicleMarkers() {
 		vehicleMarkers.keys.foreach(_.remove())
-		vehicleMarkers = Map.empty
+		vehicleMarkers.clear()
 	}
 
 	def getVehicleIcon(info: VehicleInfo, angle: Option[Double], cameraBearing: Float): BitmapDescriptor = {
@@ -303,18 +303,26 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
 		val cameraPosition = map.getCameraPosition
 
-		vehicleMarkers.keys.foreach(_.remove())
+		// Reuse already existing vehicle markers. Spare markers are not removed, but just hidden.
+		vehicleMarkers.keys.zipAll(vehicles, null, null) foreach {
+			case (marker, null) =>
+				marker.setVisible(false)
 
-		vehicleMarkers = vehiclesData.map { case (info, point, angle, baseColor) =>
-			val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
+			case (null, (info, point, angle, baseColor)) =>
+				val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
+				val options = new MarkerOptions()
+					.icon(bitmapDescriptor)
+					.position(new LatLng(point.y, point.x))
+					.anchor(0.5f, 1)
+				vehicleMarkers(map.addMarker(options)) = (info, angle)
 
-			val options = new MarkerOptions()
-				.icon(bitmapDescriptor)
-				.position(new LatLng(point.y, point.x))
-				.anchor(0.5f, 1)
-
-			map.addMarker(options) -> (info, angle)
-		} .toMap
+			case (marker, (info, point, angle, baseColor)) =>
+				val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
+				marker.setIcon(bitmapDescriptor)
+				marker.setPosition(new LatLng(point.y, point.x))
+				marker.setVisible(true)
+				vehicleMarkers(marker) = (info, angle)
+		}
 	}
 
 	def setLocationMarker(location: Location) {}
