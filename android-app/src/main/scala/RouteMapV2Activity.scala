@@ -113,6 +113,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			})
 		}
 
+		var previousCameraPosition = map.getCameraPosition
 		map.setOnCameraChangeListener(new OnCameraChangeListener {
 			def onCameraChange(camera: CameraPosition) {
 				val stopMarkersState =
@@ -138,11 +139,14 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 					previousStopMarkersState = stopMarkersState
 				}
 
-				// TODO: optimize.
-				routeMarkers.foreach(_.setWidth(getRouteStrokeWidth(camera.zoom)))
+				if (previousCameraPosition.zoom != camera.zoom) {
+					routeMarkers.foreach(_.setWidth(getRouteStrokeWidth(camera.zoom)))
+				}
 
-				vehicleMarkers.foreach { case (marker, vehicleInfo, angle) =>
-					marker.setIcon(getVehicleIcon(vehicleInfo, angle, camera.bearing))
+				if (previousCameraPosition.bearing != camera.bearing) {
+					vehicleMarkers.foreach { case (marker, vehicleInfo, angle) =>
+						marker.setIcon(getVehicleIcon(vehicleInfo, angle, camera.bearing))
+					}
 				}
 			}
 		})
@@ -285,7 +289,6 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		val angleSector = angle map { a =>
 			((a + cameraBearing + 360 + sectorAngle/2) % 360 / sectorAngle).toInt
 		}
-		Log.d(TAG, s"angle: $angle, bearing: $cameraBearing, sector: $angleSector")
 		info.direction match {
 			case Some(dir) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, angleSector))
 			case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
