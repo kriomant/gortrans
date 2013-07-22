@@ -48,7 +48,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	var routeMarkers = mutable.Buffer[Polyline]()
 	var stopMarkers = mutable.Buffer[Marker]()
 	var smallStopMarkers = mutable.Buffer[Marker]()
-	var vehicleMarkers = Traversable[(Marker, VehicleInfo, Option[Double])]()
+	var vehicleMarkers = Map.empty[Marker, (VehicleInfo, Option[Double])]
 
 	var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Option[Int]), Bitmap]
 
@@ -103,11 +103,16 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			val infoWindowView = getLayoutInflater.inflate(R.layout.map_v2_info_window, null, false)
 			val titleView = infoWindowView.findViewById(R.id.marker_info_title).asInstanceOf[TextView]
 			val scheduleView = infoWindowView.findViewById(R.id.marker_info_schedule).asInstanceOf[TextView]
+			val scheduleNrView = infoWindowView.findViewById(R.id.marker_info_schedule_nr).asInstanceOf[TextView]
+			val speedView = infoWindowView.findViewById(R.id.marker_info_speed).asInstanceOf[TextView]
 			map.setInfoWindowAdapter(new InfoWindowAdapter {
 				def getInfoWindow(marker: Marker): View = null
 				def getInfoContents(marker: Marker): View = {
-					titleView.setText(marker.getTitle)
-					scheduleView.setText(marker.getSnippet)
+					val (info, angle) = vehicleMarkers(marker)
+					titleView.setText(getString(RouteMapLike.routeNameResourceByVehicleType(info.vehicleType), info.routeName))
+					scheduleView.setText(formatVehicleSchedule(info))
+					scheduleNrView.setText(getString(R.string.vehicle_schedule_number, info.scheduleNr.asInstanceOf[AnyRef]))
+					speedView.setText(getString(R.string.vehicle_speed_format, info.speed.asInstanceOf[AnyRef]))
 					infoWindowView
 				}
 			})
@@ -144,7 +149,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 				}
 
 				if (previousCameraPosition.bearing != camera.bearing) {
-					vehicleMarkers.foreach { case (marker, vehicleInfo, angle) =>
+					vehicleMarkers.foreach { case (marker, (vehicleInfo, angle)) =>
 						marker.setIcon(getVehicleIcon(vehicleInfo, angle, camera.bearing))
 					}
 				}
@@ -280,8 +285,8 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	}
 
 	def clearVehicleMarkers() {
-		vehicleMarkers.foreach(_._1.remove())
-		vehicleMarkers = Seq()
+		vehicleMarkers.keys.foreach(_.remove())
+		vehicleMarkers = Map.empty
 	}
 
 	def getVehicleIcon(info: VehicleInfo, angle: Option[Double], cameraBearing: Float): BitmapDescriptor = {
@@ -298,7 +303,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
 		val cameraPosition = map.getCameraPosition
 
-		vehicleMarkers.foreach(_._1.remove())
+		vehicleMarkers.keys.foreach(_.remove())
 
 		vehicleMarkers = vehiclesData.map { case (info, point, angle, baseColor) =>
 			val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
@@ -307,11 +312,9 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 				.icon(bitmapDescriptor)
 				.position(new LatLng(point.y, point.x))
 				.anchor(0.5f, 1)
-				.title(getString(RouteMapLike.routeNameResourceByVehicleType(info.vehicleType), info.routeName))
-				.snippet(formatVehicleSchedule(info))
 
-			(map.addMarker(options), info, angle)
-		} .toList
+			map.addMarker(options) -> (info, angle)
+		} .toMap
 	}
 
 	def setLocationMarker(location: Location) {}
