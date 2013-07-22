@@ -103,23 +103,33 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		// Default marker info window shows snippet text all in one line.
 		// Use own layout in order to show multi-line schedule.
 		locally {
-			val infoWindowView = getLayoutInflater.inflate(R.layout.map_v2_info_window, null, false)
+			val infoWindowView = getLayoutInflater.inflate(R.layout.map_v2_vehicle_info_window, null, false)
 			val titleView = infoWindowView.findViewById(R.id.marker_info_title).asInstanceOf[TextView]
 			val scheduleView = infoWindowView.findViewById(R.id.marker_info_schedule).asInstanceOf[TextView]
 			val scheduleNrView = infoWindowView.findViewById(R.id.marker_info_schedule_nr).asInstanceOf[TextView]
 			val speedView = infoWindowView.findViewById(R.id.marker_info_speed).asInstanceOf[TextView]
+
+			val stopWindowView = getLayoutInflater.inflate(R.layout.map_v2_stop_info_window, null, false)
+			val stopNameView = stopWindowView.findViewById(R.id.stop_info_title).asInstanceOf[TextView]
+
 			map.setInfoWindowAdapter(new InfoWindowAdapter {
 				def getInfoWindow(marker: Marker): View = null
 				def getInfoContents(marker: Marker): View = {
-					val (info, angle) = vehicleMarkers(marker)
-					titleView.setText(getString(RouteMapLike.routeNameResourceByVehicleType(info.vehicleType), info.routeName))
-					scheduleView.setText(formatVehicleSchedule(info))
-					scheduleNrView.setText(getString(R.string.vehicle_schedule_number, info.scheduleNr.asInstanceOf[AnyRef]))
-					speedView.setText(getString(R.string.vehicle_speed_format, info.speed.asInstanceOf[AnyRef]))
+					vehicleMarkers.get(marker) match {
+						case Some((info, angle)) =>
+							titleView.setText(getString(RouteMapLike.routeNameResourceByVehicleType(info.vehicleType), info.routeName))
+							scheduleView.setText(formatVehicleSchedule(info))
+							scheduleNrView.setText(getString(R.string.vehicle_schedule_number, info.scheduleNr.asInstanceOf[AnyRef]))
+							speedView.setText(getString(R.string.vehicle_speed_format, info.speed.asInstanceOf[AnyRef]))
 
-					infoWindowMarker = Some(marker)
+							infoWindowMarker = Some(marker)
 
-					infoWindowView
+							infoWindowView
+
+						case None => // Stop marker
+							stopNameView.setText(marker.getTitle)
+							stopWindowView
+					}
 				}
 			})
 		}
