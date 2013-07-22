@@ -50,6 +50,9 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	var smallStopMarkers = mutable.Buffer[Marker]()
 	val vehicleMarkers = mutable.Map.empty[Marker, (VehicleInfo, Option[Double])]
 
+	/** Vehicle marker for which info windows was shown last time. */
+	var infoWindowMarker: Option[Marker] = None
+
 	var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Option[Int]), Bitmap]
 
 	override def onCreate(savedInstanceState: Bundle) {
@@ -113,6 +116,9 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 					scheduleView.setText(formatVehicleSchedule(info))
 					scheduleNrView.setText(getString(R.string.vehicle_schedule_number, info.scheduleNr.asInstanceOf[AnyRef]))
 					speedView.setText(getString(R.string.vehicle_speed_format, info.speed.asInstanceOf[AnyRef]))
+
+					infoWindowMarker = Some(marker)
+
 					infoWindowView
 				}
 			})
@@ -285,6 +291,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	}
 
 	def clearVehicleMarkers() {
+		infoWindowMarker = None
 		vehicleMarkers.keys.foreach(_.remove())
 		vehicleMarkers.clear()
 	}
@@ -303,25 +310,38 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
 		val cameraPosition = map.getCameraPosition
 
+		val showInfoFor = infoWindowMarker.filter(_.isInfoWindowShown).map { m =>
+			val info = vehicleMarkers(m)._1
+			(info.vehicleType, info.routeId, info.scheduleNr)
+		}
+
 		// Reuse already existing vehicle markers. Spare markers are not removed, but just hidden.
 		vehicleMarkers.keys.zipAll(vehicles, null, null) foreach {
 			case (marker, null) =>
 				marker.setVisible(false)
 
-			case (null, (info, point, angle, baseColor)) =>
+			case (existingMarker, (info, point, angle, baseColor)) =>
 				val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
-				val options = new MarkerOptions()
-					.icon(bitmapDescriptor)
-					.position(new LatLng(point.y, point.x))
-					.anchor(0.5f, 1)
-				vehicleMarkers(map.addMarker(options)) = (info, angle)
+				val marker = if (existingMarker == null) {
+					val options = new MarkerOptions()
+						.icon(bitmapDescriptor)
+						.position(new LatLng(point.y, point.x))
+						.anchor(0.5f, 1)
+					map.addMarker(options)
+				} else {
+					val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
+					existingMarker.setIcon(bitmapDescriptor)
+					existingMarker.setPosition(new LatLng(point.y, point.x))
+					existingMarker.setVisible(true)
+					existingMarker
+				}
 
-			case (marker, (info, point, angle, baseColor)) =>
-				val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
-				marker.setIcon(bitmapDescriptor)
-				marker.setPosition(new LatLng(point.y, point.x))
-				marker.setVisible(true)
 				vehicleMarkers(marker) = (info, angle)
+
+				if (showInfoFor.nonEmpty && showInfoFor == Some(info.vehicleType, info.routeId, info.scheduleNr)) {
+					infoWindowMarker = Some(marker)
+					marker.showInfoWindow()
+				}
 		}
 	}
 
