@@ -300,7 +300,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 		vehicleMarkers.foreach(_._1.remove())
 
-		vehicleMarkers = vehiclesData map { case (info, point, angle, baseColor) =>
+		vehicleMarkers = vehiclesData.map { case (info, point, angle, baseColor) =>
 			val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
 
 			val options = new MarkerOptions()
@@ -311,7 +311,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 				.snippet(formatVehicleSchedule(info))
 
 			(map.addMarker(options), info, angle)
-		}
+		} .toList
 	}
 
 	def setLocationMarker(location: Location) {}
