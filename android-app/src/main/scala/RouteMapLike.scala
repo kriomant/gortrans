@@ -22,7 +22,7 @@ import android.location.Location
 import android.preference.PreferenceManager
 
 object RouteMapLike {
-	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
+	private[this] val CLASS_NAME = classOf[RouteMapLike].getName
 	final val TAG = CLASS_NAME
 
 	final val EXTRA_ROUTE_ID = "ROUTE_ID"
@@ -86,7 +86,7 @@ object RouteMapLike {
 	)
 }
 
-trait RouteMapLike extends Activity with TypedActivity with TrackLocation {
+trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 	import RouteMapLike._
 
 	var rainbow: Rainbow = null

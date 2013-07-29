@@ -41,7 +41,7 @@ class GroupsActivity extends GroupsActivityBase with HavingSidebar {
 
 }
 
-class GroupsActivityBase extends SherlockFragmentActivity with TypedActivity with CreateGroupDialog.Listener {
+class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with TypedActivity with CreateGroupDialog.Listener with HavingSidebar {
 	private[this] var groupList: ListView = _
 
 	override def onCreate(savedInstanceState: Bundle) {
@@ -59,8 +59,11 @@ class GroupsActivityBase extends SherlockFragmentActivity with TypedActivity wit
 		})
 
 		val actionModeHelper = new MultiListActionModeHelper(this, new ActionMode.Callback with ListSelectionActionModeCallback {
+			var menu_ : Menu = null
+
 			def onCreateActionMode(mode: ActionMode, menu: Menu) = {
 				mode.getMenuInflater.inflate(R.menu.route_groups_actions, menu)
+				menu_ = menu
 				true
 			}
 
@@ -77,6 +80,16 @@ class GroupsActivityBase extends SherlockFragmentActivity with TypedActivity wit
 					mode.finish()
 					loadGroups()
 					true
+
+				case R.id.edit_group =>
+					val groupId = groupList.getCheckedItemIds.head
+					mode.finish()
+
+					val intent = EditGroupActivity.createIntent(GroupsActivityBase.this, groupId)
+					startActivity(intent)
+
+					true
+
 				case _ => false
 			}
 
@@ -84,10 +97,12 @@ class GroupsActivityBase extends SherlockFragmentActivity with TypedActivity wit
 
 			def itemCheckedStateChanged(mode: ActionMode) {
 				val checkedItemCount = Compatibility.getCheckedItemCount(groupList)
-				if (checkedItemCount == 0)
+				if (checkedItemCount == 0) {
 					mode.finish()
-				else
+				} else {
 					mode.setTitle(compatibility.plurals.getQuantityString(GroupsActivityBase.this, R.plurals.groups, checkedItemCount, checkedItemCount))
+					menu_.setGroupVisible(R.id.single_item_actions, checkedItemCount == 1)
+				}
 			}
 		})
 		actionModeHelper.attach(groupList)
@@ -97,12 +112,6 @@ class GroupsActivityBase extends SherlockFragmentActivity with TypedActivity wit
 		super.onCreateOptionsMenu(menu)
 		getSupportMenuInflater.inflate(R.menu.route_groups_menu, menu)
 		true
-	}
-
-	override def onStart() {
-		super.onStart()
-
-		loadGroups()
 	}
 
 	private def loadGroups() {
@@ -130,7 +139,6 @@ class GroupsActivityBase extends SherlockFragmentActivity with TypedActivity wit
 				// So just set flag here and check it in onResume.
 				createGroupData = data
 			}
-			true
 
 		case _ => super.onActivityResult(requestCode, resultCode, data)
 	}
@@ -142,6 +150,26 @@ class GroupsActivityBase extends SherlockFragmentActivity with TypedActivity wit
 		if (createGroupData != null) {
 			createGroup(createGroupData)
 			createGroupData = null
+		}
+
+		loadGroups()
+	}
+
+
+	override def onWindowFocusChanged(hasFocus: Boolean) {
+		super.onWindowFocusChanged(hasFocus)
+
+		if (hasFocus) {
+			// If this activity is shown for the first time after upgrade,
+			// show sidebar to present new functionality to user.
+			// This can't be done from onResume, because views are not yet
+			// laid out there.
+			val prefs = getPreferences(Context.MODE_PRIVATE)
+			val SHOW_SIDEBAR_ON_START = "showSidebarOnStart"
+			if (prefs.getBoolean(SHOW_SIDEBAR_ON_START, true)) {
+				prefs.edit().putBoolean(SHOW_SIDEBAR_ON_START, false).commit()
+				//sidebarContainer.animateOpen()
+			}
 		}
 	}
 
@@ -158,16 +186,6 @@ class GroupsActivityBase extends SherlockFragmentActivity with TypedActivity wit
 	}
 }
 
-object SpannableStringBuilderUtils {
-	implicit def conversion(builder: SpannableStringBuilder) = new Object {
-		def appendWithSpan(text: CharSequence, span: AnyRef) {
-			val len = builder.length
-			builder.append(text)
-			builder.setSpan(span, len, builder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-		}
-	}
-}
-
 object RouteGroupsAdapter {
 	val vehicleTypeDrawables = Map(
 		VehicleType.Bus -> R.drawable.tab_bus,
@@ -178,7 +196,7 @@ object RouteGroupsAdapter {
 }
 
 class RouteGroupsAdapter(val context: Context, val items: Seq[Database.GroupInfo]) extends SeqAdapter with EasyAdapter {
-	import SpannableStringBuilderUtils.conversion
+	import android_utils.SpannableStringBuilderUtils
 
 	case class SubViews(name: TextView, routes: TextView)
 	val itemLayout = R.layout.group_list_item_layout

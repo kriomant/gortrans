@@ -84,8 +84,6 @@ class MainActivityBase extends RouteListBaseActivity with CreateGroupDialog.List
 
 				val intent = RouteInfoActivity.createIntent(MainActivityBase.this, cursor.externalId, cursor.name, cursor.vehicleType)
 				startActivity(intent)
-
-				true
 			}
 		})
 

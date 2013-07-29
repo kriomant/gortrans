@@ -15,7 +15,7 @@ import android.widget.AdapterView.OnItemLongClickListener
 import android.app.Activity
 import scala.collection.mutable
 
-class RouteListBaseActivity extends SherlockFragmentActivity with TypedActivity {
+class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity with TypedActivity {
 	private[this] final val TAG = classOf[RouteListBaseActivity].getSimpleName
 
 	var tabsOrder: Seq[core.VehicleType.Value] = null

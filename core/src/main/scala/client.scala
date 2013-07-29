@@ -1,7 +1,7 @@
 package net.kriomant.gortrans
 
 import java.io.{InputStream, InputStreamReader, BufferedInputStream}
-import utils.readerUtils
+import utils.ReaderUtils
 import java.net.{URLEncoder, HttpURLConnection, URL}
 import net.kriomant.gortrans.core.{ScheduleType, VehicleType, Direction, DirectionsEx}
 import scala.collection.JavaConverters._
@@ -27,15 +27,15 @@ object Client {
 		val buffered = new BufferedInputStream(stream)
 		new InputStreamReader(buffered).readAll()
 	}
+
+	final val HOST = new URL("http://nskgortrans.ru")
+	final val MAPS_HOST = new URL("http://maps.nskgortrans.ru")
+	final val MOBILE_HOST = new URL("http://m.nskgortrans.ru")
 }
 /** Client for maps.nskgortrans.ru site.
 	*/
 class Client(logger: Logger) {
 	import Client._
-
-	final val HOST = new URL("http://nskgortrans.ru")
-	final val MAPS_HOST = new URL("http://maps.nskgortrans.ru")
-	final val MOBILE_HOST = new URL("http://m.nskgortrans.ru")
 
 	private[this] var mapsSessionId: String = null
 
@@ -145,6 +145,10 @@ class Client(logger: Logger) {
 			val date = new util.Date(conn.getHeaderFieldDate("Date", new util.Date().getTime))
 			(content, date)
 		}
+	}
+
+	def getNews(): String = {
+		fetch(new URL(HOST, "/"))
 	}
 
 	private def updateSessionId() {

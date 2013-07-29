@@ -15,12 +15,13 @@ import net.kriomant.gortrans.core.{VehicleType, Direction}
 import android.graphics.drawable.Drawable
 import android.view.View
 import android.widget.{Toast, TextView}
-import com.actionbarsherlock.view.Window
+import com.actionbarsherlock.view.{MenuItem, Window}
 import net.kriomant.gortrans.RouteMapLike.RouteInfo
 import scala.collection.mutable
 import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
 import android.preference.PreferenceManager
 import android.util.Log
+import android.content.Intent
 
 object RouteMapV2Activity {
 	final val TAG = getClass.getName
@@ -28,6 +29,8 @@ object RouteMapV2Activity {
 	object StopMarkersState extends Enumeration {
 		val Hidden, Small, Large = Value
 	}
+
+	private final val DIRECTION_SECTORS_NUMBER = 16
 }
 
 class RouteMapV2Activity extends SherlockFragmentActivity
@@ -45,9 +48,12 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	var routeMarkers = mutable.Buffer[Polyline]()
 	var stopMarkers = mutable.Buffer[Marker]()
 	var smallStopMarkers = mutable.Buffer[Marker]()
-	var vehicleMarkers = Traversable[Marker]()
+	val vehicleMarkers = mutable.Map.empty[Marker, (VehicleInfo, Option[Double])]
 
-	var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Direction.Value), Bitmap]
+	/** Vehicle marker for which info windows was shown last time. */
+	var infoWindowMarker: Option[Marker] = None
+
+	var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Option[Int]), Bitmap]
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
@@ -58,10 +64,13 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 		setContentView(R.layout.route_map_v2)
 
+		getSupportActionBar.setDisplayShowHomeEnabled(true)
+		getSupportActionBar.setDisplayHomeAsUpEnabled(true)
+
 		val googlePlayServicesStatus = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this)
 		Log.d(TAG, "Google Play Services status: %d" format googlePlayServicesStatus)
 
-		if (googlePlayServicesStatus == ConnectionResult.SUCCESS) {
+		if (googlePlayServicesStatus != ConnectionResult.SUCCESS) {
 			if (! GooglePlayServicesUtil.isUserRecoverableError(googlePlayServicesStatus)) {
 				Log.e(TAG, "Non-recoverable Google Play Services error, disable new map")
 
@@ -75,6 +84,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 				// Redirect to old maps.
 				val intent = getIntent
 				intent.setClass(this, classOf[RouteMapActivity])
+				intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 				startActivity(intent)
 
 				finish()
@@ -93,19 +103,38 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		// Default marker info window shows snippet text all in one line.
 		// Use own layout in order to show multi-line schedule.
 		locally {
-			val infoWindowView = getLayoutInflater.inflate(R.layout.map_v2_info_window, null, false)
+			val infoWindowView = getLayoutInflater.inflate(R.layout.map_v2_vehicle_info_window, null, false)
 			val titleView = infoWindowView.findViewById(R.id.marker_info_title).asInstanceOf[TextView]
 			val scheduleView = infoWindowView.findViewById(R.id.marker_info_schedule).asInstanceOf[TextView]
+			val scheduleNrView = infoWindowView.findViewById(R.id.marker_info_schedule_nr).asInstanceOf[TextView]
+			val speedView = infoWindowView.findViewById(R.id.marker_info_speed).asInstanceOf[TextView]
+
+			val stopWindowView = getLayoutInflater.inflate(R.layout.map_v2_stop_info_window, null, false)
+			val stopNameView = stopWindowView.findViewById(R.id.stop_info_title).asInstanceOf[TextView]
+
 			map.setInfoWindowAdapter(new InfoWindowAdapter {
 				def getInfoWindow(marker: Marker): View = null
 				def getInfoContents(marker: Marker): View = {
-					titleView.setText(marker.getTitle)
-					scheduleView.setText(marker.getSnippet)
-					infoWindowView
+					vehicleMarkers.get(marker) match {
+						case Some((info, angle)) =>
+							titleView.setText(getString(RouteMapLike.routeNameResourceByVehicleType(info.vehicleType), info.routeName))
+							scheduleView.setText(formatVehicleSchedule(info))
+							scheduleNrView.setText(getString(R.string.vehicle_schedule_number, info.scheduleNr.asInstanceOf[AnyRef]))
+							speedView.setText(getString(R.string.vehicle_speed_format, info.speed.asInstanceOf[AnyRef]))
+
+							infoWindowMarker = Some(marker)
+
+							infoWindowView
+
+						case None => // Stop marker
+							stopNameView.setText(marker.getTitle)
+							stopWindowView
+					}
 				}
 			})
 		}
 
+		var previousCameraPosition = map.getCameraPosition
 		map.setOnCameraChangeListener(new OnCameraChangeListener {
 			def onCameraChange(camera: CameraPosition) {
 				val stopMarkersState =
@@ -131,8 +160,15 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 					previousStopMarkersState = stopMarkersState
 				}
 
-				// TODO: optimize.
-				routeMarkers.foreach(_.setWidth(getRouteStrokeWidth(camera.zoom)))
+				if (previousCameraPosition.zoom != camera.zoom) {
+					routeMarkers.foreach(_.setWidth(getRouteStrokeWidth(camera.zoom)))
+				}
+
+				if (previousCameraPosition.bearing != camera.bearing) {
+					vehicleMarkers.foreach { case (marker, (vehicleInfo, angle)) =>
+						marker.setIcon(getVehicleIcon(vehicleInfo, angle, camera.bearing))
+					}
+				}
 			}
 		})
 
@@ -150,6 +186,29 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 	override def isInitialized = {
 		getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment].getMap != null
+	}
+
+	override def onOptionsItemSelected(item: MenuItem): Boolean = {
+		import RouteMapLike._
+
+		item.getItemId match {
+			case android.R.id.home => {
+				val intent = getIntent
+				val parentIntent = intent.getLongExtra(EXTRA_GROUP_ID, -1) match {
+					case -1 =>
+						val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
+						val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
+						val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
+						RouteInfoActivity.createIntent(this, routeId, routeName, vehicleType)
+					case groupId =>
+						GroupsActivity.createIntent(this)
+				}
+				parentIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+				startActivity(parentIntent)
+				true
+			}
+			case _ => super.onOptionsItemSelected(item)
+		}
 	}
 
 	def createProcessIndicator() = new FragmentActionBarProcessIndicator(this)
@@ -188,15 +247,8 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 		)
 
 		// Create vehicle marker bitmap for route.
-		def renderVehicle(color: Int, direction: Direction.Value): Bitmap = {
-			val drawable = direction match {
-				case Direction.Forward => new VehicleMarker(getResources, None, color)
-				case Direction.Backward => {
-					val dr = getResources.getDrawable(R.drawable.vehicle_marker_back)
-					dr.setColorFilter(new LightingColorFilter(Color.BLACK, color))
-					dr
-				}
-			}
+		def renderVehicle(color: Int, direction: Direction.Value, angle: Option[Float]): Bitmap = {
+			val drawable = new VehicleMarker(getResources, angle, color)
 			drawable.setBounds(0, 0, drawable.getIntrinsicWidth, drawable.getIntrinsicHeight)
 			val bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth, drawable.getIntrinsicHeight, Bitmap.Config.ARGB_8888)
 			val canvas = new Canvas(bitmap)
@@ -204,8 +256,12 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			bitmap
 		}
 
-		vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Direction.Forward)) = renderVehicle(routeParams.color, Direction.Forward)
-		vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Direction.Backward)) = renderVehicle(routeParams.color, Direction.Backward)
+		val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
+		(0 until DIRECTION_SECTORS_NUMBER) foreach { angleSector =>
+			val angle = angleSector * sectorAngle
+			vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Some(angleSector))) = renderVehicle(routeParams.color, Direction.Forward, Some(angle.toFloat))
+		}
+		vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, None)) = renderVehicle(routeParams.color, Direction.Forward, None)
 	}
 
 	def removeAllRouteOverlays() {
@@ -245,28 +301,57 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 	}
 
 	def clearVehicleMarkers() {
-		vehicleMarkers.foreach(_.remove())
-		vehicleMarkers = Seq()
+		infoWindowMarker = None
+		vehicleMarkers.keys.foreach(_.remove())
+		vehicleMarkers.clear()
+	}
+
+	def getVehicleIcon(info: VehicleInfo, angle: Option[Double], cameraBearing: Float): BitmapDescriptor = {
+		val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
+		val angleSector = angle map { a =>
+			((a + cameraBearing + 360 + sectorAngle/2) % 360 / sectorAngle).toInt
+		}
+		info.direction match {
+			case Some(dir) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, angleSector))
+			case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
+		}
 	}
 
 	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
-		val markerOptions = vehiclesData map { case (info, point, angle, baseColor) =>
-			val bitmapDescriptor = info.direction match {
-				case Some(dir) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, dir))
-				case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
-			}
+		val cameraPosition = map.getCameraPosition
 
-			new MarkerOptions()
-				.icon(bitmapDescriptor)
-				.position(new LatLng(point.y, point.x))
-				.anchor(0.5f, 1)
-				.title(getString(RouteMapLike.routeNameResourceByVehicleType(info.vehicleType), info.routeName))
-				.snippet(formatVehicleSchedule(info))
+		val showInfoFor = infoWindowMarker.filter(_.isInfoWindowShown).map { m =>
+			val info = vehicleMarkers(m)._1
+			(info.vehicleType, info.routeId, info.scheduleNr)
 		}
 
-		android_utils.measure(TAG, "Remove %d and add %d vehicle marker" format (vehicleMarkers.size, markerOptions.size)) {
-			vehicleMarkers.foreach(_.remove())
-			vehicleMarkers = markerOptions map { options => map.addMarker(options) } toList
+		// Reuse already existing vehicle markers. Spare markers are not removed, but just hidden.
+		vehicleMarkers.keys.zipAll(vehicles, null, null) foreach {
+			case (marker, null) =>
+				marker.setVisible(false)
+
+			case (existingMarker, (info, point, angle, baseColor)) =>
+				val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
+				val marker = if (existingMarker == null) {
+					val options = new MarkerOptions()
+						.icon(bitmapDescriptor)
+						.position(new LatLng(point.y, point.x))
+						.anchor(0.5f, 1)
+					map.addMarker(options)
+				} else {
+					val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
+					existingMarker.setIcon(bitmapDescriptor)
+					existingMarker.setPosition(new LatLng(point.y, point.x))
+					existingMarker.setVisible(true)
+					existingMarker
+				}
+
+				vehicleMarkers(marker) = (info, angle)
+
+				if (showInfoFor.nonEmpty && showInfoFor == Some(info.vehicleType, info.routeId, info.scheduleNr)) {
+					infoWindowMarker = Some(marker)
+					marker.showInfoWindow()
+				}
 		}
 	}
 

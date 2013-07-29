@@ -47,7 +47,17 @@
 	
     <string name="vehicles_tracking_turned_on">Включено отслеживание положения транспорта</string>
     <string name="vehicles_tracking_turned_off">Выключено отслеживание положения транспорта</string>
-	
+
+		<!-- New map notice -->
+		<string name="new_map_notice">Попробуйте новые карты</string>
+		<string name="new_map_dialog_title">Попробуйте новые карты</string>
+		<string name="new_map_dialog_message">Google выпустила новые карты. Они потребляют меньше трафика, плавно масштабируются,
+их можно вращать и наклонять.\n\nПохоже, что Ваш телефон их поддерживает, хотя, возможно, потребуется обновление некоторых
+компонент.\n\nОпция для включения новых карт также доступна в настройках. Вы можете включить её самостоятельно позже или же
+вернуть старые карты, если с новыми возникнет какая-нибудь проблема.\n\nХотите попробовать новые карты сейчас?</string>
+		<string name="new_map_try_button">Попробовать</string>
+		<string name="new_map_reject_button">Не нужно</string>
+
 		<string name="create_shortcut">Создать ярлык</string>
 		<string name="shortcut_is_created">На домашнем экране создан ярлык «%1$s»</string>
 
@@ -80,6 +90,7 @@
 		<string name="background_update_error">Не удалось обновить данные</string>
 
 		<string name="delete">Удалить</string>
+		<string name="edit">Изменить</string>
 		<string name="accept">Подтвердить</string>
 
 		<!-- One schedule row for vehicle popup on map. Parameters: time, stop name. -->
@@ -88,6 +99,8 @@
 		<string name="vehicle_schedule_number">график №%1$d</string>
 	  <string name="screen_wake_lock">Не выключать экран</string>
 		<string name="settings">Настройки</string>
+
+		<string name="edit_group_title">Группа маршрутов</string>
 
 	<plurals name="routes">
 			<item quantity="one">%1$d маршрут</item>
@@ -109,4 +122,13 @@
 	<!-- Navigation drawer -->
 	<string name="open_drawer">Открыть панель навигации</string>
 	<string name="close_drawer">Закрыть панель навигации</string>
+
+	<string name="news">Новости</string>
+	<plurals name="n_news">
+		<item quantity="one">%1$d новость</item>
+		<item quantity="two">%1$d новости</item>
+		<item quantity="few">%1$d новостей</item>
+	</plurals>
+	<string name="read_more">Подробнее</string>
+	<string name="no_news">Нет новостей</string>
 </resources>

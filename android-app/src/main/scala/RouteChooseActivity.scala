@@ -11,11 +11,15 @@ import scala.collection.mutable
 import android.app.Activity
 
 object RouteChooseActivity {
-	def createIntent(caller: Context): Intent = new Intent(caller, classOf[RouteChooseActivity])
+	def createIntent(caller: Context, selectedRoutes: Set[Long] = Set.empty): Intent = {
+		val intent = new Intent(caller, classOf[RouteChooseActivity])
+		intent.putExtra(EXTRA_ROUTE_IDS, selectedRoutes.toArray)
+		intent
+	}
 
 	val EXTRA_ROUTE_IDS = "route-ids"
 
-	def resultToIntent(routeIds: Set[Long]) = {
+	private def resultToIntent(routeIds: collection.Set[Long]) = {
 		val intent = new Intent
 		intent.putExtra(EXTRA_ROUTE_IDS, routeIds.toArray)
 		intent
@@ -25,14 +29,24 @@ object RouteChooseActivity {
 		intent.getLongArrayExtra(EXTRA_ROUTE_IDS).toSet
 	}
 }
-class RouteChooseActivity extends RouteListBaseActivity {
+class RouteChooseActivity extends RouteListBaseActivity with BaseActivity {
+	import RouteChooseActivity._
+
 	val listViews = mutable.Buffer[ListView]()
+	var routeIds = mutable.Set.empty[Long]
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
 
 		val actionBar = getSupportActionBar
 		actionBar.setIcon(R.drawable.accept)
+
+		val ids = getIntent.getLongArrayExtra(EXTRA_ROUTE_IDS)
+		if (ids != null) {
+			routeIds ++= ids
+		}
+
+		updateControls()
 	}
 
 	/** This method is called by tab fragments when their views are created. */
@@ -43,25 +57,42 @@ class RouteChooseActivity extends RouteListBaseActivity {
 		listViews += listView
 		listView.setChoiceMode(AbsListView.CHOICE_MODE_MULTIPLE)
 
-		val actionBar = getSupportActionBar
+		if (routeIds.nonEmpty) {
+			val adapter = listView.getAdapter
+			for (i <- 0 until adapter.getCount) {
+				val id = adapter.getItemId(i)
+				if (routeIds contains id)
+					listView.setItemChecked(i, true)
+			}
+		}
 
 		listView.setOnItemClickListener(new OnItemClickListener {
 			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
-				listViews.map(Compatibility.getCheckedItemCount(_)).sum match {
-					case 0 =>
-						actionBar.setHomeButtonEnabled(false)
-						actionBar.setTitle(R.string.choose_routes)
-					case count =>
-						actionBar.setHomeButtonEnabled(true)
-						actionBar.setTitle(compatibility.plurals.getQuantityString(RouteChooseActivity.this, R.plurals.routes, count, count))
-				}
+				if (listView.isItemChecked(position))
+					routeIds += id
+				else
+					routeIds -= id
+
+				updateControls()
 			}
 		})
 	}
 
+	private def updateControls() {
+		val actionBar = getSupportActionBar
+
+		routeIds.size match {
+			case 0 =>
+				actionBar.setHomeButtonEnabled(false)
+				actionBar.setTitle(R.string.choose_routes)
+			case count =>
+				actionBar.setHomeButtonEnabled(true)
+				actionBar.setTitle(compatibility.plurals.getQuantityString(RouteChooseActivity.this, R.plurals.routes, count, count))
+		}
+	}
+
 	override def onOptionsItemSelected(item: MenuItem) = item.getItemId match {
 		case android.R.id.home =>
-			val routeIds = listViews.flatMap(_.getCheckedItemIds).toSet
 			setResult(Activity.RESULT_OK, RouteChooseActivity.resultToIntent(routeIds))
 			finish()
 			true

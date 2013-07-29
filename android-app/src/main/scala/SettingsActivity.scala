@@ -12,9 +12,14 @@ object SettingsActivity {
 	}
 
 	final val KEY_USE_NEW_MAP = "use_new_map"
+
+	def isNewMapAvailable(context: Context): Boolean = {
+		val status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(context)
+		status == ConnectionResult.SUCCESS || GooglePlayServicesUtil.isUserRecoverableError(status)
+	}
 }
 
-class SettingsActivity extends SherlockPreferenceActivity {
+class SettingsActivity extends SherlockPreferenceActivity with BaseActivity {
 	import SettingsActivity._
 
 	override def onCreate(savedInstanceState: Bundle) {
@@ -23,10 +28,7 @@ class SettingsActivity extends SherlockPreferenceActivity {
 		addPreferencesFromResource(R.xml.preferences)
 
 		val useNewMapPref = findPreference(KEY_USE_NEW_MAP).asInstanceOf[CheckBoxPreference]
-		useNewMapPref.setEnabled({
-			val status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this)
-			status == ConnectionResult.SUCCESS || GooglePlayServicesUtil.isUserRecoverableError(status)
-		})
+		useNewMapPref.setEnabled(isNewMapAvailable(this))
 	}
 }
 

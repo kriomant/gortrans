@@ -29,12 +29,15 @@ object General {
 
   val settings = Defaults.defaultSettings ++ Seq (
     name := "GorTrans",
-    version := "0.2.0",
-    versionCode := 26,
-    scalaVersion := "2.8.2",
+    version := "1.0.6",
+    versionCode := 33,
     apiLevel := 15,
     platformName in Android <<= (apiLevel in Android) { _ formatted "android-%d" }
   )
+
+	val scalaSettings = Seq(
+		scalaVersion := "2.10.2"
+	)
 
   val proguardSettings = Seq (
     useProguard in Android := true,
@@ -43,7 +46,9 @@ object General {
 
   lazy val fullAndroidSettings =
     General.settings ++
+		General.scalaSettings ++
     AndroidProject.androidSettings ++
+		BuketanPlugin.buketanSettings ++
     TypedResources.settings ++
     proguardSettings ++
     AndroidManifestGenerator.settings ++
@@ -57,6 +62,9 @@ object General {
       // Prevent ProGuard from stripping ActionBarSherlock implementation classes which are used through reflection.
       proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep class android.support.v4.content.Loader* -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
 	    proguardOption in Android ~= { _ + " -keep class net.kriomant.gortrans.compatibility.* { *; } " },
+
+      // Workaround for https://issues.scala-lang.org/browse/SI-5397. Doesn't work for me, unfortunately.
+      proguardOption in Android ~= { _ + " -keep class scala.collection.immutable.StringLike { public protected *; } -keep class scala.collection.SeqLike { public java.lang.String toString(); } " },
 
 	    // Add Google Maps library.
       googleMapsJar <<= (sdkPath in Android, apiLevel in Android) { (path, apiLevel) =>
@@ -127,14 +135,11 @@ object AndroidBuild extends Build {
 	lazy val core = Project(
 	  "core",
 	  file("core"),
-	  settings = Defaults.defaultSettings ++ Seq(
-		  scalaVersion := "2.8.2",
-		  scalacOptions += "-deprecation",
-
+	  settings = Defaults.defaultSettings ++ General.scalaSettings ++ Seq(
 	    libraryDependencies ++= Seq(
 		    "org.json" % "json" % "20090211",
        	"org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
-		    "org.scalatest" %% "scalatest" % "1.7.1" % "test"
+		    "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 	    )
 	  )
 	)
@@ -151,6 +156,7 @@ object AndroidBuild extends Build {
     "android-tests",
     file("android-app/tests"),
     settings = General.settings ++
+	             General.scalaSettings ++
                AndroidTest.settings ++
                General.proguardSettings ++ Seq (
       name := "GorTransTests"
@@ -160,10 +166,7 @@ object AndroidBuild extends Build {
 	lazy val explorer = Project(
 	  "explorer",
 	  file("explorer"),
-	  settings = Defaults.defaultSettings ++ Seq(
-		  scalaVersion := "2.8.2",
-	    scalacOptions += "-deprecation",
-
+	  settings = Defaults.defaultSettings ++ General.scalaSettings ++ Seq(
 		  libraryDependencies ++= Seq(
 			  "org.json" % "json" % "20090211"
 		  ),
@@ -180,10 +183,7 @@ object AndroidBuild extends Build {
 	lazy val checker = Project(
 		"checker",
 		file("checker"),
-		settings = Defaults.defaultSettings ++ Seq(
-			scalaVersion := "2.8.2",
-			scalacOptions += "-deprecation",
-
+		settings = Defaults.defaultSettings ++ General.scalaSettings ++ Seq(
 			libraryDependencies ++= Seq(
 				"org.json" % "json" % "20090211",
 				"ch.qos.logback" % "logback-classic" % "1.0.5"

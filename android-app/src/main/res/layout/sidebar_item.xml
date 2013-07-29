@@ -5,5 +5,5 @@
 	android:layout_height="wrap_content"
 	android:paddingTop="10dp"
 	android:paddingBottom="10dp"
-	android:textAppearance="?android:attr/textAppearanceLarge">
+	android:textAppearance="@style/SidebarItemTextAppearance">
 </TextView>

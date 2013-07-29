@@ -3,7 +3,7 @@ package net.kriomant.gortrans
 import org.json._
 
 import net.kriomant.gortrans.core._
-import net.kriomant.gortrans.utils.booleanUtils
+import net.kriomant.gortrans.utils.BooleanUtils
 import org.xml.sax.helpers.DefaultHandler
 import java.io.StringReader
 import org.xml.sax._
@@ -17,6 +17,7 @@ import util.matching.Regex.Match
 import java.util.regex.Pattern
 import net.kriomant.gortrans.core.Route
 import java.util
+import java.net.{URI, URLDecoder, URL}
 
 object parsing {
 
@@ -24,7 +25,7 @@ object parsing {
 
 	class ParsingException(msg: String) extends Exception(msg)
 
-	implicit def jsonArrayUtils(arr: JSONArray) = new {
+	implicit class JsonArrayUtils(val arr: JSONArray) {
 		def ofObjects: IndexedSeq[JSONObject] = new scala.collection.IndexedSeq[JSONObject] {
 			def length = arr.length
 			def apply(idx: Int) = arr.getJSONObject(idx)
@@ -242,6 +243,17 @@ object parsing {
 				sibling = sibling.getNextSibling
 			sibling.asInstanceOf[Element]
 		}
+
+		def \(tag: String): Traversable[Element] = {
+			node.getChildNodes collect { case e: Element if e.getTagName == tag => e }
+		}
+
+		def \\(tag: String): Traversable[Element] = node match {
+			case e: Element => e.getElementsByTagName(tag) map (_.asInstanceOf[Element])
+			case _ => Seq.empty
+		}
+
+		def single(tag: String): Option[Element] = \(tag).headOption
 	}
 
 	implicit def nodeUtils(node: Node) = new NodeUtils(node)
@@ -330,6 +342,43 @@ object parsing {
 		throw new ParsingException("Marker not found")
 	}
 
+	/** Returns news from newer to older.
+	  */
+	def parseNews(html: String): Seq[NewsStory] = {
+		def withClass(className: String)(element: Element): Boolean = {
+			element.getAttribute("class") == className
+		}
+
+		def parseStory(e: Element): Option[NewsStory] = {
+			for (
+				titleNode <- e.single("h2").filter(withClass("contentheading"));
+				title = titleNode.getTextContent.trim;
+
+				links <- (e \ "div").filter(withClass("jcomments-links")).headOption;
+				readMoreLink = (links \ "a").filter(withClass("readmore-link")).headOption.flatMap(a => Option(a.getAttribute("href")));
+				commentsLink <- (links \ "a").filter(withClass("comment-link")).headOption.flatMap(a => Option(a.getAttribute("href")));
+
+				// All content between title and links is content.
+				content = Stream
+					.iterate[Node](titleNode.getNextSibling)(_.getNextSibling)
+					.takeWhile(_ ne links)
+					.map(_.getTextContent)
+					.mkString(" ").trim;
+
+				id <- decodeQueryString(new URI(commentsLink).getQuery).get("id")
+			) yield NewsStory(id, title, content, readMoreLink.map(l => Client.HOST.toURI.resolve(l)))
+		}
+
+		val doc = parseHtml(html)
+		val blogNode = (doc.getDocumentElement \\ "div") find { _.getAttribute("class") == "blog" }
+		val storyNodes = blogNode match {
+			case Some(node) => (node \ "div") filter (_.getAttribute("class") == "leading")
+			case None => Seq()
+		}
+
+		storyNodes.toSeq flatMap { n => parseStory(n) }
+	}
+
 	def parseHtml(html: String): Document = {
 		val reader = new StringReader(html)
 		val parser = new org.ccil.cowan.tagsoup.Parser()
@@ -339,6 +388,12 @@ object parsing {
 		val domResult = new DOMResult
 		transformer.transform(new SAXSource(parser, new InputSource(reader)), domResult)
 		domResult.getNode.asInstanceOf[Document]
+	}
+
+	def decodeQueryString(query: String): Map[String, String] = {
+		query.split("&").map(_.split("=")).collect {
+			case Array(name, value) => (URLDecoder.decode(name, "UTF-8"), URLDecoder.decode(value, "UTF-8"))
+		}.toMap
 	}
 }
 

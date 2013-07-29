@@ -1,11 +1,13 @@
 package net.kriomant.gortrans
 
-import android.app.Application
-import android.os.StrictMode
+import android.app.{Activity, Application}
+import android.os.{Bundle, StrictMode}
 import android.os.StrictMode.ThreadPolicy
 import android.content.Context
 import java.io.File
 import android.util.Log
+import android.app.Application.ActivityLifecycleCallbacks
+import com.google.analytics.tracking.android.EasyTracker
 
 class CustomApplication extends Application {
 	private[this] final val TAG = getClass.getName
@@ -24,6 +26,14 @@ class CustomApplication extends Application {
 
 		database = Database.getWritable(this)
 		dataManager = new DataManager(this, database)
+
+		Service.init(this)
+
+		initializeGoogleAnalytics()
+	}
+
+	private def initializeGoogleAnalytics() {
+		EasyTracker.getInstance().setContext(this)
 	}
 
 	override def onTerminate() {

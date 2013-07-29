@@ -5,7 +5,7 @@
 	android:layout_height="match_parent"
 	android:layout_width="150dp"
 	android:layout_gravity="start"
-	android:background="#111"
+	android:background="@drawable/sidebar_background"
 >
 	<LinearLayout
 		android:id="@+id/sidebar_buttons"
@@ -29,9 +29,7 @@
 		android:layout_alignParentLeft="true"
 		android:layout_alignParentRight="true"
 		android:layout_above="@id/sidebar_buttons"
-		android:background="@drawable/sidebar_background"
 		android:choiceMode="singleChoice"
-		android:divider="@android:color/transparent"
-		android:dividerHeight="0dp"
+		android:background="@drawable/sidebar_background"
 		/>
 </RelativeLayout>
