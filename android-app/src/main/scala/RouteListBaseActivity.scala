@@ -24,10 +24,12 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 	var tabFragmentsMap: mutable.Map[VehicleType.Value, RoutesListFragment] = mutable.Map()
 	var tabsView: ScrollingTabContainerView = null
 
+	protected val layoutResource = R.layout.route_list_base_activity
+
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
 
-		setContentView(R.layout.main_activity)
+		setContentView(layoutResource)
 
 		val actionBar = getSupportActionBar
 

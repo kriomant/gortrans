@@ -4,26 +4,6 @@
 	android:id="@+id/drawer_layout"
 	android:layout_height="match_parent" android:layout_width="match_parent"
 >
-	<LinearLayout android:id="@+id/routes_content"
-								android:layout_width="match_parent"
-								android:layout_height="match_parent"
-								android:orientation="vertical">
-
-		<ProgressBar
-			android:id="@+id/progress_bar"
-			style="@android:style/Widget.ProgressBar.Horizontal"
-			android:layout_width="match_parent"
-			android:layout_height="2dp"
-			android:indeterminate="true"
-			android:visibility="invisible"
-		/>
-
-		<android.support.v4.view.ViewPager
-			android:id="@+id/tab_pager"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
-		/>
-	</LinearLayout>
-
+	<include layout="@layout/route_list_base_activity"/>
 	<include layout="@layout/sidebar"/>
 </android.support.v4.widget.DrawerLayout>

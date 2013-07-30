@@ -34,6 +34,8 @@ class MainActivityBase extends RouteListBaseActivity with CreateGroupDialog.List
 
 	var actionModeHelper: MultiListActionModeHelper = null
 
+	override val layoutResource = R.layout.main_activity
+
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
 
