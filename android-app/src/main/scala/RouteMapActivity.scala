@@ -117,7 +117,16 @@ class RouteMapActivity extends SherlockMapActivity
 			new RouteStopOverlay(getResources, routePointToGeoPoint(point))
 		}
 
-		val routeOverlays = Iterator(routeParams.forwardRouteOverlay, routeParams.backwardRouteOverlay)
+		// Add route markers.
+		val forwardRouteOverlay: Overlay = new RouteOverlay(
+			getResources, getResources.getColor(R.color.forward_route),
+			routeParams.forwardRoutePoints map routePointToGeoPoint
+		)
+		val backwardRouteOverlay: Overlay = new RouteOverlay(
+			getResources, getResources.getColor(R.color.backward_route),
+			routeParams.backwardRoutePoints map routePointToGeoPoint
+		)
+		val routeOverlays = Iterator(forwardRouteOverlay, backwardRouteOverlay)
 
 		constantOverlays ++= routeOverlays
 		constantOverlays ++= stopOverlays
@@ -275,6 +284,8 @@ class RouteMapActivity extends SherlockMapActivity
 			case _ => super.onCreateDialog(id)
 		}
 	}
+
+	def routePointToGeoPoint(p: Pt): GeoPoint = new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
 }
 
 class MarkerOverlay(drawable: Drawable, location: GeoPoint, anchorPosition: PointF) extends Overlay {

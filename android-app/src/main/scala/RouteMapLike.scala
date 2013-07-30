@@ -58,9 +58,6 @@ object RouteMapLike {
 	val ZOOM_WHOLE_ROUTE = 14
 	val ZOOM_SHOW_STOP_NAMES = 17
 
-	def routePointToGeoPoint(p: Pt): GeoPoint =
-		new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
-
 	val routeNameResourceByVehicleType = Map(
 		VehicleType.Bus -> R.string.bus_n,
 		VehicleType.TrolleyBus -> R.string.trolleybus_n,
@@ -78,9 +75,6 @@ object RouteMapLike {
 		bounds: RectF,
 		stops: Set[(Pt, String)], // (position, name)
 		stopNames: Set[(Pt, String)],
-
-		forwardRouteOverlay: Overlay,
-		backwardRouteOverlay: Overlay,
 
 		color: Int
 	)
@@ -325,16 +319,6 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 				val right = points.map(_.x).max
 				val bounds = new RectF(left.toFloat, top.toFloat, right.toFloat, bottom.toFloat)
 
-				// Add route markers.
-				val forwardRouteOverlay = new RouteOverlay(
-					getResources, getResources.getColor(R.color.forward_route),
-					forwardRoutePoints map routePointToGeoPoint
-				)
-				val backwardRouteOverlay = new RouteOverlay(
-					getResources, getResources.getColor(R.color.backward_route),
-					backwardRoutePoints map routePointToGeoPoint
-				)
-
 				// Unfold route.
 				val routeStops =
 					stops.collect { case FoldedRouteStop(name, Some(pos), _) => (points(pos), name) } ++
@@ -354,7 +338,6 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 				val routeParams = RouteInfo(
 					forwardRoutePoints, backwardRoutePoints,
 					bounds, routeStops.toSet, stopNames.toSet,
-					forwardRouteOverlay, backwardRouteOverlay,
 					rainbow(index)
 				)
 
