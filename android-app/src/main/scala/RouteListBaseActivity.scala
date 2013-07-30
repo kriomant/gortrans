@@ -5,21 +5,24 @@ import _root_.android.os.Bundle
 import net.kriomant.gortrans.core.VehicleType
 import android.support.v4.widget.CursorAdapter
 import android.widget._
-import com.actionbarsherlock.app.ActionBar.{Tab, TabListener}
-import android.support.v4.app.{FragmentPagerAdapter, ListFragment, FragmentTransaction}
+import android.support.v4.app.{FragmentPagerAdapter, ListFragment}
 import android.view.{ViewGroup, LayoutInflater, View}
-import com.actionbarsherlock.app.{SherlockFragmentActivity, ActionBar}
+import com.actionbarsherlock.app.{SherlockFragmentActivity}
 import net.kriomant.gortrans.DataManager.ProcessIndicator
 import android.support.v4.view.ViewPager.OnPageChangeListener
 import android.widget.AdapterView.OnItemLongClickListener
 import android.app.Activity
 import scala.collection.mutable
+import com.actionbarsherlock.internal.widget.ScrollingTabContainerView
+import android.util.TypedValue
+import android.view.View.OnClickListener
 
 class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity with TypedActivity {
 	private[this] final val TAG = classOf[RouteListBaseActivity].getSimpleName
 
 	var tabsOrder: Seq[core.VehicleType.Value] = null
 	var tabFragmentsMap: mutable.Map[VehicleType.Value, RoutesListFragment] = mutable.Map()
+	var tabsView: ScrollingTabContainerView = null
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
@@ -27,7 +30,23 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 		setContentView(R.layout.main_activity)
 
 		val actionBar = getSupportActionBar
-		actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS)
+
+		// Action bar 'tabs' navigation mode isn't used, because then tabs are part of action bar
+		// even when they are displayed as second row and navigation drawer doesn't operlap them
+		// which is ugly. So instead of using action bar navigation own tabs view is placed below
+		// action bar.
+		tabsView = new ScrollingTabContainerView(actionBar.getThemedContext)
+		tabsView.setAllowCollapse(false) // Prevent collapsing to dropdown list.
+
+		// Set tabs height the same as action bar's height. This is what ActionBarSherlock does.
+		val tv = new TypedValue
+		getTheme.resolveAttribute(com.actionbarsherlock.R.attr.actionBarSize, tv, true)
+		val actionBarHeight = TypedValue.complexToDimensionPixelSize(tv.data, getResources.getDisplayMetrics)
+		tabsView.setContentHeight(actionBarHeight)
+
+		// Insert at the very top.
+		val layoutParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+		findView(TR.routes_content).addView(tabsView, 0, layoutParams)
 
 		val vehicleTypeDrawables = Map(
 			VehicleType.Bus -> R.drawable.tab_bus,
@@ -44,17 +63,18 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 		tabsOrder.zipWithIndex foreach { case (vehicleType, i) =>
 			val icon = vehicleTypeDrawables(vehicleType)
 
-			val tab = actionBar.newTab
-				.setIcon(icon)
-				.setTabListener(new TabListener {
-				def onTabSelected(tab: Tab, ft: FragmentTransaction) {
+			val tab = actionBar.newTab.setIcon(icon)
+			tabsView.addTab(tab, false)
+
+			// HACK: ScrollingTabContainerView doesn't have way to listen for tab selection event,
+			// all it does is calls tab.select(), but it doesn't work because tabs are not added
+			// to action bar.
+			// Following code relies on ScrollingTabContainerView internals.
+			tabsView.getChildAt(0).asInstanceOf[LinearLayout].getChildAt(i).setOnClickListener(new OnClickListener {
+				def onClick(v: View) {
 					tabPager.setCurrentItem(i)
 				}
-				def onTabReselected(tab: Tab, ft: FragmentTransaction) {}
-				def onTabUnselected(tab: Tab, ft: FragmentTransaction) {}
 			})
-
-			actionBar.addTab(tab)
 		}
 
 		tabPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager) {
@@ -66,7 +86,7 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 			def onPageScrollStateChanged(p1: Int) {}
 
 			def onPageSelected(pos: Int) {
-				actionBar.setSelectedNavigationItem(pos)
+				tabsView.setTabSelected(pos)
 			}
 		})
 	}
@@ -75,6 +95,10 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 		super.onStart()
 
 		loadRoutes()
+	}
+
+	protected def setSelectedTab(idx: Int) {
+		tabsView.setTabSelected(idx)
 	}
 
 	def updateRoutesList() {

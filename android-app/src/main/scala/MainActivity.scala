@@ -44,10 +44,10 @@ class MainActivityBase extends RouteListBaseActivity with CreateGroupDialog.List
 
 		if (bundle != null) {
 			// Restore index of currently selected tab.
-			actionBar.setSelectedNavigationItem(bundle.getInt("tabIndex"))
+			setSelectedTab(bundle.getInt("tabIndex"))
 		} else {
 			val vehicleType = VehicleType(getIntent.getIntExtra(EXTRA_VEHICLE_TYPE, VehicleType.Bus.id))
-			actionBar.setSelectedNavigationItem(tabsOrder.indexOf(vehicleType))
+			setSelectedTab(tabsOrder.indexOf(vehicleType))
 		}
   }
 
