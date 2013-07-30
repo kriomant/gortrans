@@ -10,7 +10,7 @@
 		    android:theme="@style/Dark"
         android:debuggable="true">
 
-        <uses-library android:name="com.google.android.maps"/>
+        <uses-library android:name="com.google.android.maps" android:required="false"/>
 
 	      <activity android:label="@string/app_name" android:name=".GroupsActivity"
 		      android:theme="@style/DarkWithNavigationDrawer">
@@ -56,6 +56,12 @@
 	      </activity>
 
 				<activity android:name=".RouteMapV2Activity">
+					<intent-filter>
+						<action android:name="android.intent.action.VIEW"/>
+					</intent-filter>
+				</activity>
+
+				<activity android:name=".RouteMapOSMActivity">
 					<intent-filter>
 						<action android:name="android.intent.action.VIEW"/>
 					</intent-filter>

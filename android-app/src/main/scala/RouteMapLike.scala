@@ -35,8 +35,10 @@ object RouteMapLike {
 		val use_new_map = prefs.getBoolean(SettingsActivity.KEY_USE_NEW_MAP, false)
 		if (use_new_map)
 			classOf[RouteMapV2Activity]
-		else
+		else if (SettingsActivity.isOldGoogleMapAvailable(context))
 			classOf[RouteMapActivity]
+		else
+			classOf[RouteMapOSMActivity]
 	}
 
 	def createIntent(caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value): Intent = {

@@ -13,6 +13,10 @@ object SettingsActivity {
 
 	final val KEY_USE_NEW_MAP = "use_new_map"
 
+	def isOldGoogleMapAvailable(context: Context): Boolean = {
+		context.getPackageManager.getSystemSharedLibraryNames contains "com.google.android.maps"
+	}
+
 	def isNewMapAvailable(context: Context): Boolean = {
 		val status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(context)
 		status == ConnectionResult.SUCCESS || GooglePlayServicesUtil.isUserRecoverableError(status)

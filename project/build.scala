@@ -80,6 +80,9 @@ object General {
 	    },
 	    unmanagedJars in Compile <+= androidSupportJar map { jar => Attributed.blank(jar) },
 
+      libraryDependencies += "org.osmdroid" % "osmdroid-android" % "3.0.8",
+	    libraryDependencies += "org.slf4j" % "slf4j-android" % "1.6.1-RC1",
+
       // Use Google Play services SDK.
 	    googlePlayServices <<= (sdkPath in Android) { path =>
 		    path / "extras" / "google" / "google_play_services" / "libproject" / "google-play-services_lib"
