@@ -45,7 +45,9 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
 		drawerLayout = findView(TR.drawer_layout)
 		drawerLayout.setDrawerShadow(R.drawable.drawer_shadow, GravityCompat.START)
 
-		drawerToggle = new ActionBarDrawerToggle(this, drawerLayout, R.drawable.ic_drawer, R.string.open_drawer, R.string.close_drawer) {
+		val drawerIndicatorV = new TypedValue
+		getTheme.resolveAttribute(R.attr.homeAsUpIndicator, drawerIndicatorV, true)
+		drawerToggle = new ActionBarDrawerToggle(this, drawerLayout, drawerIndicatorV.resourceId, R.string.open_drawer, R.string.close_drawer) {
 			override def onDrawerOpened(drawerView: View) {
 				actionBar.setTitle(R.string.app_name)
 				supportInvalidateOptionsMenu()
