@@ -102,5 +102,9 @@
 		<uses-permission android:name="com.example.mapdemo.permission.MAPS_RECEIVE"/>
 		<uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES"/>
 		<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-		<uses-feature android:glEsVersion="0x00020000" android:required="false"/>
+
+		<!-- Google Play doesn't replace old version which requires only OpenGL ES 1
+		     with new version even if you set 'required' to 'false'. So I have just
+		     commented this declaration and check OpenGL version in code. -->
+		<!--uses-feature android:glEsVersion="0x00020000" android:required="false"/-->
 </manifest>
