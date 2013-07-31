@@ -118,6 +118,7 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 	var tabsOrder: Seq[core.VehicleType.Value] = null
 	var tabFragmentsMap: mutable.Map[VehicleType.Value, RoutesListFragment] = mutable.Map()
 	var tabsView: ScrollingTabContainerView = null
+	var selectedTabIndex: Int = 0
 
 	protected val layoutResource = R.layout.route_list_base_activity
 
@@ -166,7 +167,7 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 			val icon = vehicleTypeDrawables(vehicleType)
 
 			val tab = actionBar.newTab.setIcon(icon)
-			tabsView.addTab(tab, false)
+			tabsView.addTab(tab, i == selectedTabIndex)
 
 			// HACK: ScrollingTabContainerView doesn't have way to listen for tab selection event,
 			// all it does is calls tab.select(), but it doesn't work because tabs are not added
@@ -175,6 +176,7 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 			tabsView.getChildAt(0).asInstanceOf[LinearLayout].getChildAt(i).setOnClickListener(new OnClickListener {
 				def onClick(v: View) {
 					tabPager.setCurrentItem(i)
+					selectedTabIndex = i
 				}
 			})
 		}
@@ -200,8 +202,11 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 	}
 
 	protected def setSelectedTab(idx: Int) {
+		selectedTabIndex = idx
 		tabsView.setTabSelected(idx)
 	}
+
+	protected def getSelectedTab: Int = selectedTabIndex
 
 	def updateRoutesList() {
 		tabFragmentsMap.values.foreach { _.refresh() }
