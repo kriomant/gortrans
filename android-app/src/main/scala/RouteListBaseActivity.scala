@@ -133,7 +133,6 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 		// which is ugly. So instead of using action bar navigation own tabs view is placed below
 		// action bar.
 		tabsView = new ScrollingTabContainerView(actionBar.getThemedContext)
-		tabsView.setAllowCollapse(false) // Prevent collapsing to dropdown list.
 
 		// Set tabs height the same as action bar's height. This is what ActionBarSherlock does.
 		val tv = new TypedValue
@@ -141,9 +140,15 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 		val actionBarHeight = TypedValue.complexToDimensionPixelSize(tv.data, getResources.getDisplayMetrics)
 		tabsView.setContentHeight(actionBarHeight)
 
-		// Insert at the very top.
-		val layoutParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-		findView(TR.routes_content).addView(tabsView, 0, layoutParams)
+		if (getResources.getBoolean(R.bool.abs__action_bar_embed_tabs)) {
+			actionBar.setCustomView(tabsView)
+			actionBar.setDisplayShowCustomEnabled(true)
+		} else {
+			// Insert at the very top.
+			val layoutParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+			findView(TR.routes_content).addView(tabsView, 0, layoutParams)
+			tabsView.setAllowCollapse(false) // Prevent collapsing to dropdown list.
+		}
 
 		val vehicleTypeDrawables = Map(
 			VehicleType.Bus -> R.drawable.tab_bus,
