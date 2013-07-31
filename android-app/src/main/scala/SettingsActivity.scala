@@ -5,6 +5,7 @@ import android.content.{Context, Intent}
 import android.os.Bundle
 import android.preference.CheckBoxPreference
 import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
+import android.app.ActivityManager
 
 object SettingsActivity {
 	def createIntent(caller: Context): Intent = {
@@ -14,8 +15,17 @@ object SettingsActivity {
 	final val KEY_USE_NEW_MAP = "use_new_map"
 
 	def isNewMapAvailable(context: Context): Boolean = {
-		val status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(context)
-		status == ConnectionResult.SUCCESS || GooglePlayServicesUtil.isUserRecoverableError(status)
+		val openGlEs2Available = {
+			val manager = context.getSystemService(Context.ACTIVITY_SERVICE).asInstanceOf[ActivityManager]
+			manager.getDeviceConfigurationInfo.reqGlEsVersion >= 0x20000
+		}
+
+		def googlePlayServicesAvailable = {
+			val status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(context)
+			status == ConnectionResult.SUCCESS || GooglePlayServicesUtil.isUserRecoverableError(status)
+		}
+
+		openGlEs2Available && googlePlayServicesAvailable
 	}
 }
 
