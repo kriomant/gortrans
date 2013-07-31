@@ -17,6 +17,101 @@ import com.actionbarsherlock.internal.widget.ScrollingTabContainerView
 import android.util.TypedValue
 import android.view.View.OnClickListener
 
+object RouteListBaseActivity {
+	val routeRenames = Map(
+		(VehicleType.Bus, "51л") -> "651л",
+		(VehicleType.Bus, "4") -> "1004",
+		(VehicleType.Bus, "10") -> "1011",
+		(VehicleType.Bus, "20") -> "1020э",
+		(VehicleType.Bus, "27") -> "1027",
+		(VehicleType.Bus, "29") -> "1029",
+		(VehicleType.Bus, "30") -> "1030",
+		(VehicleType.Bus, "30") -> "1030с",
+		(VehicleType.Bus, "34") -> "1034",
+		(VehicleType.Bus, "28") -> "1038",
+		(VehicleType.Bus, "42") -> "1042",
+		(VehicleType.Bus, "60") -> "1060",
+		(VehicleType.Bus, "64") -> "1064",
+		(VehicleType.Bus, "95") -> "1095",
+		(VehicleType.Bus, "96") -> "1096",
+		(VehicleType.Bus, "3") -> "1103",
+		(VehicleType.Bus, "9") -> "1109",
+		(VehicleType.Bus, "13") -> "1113",
+		(VehicleType.Bus, "19") -> "1119",
+		(VehicleType.Bus, "11") -> "1129",
+		(VehicleType.Bus, "31") -> "1131",
+		(VehicleType.Bus, "35") -> "1135",
+		(VehicleType.Bus, "57") -> "1137",
+		(VehicleType.Bus, "41") -> "1141",
+		(VehicleType.Bus, "5") -> "1150",
+		(VehicleType.Bus, "53") -> "1153",
+		(VehicleType.Bus, "59") -> "1159",
+		(VehicleType.Bus, "73") -> "1173",
+		(VehicleType.Bus, "79") -> "1179",
+		(VehicleType.Bus, "97") -> "1197",
+		(VehicleType.Bus, "98") -> "1198",
+		(VehicleType.Bus, "14") -> "1204",
+		(VehicleType.Bus, "18") -> "1208",
+		(VehicleType.Bus, "18к") -> "1208к",
+		(VehicleType.Bus, "22") -> "1209",
+		(VehicleType.Bus, "15") -> "1215",
+		(VehicleType.Bus, "71") -> "1231",
+		(VehicleType.Bus, "32") -> "1232",
+		(VehicleType.Bus, "39") -> "1239",
+		(VehicleType.Bus, "49") -> "1242",
+		(VehicleType.Bus, "43") -> "1243",
+		(VehicleType.Bus, "6") -> "1260",
+		(VehicleType.Bus, "1") -> "1301",
+		(VehicleType.Bus, "12") -> "1312",
+		(VehicleType.Bus, "24") -> "1324",
+		(VehicleType.Bus, "33") -> "1331",
+		(VehicleType.Bus, "37") -> "1337",
+		(VehicleType.Bus, "50") -> "1350",
+		(VehicleType.Bus, "44") -> "1444",
+		(VehicleType.Bus, "17л") -> "1717л",
+
+		(VehicleType.MiniBus, "9") -> "1009",
+		(VehicleType.MiniBus, "9а") -> "1009а",
+		(VehicleType.MiniBus, "12") -> "1012",
+		(VehicleType.MiniBus, "46") -> "1016",
+		(VehicleType.MiniBus, "28") -> "1028",
+		(VehicleType.MiniBus, "31") -> "1031",
+		(VehicleType.MiniBus, "5") -> "1045",
+		(VehicleType.MiniBus, "17") -> "1047",
+		(VehicleType.MiniBus, "48") -> "1048",
+		(VehicleType.MiniBus, "50") -> "1050",
+		(VehicleType.MiniBus, "53") -> "1053",
+		(VehicleType.MiniBus, "10") -> "1057",
+		(VehicleType.MiniBus, "62") -> "1062",
+		(VehicleType.MiniBus, "62а") -> "1062а",
+		(VehicleType.MiniBus, "64") -> "1068",
+		(VehicleType.MiniBus, "73") -> "1073",
+		(VehicleType.MiniBus, "91") -> "1091",
+		(VehicleType.MiniBus, "24") -> "1104",
+		(VehicleType.MiniBus, "7") -> "1107",
+		(VehicleType.MiniBus, "17а") -> "1117",
+		(VehicleType.MiniBus, "8") -> "1118",
+		(VehicleType.MiniBus, "25") -> "1125",
+		(VehicleType.MiniBus, "11") -> "1128",
+		(VehicleType.MiniBus, "30") -> "1130",
+		(VehicleType.MiniBus, "42") -> "1142",
+		(VehicleType.MiniBus, "88") -> "1148",
+		(VehicleType.MiniBus, "52") -> "1152",
+		(VehicleType.MiniBus, "86") -> "1186",
+		(VehicleType.MiniBus, "87") -> "1187",
+		(VehicleType.MiniBus, "72") -> "1202",
+		(VehicleType.MiniBus, "32") -> "1212",
+		(VehicleType.MiniBus, "43") -> "1223",
+		(VehicleType.MiniBus, "34") -> "1234",
+		(VehicleType.MiniBus, "35") -> "1235",
+		(VehicleType.MiniBus, "49") -> "1244",
+		(VehicleType.MiniBus, "51") -> "1251",
+		(VehicleType.MiniBus, "55") -> "1255",
+		(VehicleType.MiniBus, "57") -> "1257",
+		(VehicleType.MiniBus, "21") -> "1321",
+		(VehicleType.MiniBus, "22") -> "1444а"
+	)
+}
 class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity with TypedActivity {
 	private[this] final val TAG = classOf[RouteListBaseActivity].getSimpleName
 
@@ -173,16 +268,22 @@ class RoutesListFragment extends ListFragment {
 		{
 			val context = getActivity
 			val itemLayout = R.layout.routes_list_item
-			case class SubViews(number: TextView, begin: TextView, end: TextView)
+			case class SubViews(number: TextView, oldNumber: TextView, begin: TextView, end: TextView)
 
 			def findSubViews(view: View) = SubViews(
 				view.findViewById(R.id.route_name).asInstanceOf[TextView],
+				view.findViewById(R.id.route_old_name).asInstanceOf[TextView],
 				view.findViewById(R.id.start_stop_name).asInstanceOf[TextView],
 				view.findViewById(R.id.end_stop_name).asInstanceOf[TextView]
 			)
 
 			def adjustItem(cursor: Database.RoutesTable.Cursor, views: SubViews) {
+				val oldName =
+					RouteListBaseActivity.routeRenames.get((vehicleType, cursor.name))
+					.map("(%s)" format _)
+					.getOrElse("")
 				views.number.setText(cursor.name)
+				views.oldNumber.setText(oldName)
 				views.begin.setText(cursor.firstStopName)
 				views.end.setText(cursor.lastStopName)
 			}

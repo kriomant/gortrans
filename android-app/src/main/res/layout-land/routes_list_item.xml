@@ -15,6 +15,14 @@
 		android:textAppearance="?android:attr/textAppearanceMedium"
 	/>
 	<TextView
+		android:id="@+id/route_old_name"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:minWidth="65sp"
+		android:textColor="?android:textColorSecondary"
+		android:textAppearance="?android:attr/textAppearanceSmall"
+		/>
+	<TextView
 		android:id="@+id/start_stop_name"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
