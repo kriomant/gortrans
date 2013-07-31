@@ -22,6 +22,9 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
 	var drawer: View = null
 	var drawerToggle: ActionBarDrawerToggle = null
 
+	protected def onDrawerOpened() {}
+	protected def onDrawerClosed() {}
+
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
 	}
@@ -51,11 +54,13 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
 			override def onDrawerOpened(drawerView: View) {
 				actionBar.setTitle(R.string.app_name)
 				supportInvalidateOptionsMenu()
+				HavingSidebar.this.onDrawerOpened()
 			}
 
 			override def onDrawerClosed(drawerView: View) {
 				actionBar.setTitle(title)
 				supportInvalidateOptionsMenu()
+				HavingSidebar.this.onDrawerClosed()
 			}
 		}
 		drawerLayout.setDrawerListener(drawerToggle)

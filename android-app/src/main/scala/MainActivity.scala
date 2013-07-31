@@ -25,7 +25,15 @@ object MainActivity {
 	}
 }
 
-class MainActivity extends MainActivityBase with HavingSidebar
+class MainActivity extends MainActivityBase with HavingSidebar {
+	override protected def onDrawerClosed() {
+		if (tabsAreEmbedded) tabsView.setVisibility(View.VISIBLE)
+	}
+
+	override protected def onDrawerOpened() {
+		if (tabsAreEmbedded) tabsView.setVisibility(View.INVISIBLE)
+	}
+}
 
 class MainActivityBase extends RouteListBaseActivity with CreateGroupDialog.Listener {
 	import MainActivity._

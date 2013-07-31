@@ -122,6 +122,8 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 
 	protected val layoutResource = R.layout.route_list_base_activity
 
+	protected def tabsAreEmbedded: Boolean = getResources.getBoolean(R.bool.abs__action_bar_embed_tabs)
+
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
 
@@ -141,7 +143,7 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 		val actionBarHeight = TypedValue.complexToDimensionPixelSize(tv.data, getResources.getDisplayMetrics)
 		tabsView.setContentHeight(actionBarHeight)
 
-		if (getResources.getBoolean(R.bool.abs__action_bar_embed_tabs)) {
+		if (tabsAreEmbedded) {
 			actionBar.setCustomView(tabsView)
 			actionBar.setDisplayShowCustomEnabled(true)
 		} else {
