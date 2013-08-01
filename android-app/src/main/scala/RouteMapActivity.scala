@@ -25,6 +25,7 @@ import scala.Some
 import scala.collection.JavaConverters.asJavaCollectionConverter
 import android.preference.PreferenceManager
 import android.app.AlertDialog
+import android.view.ViewTreeObserver.OnGlobalLayoutListener
 
 object RouteMapActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
@@ -84,6 +85,15 @@ class RouteMapActivity extends SherlockMapActivity
 			newMapNotice.setOnClickListener(new OnClickListener {
 				def onClick(v: View) {
 					showDialog(DIALOG_NEW_MAP_NOTICE)
+				}
+			})
+		}
+
+		if (! hasOldState) {
+			mapView.getViewTreeObserver.addOnGlobalLayoutListener(new OnGlobalLayoutListener {
+				def onGlobalLayout() {
+					mapView.getViewTreeObserver.removeGlobalOnLayoutListener(this)
+					showWholeRoutes()
 				}
 			})
 		}

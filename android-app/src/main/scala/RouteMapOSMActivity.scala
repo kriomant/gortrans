@@ -24,10 +24,12 @@ import android.preference.PreferenceManager
 import android.app.AlertDialog
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.{OverlayItem, ItemizedOverlay, Overlay}
-import org.osmdroid.util.GeoPoint
+import org.osmdroid.util.{BoundingBoxE6, GeoPoint}
 import org.osmdroid.DefaultResourceProxyImpl
 import org.osmdroid.api.IMapView
 import org.osmdroid.views.overlay.OverlayItem.HotspotPlace
+import android.view.ViewTreeObserver.OnGlobalLayoutListener
+import utils.functionAsRunnable
 
 object RouteMapOSMActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapOSMActivity].getName
@@ -93,6 +95,25 @@ class RouteMapOSMActivity extends SherlockActivity
 				}
 			})
 		}
+
+		if (! hasOldState) {
+			mapView.getViewTreeObserver.addOnGlobalLayoutListener(new OnGlobalLayoutListener {
+				def onGlobalLayout() {
+					mapView.getViewTreeObserver.removeGlobalOnLayoutListener(this)
+
+					runOnUiThread { () =>
+						showWholeRoutes()
+					}
+				}
+			})
+		}
+	}
+
+
+	override def onPostCreate(savedInstanceState: Bundle) {
+		super.onPostCreate(savedInstanceState)
+
+		showWholeRoutes()
 	}
 
 	override def onNewIntent(intent: Intent) {
@@ -209,14 +230,19 @@ class RouteMapOSMActivity extends SherlockActivity
 
 	def navigateTo(left: Double, top: Double, right: Double, bottom: Double) {
 		val ctrl = mapView.getController
-		ctrl.animateTo(new GeoPoint(((bottom + top)/2 * 1e6).toInt, ((left + right)/2 * 1e6).toInt))
-		ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
+		// zoom before centering: http://code.google.com/p/osmdroid/issues/detail?id=204
+		//ctrl.setZoom(13)
+		//ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
+		//ctrl.animateTo(new GeoPoint(((bottom + top)/2 * 1e6).toInt, ((left + right)/2 * 1e6).toInt))
+		mapView.zoomToBoundingBox(new BoundingBoxE6(top, right, bottom, left))
 	}
 
 
 	def navigateTo(latitude: Double, longitude: Double) {
 		val ctrl = mapView.getController
-		ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
+		// animateTo doesn't work: http://code.google.com/p/osmdroid/issues/detail?id=278
+		//ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
+		ctrl.setCenter(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
 	}
 
 	def setTitle(title: String) {
