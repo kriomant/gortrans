@@ -3,17 +3,14 @@ package net.kriomant.gortrans
 import android.util.Log
 import android.content.res.Resources
 import java.lang.Math
-import android.widget.CompoundButton.OnCheckedChangeListener
-import utils.functionAsRunnable
 import android.os.Bundle
-import com.google.android.maps._
 import net.kriomant.gortrans.parsing.{VehicleSchedule, VehicleInfo, RoutePoint}
 import android.widget._
 import android.content.{DialogInterface, Context, Intent}
 import android.location.{Location}
-import android.view.{LayoutInflater, ViewGroup, View}
+import android.view.{MotionEvent, LayoutInflater, ViewGroup, View}
 import android.view.View.{MeasureSpec, OnClickListener}
-import com.actionbarsherlock.app.SherlockMapActivity
+import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.{MenuItem, Window}
 import android.graphics._
 import drawable.{NinePatchDrawable, Drawable}
@@ -25,22 +22,29 @@ import scala.Some
 import scala.collection.JavaConverters.asJavaCollectionConverter
 import android.preference.PreferenceManager
 import android.app.AlertDialog
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.{OverlayItem, ItemizedOverlay, Overlay}
+import org.osmdroid.util.{BoundingBoxE6, GeoPoint}
+import org.osmdroid.DefaultResourceProxyImpl
+import org.osmdroid.api.IMapView
+import org.osmdroid.views.overlay.OverlayItem.HotspotPlace
 import android.view.ViewTreeObserver.OnGlobalLayoutListener
+import utils.functionAsRunnable
 
-object RouteMapActivity {
-	private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
+object RouteMapOSMActivity {
+	private[this] val CLASS_NAME = classOf[RouteMapOSMActivity].getName
 	final val TAG = CLASS_NAME
 
 	private val DIALOG_NEW_MAP_NOTICE = 1
 }
 
-class RouteMapActivity extends SherlockMapActivity
+class RouteMapOSMActivity extends SherlockActivity
 	with RouteMapLike
 	with TypedActivity
-	with MapShortcutTarget {
+	with ShortcutTarget {
 
 	import RouteMapLike._
-	import RouteMapActivity._
+	import RouteMapOSMActivity._
 
 	private[this] var mapView: MapView = null
 	private[this] var newMapNotice: View = null
@@ -49,17 +53,16 @@ class RouteMapActivity extends SherlockMapActivity
 	// updated on new intent or updated route data only and
 	// volatile which are frequently updated, like vehicles.
 	// At first constant:
-	var routeStopNameOverlayManager: RouteStopNameOverlayManager = null
+	var routeStopNameOverlayManager: RouteStopNameOverlayManagerOSM = null
 	var constantOverlays: mutable.Buffer[Overlay] = mutable.Buffer()
 	// Now volatile ones:
-  var vehiclesOverlay: VehiclesOverlay = null
-	var locationOverlay: Overlay = null
+  var vehiclesOverlay: VehiclesOverlayOSM = null
+	///var locationOverlay: Overlay = null
 	var realVehicleLocationOverlays: Seq[Overlay] = Seq()
 
-	var balloonController: MapBalloonController = null
+	var balloonController: MapBalloonControllerOSM = null
 
 	def isRouteDisplayed = false
-	override def isLocationDisplayed = false
 
 	override def onCreate(bundle: Bundle) {
 		super.onCreate(bundle)
@@ -68,14 +71,18 @@ class RouteMapActivity extends SherlockMapActivity
     requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
 		setSupportProgressBarIndeterminateVisibility(false)
 
-		setContentView(R.layout.route_map)
-		mapView = findView(TR.route_map_view)
+		setContentView(R.layout.route_map_osm)
+		mapView = findView(TR.route_map_osm_view)
 		mapView.setBuiltInZoomControls(true)
-		mapView.setSatellite(false)
+		mapView.setMultiTouchControls(true)
 
-		balloonController = new MapBalloonController(this, mapView)
-		vehiclesOverlay = new VehiclesOverlay(this, getResources, balloonController)
-		routeStopNameOverlayManager = new RouteStopNameOverlayManager(getResources)
+		// I have problem with "safe canvas": saveLayerAlpha doesn't change
+		// save count, so corresponding call to restore fails with "Underflow in restore"
+		//mapView.setUseSafeCanvas(false)
+
+		balloonController = new MapBalloonControllerOSM(this, mapView)
+		vehiclesOverlay = new VehiclesOverlayOSM(this, getResources, balloonController)
+		routeStopNameOverlayManager = new RouteStopNameOverlayManagerOSM(getResources)
 
 		newMapNotice = findView(TR.new_map_notice)
 
@@ -93,10 +100,20 @@ class RouteMapActivity extends SherlockMapActivity
 			mapView.getViewTreeObserver.addOnGlobalLayoutListener(new OnGlobalLayoutListener {
 				def onGlobalLayout() {
 					mapView.getViewTreeObserver.removeGlobalOnLayoutListener(this)
-					showWholeRoutes()
+
+					runOnUiThread { () =>
+						showWholeRoutes()
+					}
 				}
 			})
 		}
+	}
+
+
+	override def onPostCreate(savedInstanceState: Bundle) {
+		super.onPostCreate(savedInstanceState)
+
+		showWholeRoutes()
 	}
 
 	override def onNewIntent(intent: Intent) {
@@ -107,7 +124,7 @@ class RouteMapActivity extends SherlockMapActivity
 	}
 
 	def removeAllRouteOverlays() {
-		constantOverlays.clear()
+		///constantOverlays.clear()
 	}
 
 	def createRouteOverlays(routeInfo: core.Route, routeParams: RouteInfo) {
@@ -118,21 +135,23 @@ class RouteMapActivity extends SherlockMapActivity
 
 		val stopOverlayManager = routeStopNameOverlayManager
 		val stopNameOverlays: Iterator[Overlay] = newStopNames.iterator map { case (pos, name) =>
-			new stopOverlayManager.RouteStopNameOverlay(name, routePointToGeoPoint(pos))
+			new stopOverlayManager.RouteStopNameOverlay(this, name, routePointToGeoPoint(pos))
 		}
 
 		val knownStops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
 		val newStops = routeParams.stops &~ knownStops
 		val stopOverlays: Iterator[Overlay] = newStops.iterator map { case (point, name) =>
-			new RouteStopOverlay(getResources, routePointToGeoPoint(point))
+			new RouteStopOverlayOSM(this, getResources, routePointToGeoPoint(point))
 		}
 
 		// Add route markers.
-		val forwardRouteOverlay: Overlay = new RouteOverlay(
+		val forwardRouteOverlay: Overlay = new RouteOverlayOSM(
+			this,
 			getResources, getResources.getColor(R.color.forward_route),
 			routeParams.forwardRoutePoints map routePointToGeoPoint
 		)
-		val backwardRouteOverlay: Overlay = new RouteOverlay(
+		val backwardRouteOverlay: Overlay = new RouteOverlayOSM(
+			this,
 			getResources, getResources.getColor(R.color.backward_route),
 			routeParams.backwardRoutePoints map routePointToGeoPoint
 		)
@@ -146,7 +165,7 @@ class RouteMapActivity extends SherlockMapActivity
 	}
 
   def updateOverlays() {
-    Log.d("RouteMapActivity", "updateOverlays")
+    Log.d("RouteMapOSMActivity", "updateOverlays")
 
     val overlays = mapView.getOverlays
     overlays.clear()
@@ -157,8 +176,8 @@ class RouteMapActivity extends SherlockMapActivity
     overlays.add(vehiclesOverlay)
 	  for (o <- realVehicleLocationOverlays)
 		  overlays.add(o)
-	  if (locationOverlay != null)
-		  overlays.add(locationOverlay)
+	  /*if (locationOverlay != null)
+		  overlays.add(locationOverlay)*/
 
 	  overlays.add(balloonController.closeBalloonOverlay)
 
@@ -207,18 +226,23 @@ class RouteMapActivity extends SherlockMapActivity
 	}
 
 
-	def createProcessIndicator() = new MapActionBarProcessIndicator(this)
+	def createProcessIndicator() = new ActionBarProcessIndicator(this)
 
 	def navigateTo(left: Double, top: Double, right: Double, bottom: Double) {
 		val ctrl = mapView.getController
-		ctrl.animateTo(new GeoPoint(((bottom + top)/2 * 1e6).toInt, ((left + right)/2 * 1e6).toInt))
-		ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
+		// zoom before centering: http://code.google.com/p/osmdroid/issues/detail?id=204
+		//ctrl.setZoom(13)
+		//ctrl.zoomToSpan(((bottom - top) * 1e6).toInt, ((right - left) * 1e6).toInt)
+		//ctrl.animateTo(new GeoPoint(((bottom + top)/2 * 1e6).toInt, ((left + right)/2 * 1e6).toInt))
+		mapView.zoomToBoundingBox(new BoundingBoxE6(top, right, bottom, left))
 	}
 
 
 	def navigateTo(latitude: Double, longitude: Double) {
 		val ctrl = mapView.getController
-		ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
+		// animateTo doesn't work: http://code.google.com/p/osmdroid/issues/detail?id=278
+		//ctrl.animateTo(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
+		ctrl.setCenter(new GeoPoint((latitude * 1e6).toInt, (longitude * 1e6).toInt))
 	}
 
 	def setTitle(title: String) {
@@ -241,53 +265,31 @@ class RouteMapActivity extends SherlockMapActivity
 
 	def setVehicles(vehicles: Seq[(VehicleInfo, geometry.Point, Option[Double], Int)]) {
 		realVehicleLocationOverlays = vehicles map { case (info, pos, angle, color) =>
-			new RealVehicleLocationOverlay(pos, Pt(info.longitude, info.latitude))
+			new RealVehicleLocationOverlayOSM(this, pos, Pt(info.longitude, info.latitude))
 		}
 		updateOverlays()
 	}
 
-	def setLocationMarker(location: Location) {
+	def setLocationMarker(location: Location) {/*
 		if (location != null) {
 			val point = new GeoPoint((location.getLatitude * 1e6).toInt, (location.getLongitude * 1e6).toInt)
 			val drawable = getResources.getDrawable(R.drawable.location_marker)
-			locationOverlay = new MarkerOverlay(drawable, point, new PointF(0.5f, 0.5f))
+			locationOverlay = new MarkerOverlayOSM(this, drawable, point, new PointF(0.5f, 0.5f))
 		} else {
 			locationOverlay = null
 		}
 		updateOverlays()
-	}
+	*/}
 
 	override def onCreateDialog(id: Int) = {
 		id match {
 			case DIALOG_NEW_MAP_NOTICE =>
 				new AlertDialog.Builder(this)
-					.setTitle(R.string.new_map_dialog_title)
-					.setMessage(R.string.new_map_dialog_message)
-					.setPositiveButton(R.string.new_map_try_button, new DialogInterface.OnClickListener {
+					.setTitle(R.string.osm_map_dialog_title)
+					.setMessage(R.string.osm_map_dialog_message)
+					.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener {
 						def onClick(dialog: DialogInterface, which: Int) {
-							PreferenceManager.getDefaultSharedPreferences(RouteMapActivity.this)
-								.edit()
-								.putBoolean(SettingsActivity.KEY_USE_NEW_MAP, true)
-								.commit()
-
-							// Redirect to new maps.
-							val intent = getIntent
-							intent.setClass(RouteMapActivity.this, classOf[RouteMapV2Activity])
-							intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-							startActivity(intent)
-
-							finish()
-						}
-					})
-					.setNegativeButton(R.string.new_map_reject_button, new DialogInterface.OnClickListener {
-						def onClick(dialog: DialogInterface, which: Int) {
-							PreferenceManager.getDefaultSharedPreferences(RouteMapActivity.this)
-								.edit()
-								.putBoolean(SettingsActivity.KEY_USE_NEW_MAP, false)
-								.commit()
-
-							newMapNotice.setVisibility(View.GONE)
-							removeDialog(DIALOG_NEW_MAP_NOTICE)
+							dismissDialog(DIALOG_NEW_MAP_NOTICE)
 						}
 					})
 					.create()
@@ -298,7 +300,7 @@ class RouteMapActivity extends SherlockMapActivity
 	def routePointToGeoPoint(p: Pt): GeoPoint = new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
 }
 
-class MarkerOverlay(drawable: Drawable, location: GeoPoint, anchorPosition: PointF) extends Overlay {
+class MarkerOverlayOSM(context: Context, drawable: Drawable, location: GeoPoint, anchorPosition: PointF) extends Overlay(context) {
 	val offset = new Point(
 		-(drawable.getIntrinsicWidth  * anchorPosition.x).toInt,
 		-(drawable.getIntrinsicHeight * anchorPosition.y).toInt
@@ -320,7 +322,7 @@ class MarkerOverlay(drawable: Drawable, location: GeoPoint, anchorPosition: Poin
 	}
 }
 
-class RouteOverlay(resources: Resources, color: Int, geoPoints: Seq[GeoPoint]) extends Overlay {
+class RouteOverlayOSM(context: Context, resources: Resources, color: Int, geoPoints: Seq[GeoPoint]) extends Overlay(context) {
 	// Place here to avoid path allocation on each drawing.
 	val path = new Path
 	path.incReserve(geoPoints.length+1)
@@ -357,7 +359,7 @@ class RouteOverlay(resources: Resources, color: Int, geoPoints: Seq[GeoPoint]) e
 	}
 }
 
-class RouteStopOverlay(resources: Resources, geoPoint: GeoPoint) extends Overlay {
+class RouteStopOverlayOSM(context: Context, resources: Resources, geoPoint: GeoPoint) extends Overlay(context) {
 	val img = BitmapFactory.decodeResource(resources, R.drawable.route_stop_marker)
 	val imgSmall = BitmapFactory.decodeResource(resources, R.drawable.route_stop_marker_small)
 
@@ -379,7 +381,7 @@ class RouteStopOverlay(resources: Resources, geoPoint: GeoPoint) extends Overlay
 	}
 }
 
-class RouteStopNameOverlayManager(resources: Resources) {
+class RouteStopNameOverlayManagerOSM(resources: Resources) {
 	private val frame = resources.getDrawable(R.drawable.stop_name_frame).asInstanceOf[NinePatchDrawable]
 
 	private val framePadding = new Rect
@@ -394,7 +396,7 @@ class RouteStopNameOverlayManager(resources: Resources) {
 	private val point = new Point
 	private val bounds = new Rect
 
-	class RouteStopNameOverlay(name: String, geoPoint: GeoPoint) extends Overlay {
+	class RouteStopNameOverlay(context: Context, name: String, geoPoint: GeoPoint) extends Overlay(context) {
 		final val X_OFFSET = 15
 		final val Y_OFFSET = 5
 
@@ -427,7 +429,7 @@ class RouteStopNameOverlayManager(resources: Resources) {
 
 // VehiclesOverlay shows vehicle locations snapped to route. This overlay
 // is used to show real vehicle location.
-class RealVehicleLocationOverlay(snapped: Pt, real: Pt) extends Overlay {
+class RealVehicleLocationOverlayOSM(context: Context, snapped: Pt, real: Pt) extends Overlay(context) {
 	override def draw(canvas: Canvas, view: MapView, shadow: Boolean) {
 		if (! shadow) {
 			val realPoint = new Point
@@ -442,15 +444,17 @@ class RealVehicleLocationOverlay(snapped: Pt, real: Pt) extends Overlay {
 	}
 }
 
-class MapBalloonController(context: Context, mapView: MapView) {
+class MapBalloonControllerOSM(context: Context, mapView: MapView) {
 	import utils.functionAsRunnable
 
-	val closeBalloonOverlay = new Overlay {
-		override def onTap(p1: GeoPoint, p2: MapView): Boolean = {
+	val closeBalloonOverlay = new Overlay(context) {
+		override def onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean = {
 			if (balloon != null)
 				hideBalloon()
 			false
 		}
+
+		def draw(p1: Canvas, p2: MapView, p3: Boolean) {}
 	}
 
 	def inflateView(layoutResourceId: Int): View = {
@@ -466,7 +470,7 @@ class MapBalloonController(context: Context, mapView: MapView) {
 
 		val layoutParams = new MapView.LayoutParams(
 			ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-			at, MapView.LayoutParams.BOTTOM_CENTER
+			at, MapView.LayoutParams.BOTTOM_CENTER, 0, 0
 		)
 		view.setLayoutParams(layoutParams.asInstanceOf[ViewGroup.LayoutParams])
 
@@ -480,11 +484,11 @@ class MapBalloonController(context: Context, mapView: MapView) {
 			MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
 		)
 
-		balloon.post { () =>
+		/*balloon.post { () =>
 			if (balloon != null) {
 				ensureBalloonIsFullyVisible()
 			}
-		}
+		}*/
 	}
 
 	def isViewShown(view: View): Boolean = (view eq balloon)
@@ -510,20 +514,20 @@ class MapBalloonController(context: Context, mapView: MapView) {
 		mapView.getProjection.toPixels(geoCenter, pt)
 
 		// Correct center coordinates to make balloon fully visible.
-		if (balloon.getLeft < 0) {
-			pt.x += balloon.getLeft
+		if (balloon.getLeft < mapView.getLeft) {
+			pt.x -= mapView.getLeft - balloon.getLeft
 		}
-		if (balloon.getTop < 0) {
-			pt.y += balloon.getTop
+		if (balloon.getTop < mapView.getTop) {
+			pt.y -= mapView.getTop - balloon.getTop
 		}
 
 		// Make bottom and right edges visible, but left and top edges have
 		// priority - don't hide them.
-		if (balloon.getRight > mapView.getWidth) {
-			pt.x += Math.min(balloon.getLeft, balloon.getRight - mapView.getWidth)
+		if (balloon.getRight > mapView.getRight) {
+			pt.x += Math.min(balloon.getLeft - mapView.getLeft, balloon.getRight - mapView.getRight)
 		}
-		if (balloon.getBottom > mapView.getHeight) {
-			pt.y += Math.min(balloon.getTop, balloon.getBottom - mapView.getHeight)
+		if (balloon.getBottom > mapView.getBottom) {
+			pt.y += Math.min(balloon.getTop - mapView.getTop, balloon.getBottom - mapView.getBottom)
 		}
 
 		// Animate map scroll.
@@ -533,131 +537,13 @@ class MapBalloonController(context: Context, mapView: MapView) {
 	private[this] var balloon: View = null
 }
 
-object VehicleMarker {
-	case class ConstantState(
-		back: Drawable, front: Drawable, arrow: Drawable,
-		angle: Option[Float], color: Int
-	) extends Drawable.ConstantState {
-		// VehicleMarker uses color filters to colorize some drawables and
-		// color filter is part of constant state and is shared between
-		// drawables, so they are needed to be mutated.
-		def this(resources: Resources, angle: Option[Float], color: Int) = this(
-			resources.getDrawable(R.drawable.vehicle_marker_back).mutate(),
-			resources.getDrawable(R.drawable.vehicle_marker_front),
-			resources.getDrawable(R.drawable.vehicle_marker_arrow).mutate(),
-			angle, color
-		)
-
-		back.setColorFilter(new LightingColorFilter(Color.BLACK, color))
-		arrow.setColorFilter(new LightingColorFilter(Color.BLACK, color))
-
-		val frontInsets = {
-			val diff = back.getIntrinsicWidth - front.getIntrinsicWidth
-			val offset = diff / 2
-			new Rect(offset, offset, diff - offset, back.getIntrinsicHeight - front.getIntrinsicHeight - offset)
-		}
-
-		def newDrawable(): Drawable = new VehicleMarker(new ConstantState(
-			back.getConstantState.newDrawable(),
-			front.getConstantState.newDrawable(),
-			arrow.getConstantState.newDrawable(),
-			angle, color
-		))
-
-		override def newDrawable(res: Resources): Drawable = new VehicleMarker(new ConstantState(
-			back.getConstantState.newDrawable(res),
-			front.getConstantState.newDrawable(res),
-			arrow.getConstantState.newDrawable(res),
-			angle, color
-		))
-
-		def getChangingConfigurations: Int =
-			back.getChangingConfigurations |
-			front.getChangingConfigurations |
-			arrow.getChangingConfigurations
-	}
-}
-class VehicleMarker private (state: VehicleMarker.ConstantState) extends Drawable {
-	def this(resources: Resources, angle: Option[Float], color: Int) =
-		this(new VehicleMarker.ConstantState(resources, angle, color))
-
-	def draw(canvas: Canvas) {
-		val bounds = getBounds
-		canvas.saveLayerAlpha(bounds.left, bounds.top, bounds.right, bounds.bottom, _alpha, Canvas.HAS_ALPHA_LAYER_SAVE_FLAG)
-		state.back.draw(canvas)
-		if (state.front.isVisible)
-			state.front.draw(canvas)
-
-		if (state.arrow.isVisible) {
-			state.angle map { a =>
-				canvas.save(Canvas.MATRIX_SAVE_FLAG)
-				val arrowBounds = state.arrow.getBounds
-				canvas.rotate(-a, (arrowBounds.left + arrowBounds.right) / 2.0f, (arrowBounds.top + arrowBounds.bottom) / 2.0f)
-				state.arrow.draw(canvas)
-				canvas.restore()
-			}
-		}
-
-		canvas.restore()
-	}
-
-	var _alpha: Int = 255
-
-	def setAlpha(alpha: Int) {
-		_alpha = alpha
-	}
-
-	/** Set color filter.
-	  *
-	  * This method should apply color filter to whole drawable, but it doesn't
-	  * do it exactly. This drawable is composite and uses color filter on inner drawables
-	  * to colorize them. Ideally I should compose inner and provided color filters,
-	  * but Android platform doesn't provide such capability.
-	  *
-	  * So this method is designed to work with ItemizedOverlay which uses color
-	  * filter to draw shadows.
-	  */
-	def setColorFilter(cf: ColorFilter) {
-		if (cf != null) {
-			state.back.setColorFilter(cf)
-			state.front.setVisible(false, false)
-			state.arrow.setVisible(false, false)
-		} else {
-			state.back.setColorFilter(new LightingColorFilter(Color.BLACK, state.color))
-			state.front.setVisible(true, false)
-			state.arrow.setVisible(true, false)
-		}
-	}
-
-	def getOpacity: Int = PixelFormat.TRANSLUCENT
-
-	override def onBoundsChange(bounds: Rect) {
-		super.onBoundsChange(bounds)
-		state.back.setBounds(bounds)
-
-		val frontRect = new Rect(
-			bounds.left + state.frontInsets.left,
-			bounds.top + state.frontInsets.top,
-			bounds.right - state.frontInsets.right,
-			bounds.bottom - state.frontInsets.bottom
-		)
-		state.front.setBounds(frontRect)
-		state.arrow.setBounds(frontRect)
-	}
-
-	override def getIntrinsicWidth: Int = state.back.getIntrinsicWidth
-	override def getIntrinsicHeight: Int = state.back.getIntrinsicHeight
-
-	override def getConstantState = state
-
-	override def mutate(): Drawable = throw new Exception("not mutable")
-}
-
-class VehiclesOverlay(
-	context: RouteMapActivity, resources: Resources, balloonController: MapBalloonController
-) extends ItemizedOverlay[OverlayItem](null)
-{
-  def boundCenterBottom = ItemizedOverlayBridge.boundCenterBottom_(_)
+class VehiclesOverlayOSM(
+	context: RouteMapOSMActivity, resources: Resources, balloonController: MapBalloonControllerOSM
+) extends ItemizedOverlay[OverlayItem](
+	resources.getDrawable(R.drawable.vehicle_stopped_marker),
+	new DefaultResourceProxyImpl(context)
+) {
+  def boundCenterBottom(marker: Drawable) = boundToHotspot(marker, HotspotPlace.BOTTOM_CENTER)
 
 	val vehicleUnknown = resources.getDrawable(R.drawable.vehicle_stopped_marker)
 
@@ -701,14 +587,44 @@ class VehiclesOverlay(
 		  case None => vehicleUnknown
 	  }
     val geoPoint = new GeoPoint((point.y*1e6).toInt, (point.x*1e6).toInt)
-    val item = new OverlayItem(geoPoint, null, null)
+    val item = new OverlayItem(null, null, geoPoint)
 	  item.setMarker(boundCenterBottom(marker))
     item
   }
 
 	populate()
 
-	override def onTap(index: Int): Boolean = {
+	private def findItem(event: MotionEvent, mapView: MapView): Int = {
+		val pj = mapView.getProjection
+		val eventX = event.getX.toInt
+		val eventY = event.getY.toInt
+		val point = new Point
+		val itemPoint = new Point
+
+		/* These objects are created to avoid construct new ones every cycle. */
+		pj.fromMapPixels(eventX, eventY, point)
+
+		for (i <- 0 until size) {
+			val item = getItem(i)
+			val marker = item.getMarker(0)
+			pj.toPixels(item.getPoint(), itemPoint)
+
+			if (hitTest(item, marker, point.x - itemPoint.x, point.y - itemPoint.y)) {
+				return i
+			}
+		}
+
+		-1
+	}
+
+	override def onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean = {
+		val idx = findItem(e, mapView)
+		if (idx != -1)
+			onTap(idx)
+		idx != -1
+	}
+
+	/*override*/ def onTap(index: Int): Boolean = {
 		showBalloon(infos(index)._1, getItem(index))
 		true
 	}
@@ -736,5 +652,33 @@ class VehiclesOverlay(
 
 		balloonVehicle = (vehicleInfo.vehicleType, vehicleInfo.routeId, vehicleInfo.scheduleNr)
 		balloonController.showBalloon(balloon, item.getPoint)
+	}
+
+	def onSnapToItem(p1: Int, p2: Int, p3: Point, p4: IMapView): Boolean = false
+
+	// Markers on map are too big and poorly scaled due to bug http://code.google.com/p/osmdroid/issues/detail?id=331
+	// Bug is fixed, but after 3.0.8, so I override boundToHotspot to work around.
+	// The only change is removal of "* mScale", see http://code.google.com/p/osmdroid/source/detail?r=1099
+	protected override def boundToHotspot(marker: Drawable, hotspot: HotspotPlace): Drawable = synchronized {
+		val markerWidth = marker.getIntrinsicWidth
+		val markerHeight = marker.getIntrinsicHeight
+
+		val rect = new Rect
+		rect.set(0, 0, 0 + markerWidth, 0 + markerHeight)
+
+		hotspot match {
+			case HotspotPlace.CENTER => rect.offset(-markerWidth / 2, -markerHeight / 2)
+			case null | HotspotPlace.BOTTOM_CENTER => rect.offset(-markerWidth / 2, -markerHeight)
+			case HotspotPlace.TOP_CENTER =>  rect.offset(-markerWidth / 2, 0)
+			case HotspotPlace.RIGHT_CENTER =>  rect.offset(-markerWidth, -markerHeight / 2)
+			case HotspotPlace.LEFT_CENTER =>  rect.offset(0, -markerHeight / 2)
+			case HotspotPlace.UPPER_RIGHT_CORNER =>  rect.offset(-markerWidth, 0)
+			case HotspotPlace.LOWER_RIGHT_CORNER =>  rect.offset(-markerWidth, -markerHeight)
+			case HotspotPlace.UPPER_LEFT_CORNER =>  rect.offset(0, 0)
+			case HotspotPlace.LOWER_LEFT_CORNER =>  rect.offset(0, -markerHeight)
+		}
+		marker.setBounds(rect)
+
+		marker
 	}
 }

@@ -14,6 +14,10 @@ object SettingsActivity {
 
 	final val KEY_USE_NEW_MAP = "use_new_map"
 
+	def isOldGoogleMapAvailable(context: Context): Boolean = {
+		context.getPackageManager.getSystemSharedLibraryNames contains "com.google.android.maps"
+	}
+
 	def isNewMapAvailable(context: Context): Boolean = {
 		val openGlEs2Available = {
 			val manager = context.getSystemService(Context.ACTIVITY_SERVICE).asInstanceOf[ActivityManager]

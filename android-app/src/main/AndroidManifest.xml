@@ -61,6 +61,12 @@
 					</intent-filter>
 				</activity>
 
+				<activity android:name=".RouteMapOSMActivity">
+					<intent-filter>
+						<action android:name="android.intent.action.VIEW"/>
+					</intent-filter>
+				</activity>
+
 	      <activity android:name=".SearchActivity" android:label="@string/search_hint">
 		      <intent-filter>
 			      <action android:name="android.intent.action.SEARCH"/>

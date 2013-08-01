@@ -58,6 +58,13 @@
 		<string name="new_map_try_button">Попробовать</string>
 		<string name="new_map_reject_button">Не нужно</string>
 
+		<string name="osm_map_notice">Это экспериментальная карта OpenStreetMap</string>
+		<string name="osm_map_dialog_title">Карта OpenStreetMap</string>
+		<string name="osm_map_dialog_message">На вашем устройстве не обнаружены библиотеки карт Google, поэтому используются
+карты OpenStreetMap.\n\nВНИМАНИЕ! Это экспериментальная функция, она может работать неверно или приводить к сбоям,
+просьба не выставлять оценки, основываясь на работоспособности этих карт, пока работа над ними не будет закончена.
+\n\nВсе замечания и предложения принимаются в комментариях и в группе Google.</string>
+
 		<string name="create_shortcut">Создать ярлык</string>
 		<string name="shortcut_is_created">На домашнем экране создан ярлык «%1$s»</string>
 
