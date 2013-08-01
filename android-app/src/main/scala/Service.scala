@@ -5,6 +5,8 @@ import android.content.{Context, Intent}
 import android.support.v4.app.NotificationCompat
 import java.util
 import android.util.Log
+import java.net.{SocketTimeoutException, SocketException, ConnectException, UnknownHostException}
+import java.io.EOFException
 
 object Service {
 	private final val TAG = classOf[Service].getName
@@ -70,7 +72,21 @@ class Service extends IntentService("Service") {
 		val client = getApplication.asInstanceOf[CustomApplication].dataManager.client
 		val db = getApplication.asInstanceOf[CustomApplication].database
 
-		val news = parsing.parseNews(client.getNews())
+		val news = try {
+			parsing.parseNews(client.getNews())
+		} catch {
+			case ex @ (
+				_: UnknownHostException |
+				_: ConnectException |
+				_: SocketException |
+				_: EOFException |
+				_: SocketTimeoutException
+			) => {
+				Log.v(TAG, "Network failure during news fetching")
+				return
+			}
+		}
+
 		Log.d(TAG, "Loaded %d news" format news.size)
 		val loadedAt = new java.util.Date
 		val latestExternalId = db.loadLatestNewsStoryExternalId()
