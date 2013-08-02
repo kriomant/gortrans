@@ -72,6 +72,11 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
 				})
 				drawerLayout.closeDrawer(drawer)
 			}
+
+			def onSettingsSelected() {
+				drawerLayout.closeDrawer(drawer)
+				startActivity(SettingsActivity.createIntent(HavingSidebar.this))
+			}
 		})
 	}
 

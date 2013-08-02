@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.preference.CheckBoxPreference
 import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
 import android.app.ActivityManager
+import com.actionbarsherlock.view.MenuItem
 
 object SettingsActivity {
 	def createIntent(caller: Context): Intent = {
@@ -43,6 +44,18 @@ class SettingsActivity extends SherlockPreferenceActivity with BaseActivity {
 
 		val useNewMapPref = findPreference(KEY_USE_NEW_MAP).asInstanceOf[CheckBoxPreference]
 		useNewMapPref.setEnabled(isNewMapAvailable(this))
+
+		val actionBar = getSupportActionBar
+		actionBar.setDisplayShowHomeEnabled(true)
+		actionBar.setDisplayHomeAsUpEnabled(true)
+	}
+
+	override def onOptionsItemSelected(item: MenuItem) = item.getItemId match {
+		case android.R.id.home =>
+			finish()
+			true
+
+		case _ => super.onOptionsItemSelected(item)
 	}
 }
 

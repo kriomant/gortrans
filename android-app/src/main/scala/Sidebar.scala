@@ -9,6 +9,7 @@ import android.widget.AdapterView.OnItemClickListener
 object Sidebar {
 	trait SidebarListener {
 		def onItemSelected(intent: Intent)
+		def onSettingsSelected()
 	}
 
 	case class Entry(nameRes: Int, intent: Intent)
@@ -55,7 +56,7 @@ class Sidebar(activity: Activity, navigationDrawer: View, listener: Sidebar.Side
 	val settingsButton = navigationDrawer.findViewById(R.id.settings).asInstanceOf[ImageButton]
 	settingsButton.setOnClickListener(new View.OnClickListener {
 		def onClick(view: View) {
-			activity.startActivity(SettingsActivity.createIntent(activity))
+			listener.onSettingsSelected()
 		}
 	})
 }
