@@ -27,17 +27,6 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
-	}
-
-	override def onPrepareOptionsMenu(menu: Menu) = {
-		super.onPrepareOptionsMenu(menu)
-		val drawerOpen = drawerLayout.isDrawerOpen(drawer)
-		for (i <- 0 until menu.size) menu.getItem(i).setVisible(!drawerOpen)
-		true
-	}
-
-	protected override def onPostCreate(savedInstanceState: Bundle) {
-		super.onPostCreate(savedInstanceState)
 
 		val title = getTitle
 
@@ -84,6 +73,13 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
 				drawerLayout.closeDrawer(drawer)
 			}
 		})
+	}
+
+	override def onPrepareOptionsMenu(menu: Menu) = {
+		super.onPrepareOptionsMenu(menu)
+		val drawerOpen = drawerLayout.isDrawerOpen(drawer)
+		for (i <- 0 until menu.size) menu.getItem(i).setVisible(!drawerOpen)
+		true
 	}
 
 	override def onConfigurationChanged(newConfig: Configuration) {

@@ -41,7 +41,7 @@ class GroupsActivity extends GroupsActivityBase with HavingSidebar {
 
 }
 
-class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with TypedActivity with CreateGroupDialog.Listener with HavingSidebar {
+class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with TypedActivity with CreateGroupDialog.Listener {
 	private[this] var groupList: ListView = _
 
 	override def onCreate(savedInstanceState: Bundle) {
