@@ -16,7 +16,7 @@ object Database {
 	val TAG = getClass.getName
 
 	val NAME = "gortrans"
-	val VERSION = 6
+	val VERSION = 7
 
 	class Helper(context: Context) extends SQLiteOpenHelper(context, NAME, null, VERSION) {
 		def onCreate(db: SQLiteDatabase) {
@@ -234,6 +234,7 @@ object Database {
 
 		val ID_COLUMN = "_id"
 		val NAME_COLUMN = "name"
+		val CAMERA_POSITION_COLUMN = "cameraPosition"
 
 		val ALL_COLUMNS = Array(ID_COLUMN, NAME_COLUMN)
 
@@ -602,6 +603,19 @@ class Database(db: SQLiteDatabase) {
 			RouteGroupItemsTable.GROUP_ID_COLUMN formatted "%s=?", Array(groupId.toString)
 		)
 		routes foreach { r => addRouteToGroup(groupId, r) }
+	}
+
+	def saveGroupMapPosition(groupId: Long, serializedPosition: String) {
+		val values = new ContentValues
+		values.put(RouteGroupsTable.CAMERA_POSITION_COLUMN, serializedPosition)
+		db.update(RouteGroupsTable.NAME, values, "%s=?" format RouteGroupsTable.ID_COLUMN, Array(groupId.toString))
+	}
+
+	def loadGroupMapPosition(groupId: Long): Option[String] = {
+		fetchOne(db.query(
+			RouteGroupsTable.NAME, Array(RouteGroupsTable.CAMERA_POSITION_COLUMN),
+			"%s=?" format RouteGroupsTable.ID_COLUMN, Array(groupId.toString), null, null, null
+		)) { c => !c.isNull(0) ? c.getString(0) }
 	}
 
 	def loadNews(): NewsTable.Cursor = {

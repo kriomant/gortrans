@@ -175,17 +175,6 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 				}
 			}
 		})
-
-		if (! hasOldState) {
-			val mapView = mapFragment.getView
-			mapView.getViewTreeObserver.addOnGlobalLayoutListener(new OnGlobalLayoutListener {
-				def onGlobalLayout() {
-					mapView.getViewTreeObserver.removeGlobalOnLayoutListener(this)
-
-					showWholeRoutes()
-				}
-			})
-		}
 	}
 
 	override def isInitialized = {
@@ -213,6 +202,32 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			}
 			case _ => super.onOptionsItemSelected(item)
 		}
+	}
+
+
+	def getMapCameraPosition: RouteMapLike.MapCameraPosition = {
+		val camera = map.getCameraPosition
+
+		RouteMapLike.MapCameraPosition(
+			latitude = camera.target.latitude,
+			longitude = camera.target.longitude,
+			bearing = camera.bearing,
+			tilt = camera.tilt,
+			zoom = camera.zoom
+		)
+	}
+
+	def restoreMapCameraPosition(pos: RouteMapLike.MapCameraPosition) {
+		val builder = new CameraPosition.Builder
+
+		val position = builder
+			.target(new LatLng(pos.latitude, pos.longitude))
+			.bearing(pos.bearing)
+			.tilt(pos.tilt)
+			.zoom(pos.zoom)
+			.build()
+
+		map.moveCamera(CameraUpdateFactory.newCameraPosition(position))
 	}
 
 	def createProcessIndicator() = new FragmentActionBarProcessIndicator(this)

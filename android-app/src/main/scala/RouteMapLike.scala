@@ -20,6 +20,8 @@ import android.view.View.OnClickListener
 import android.view.View
 import android.location.Location
 import android.preference.PreferenceManager
+import android.view.ViewTreeObserver.OnGlobalLayoutListener
+import org.json.JSONObject
 
 object RouteMapLike {
 	private[this] val CLASS_NAME = classOf[RouteMapLike].getName
@@ -80,10 +82,46 @@ object RouteMapLike {
 
 		color: Int
 	)
+
+	// Camera position.
+	// Modelled after Google Maps V2 CameraPosition.
+	case class MapCameraPosition(
+		latitude: Double,
+		longitude: Double,
+		zoom: Float,
+		bearing: Float = 0,
+		tilt: Float = 0
+	) {
+		def toJson: JSONObject = {
+			val json = new JSONObject
+			json.put("version", 1)
+			json.put("lat", latitude)
+			json.put("lng", longitude)
+			json.put("bearing", bearing)
+			json.put("tilt", tilt)
+			json.put("zoom", zoom)
+
+			json
+		}
+	}
+	object MapCameraPosition {
+		def fromJson(json: JSONObject): MapCameraPosition = {
+			assert(json.getInt("version") == 1)
+			MapCameraPosition(
+				latitude = json.getDouble("lat"),
+				longitude = json.getDouble("lng"),
+				bearing = json.getDouble("bearing").toFloat,
+				tilt = json.getDouble("tilt").toFloat,
+				zoom = json.getDouble("zoom").toFloat
+			)
+		}
+	}
 }
 
 trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 	import RouteMapLike._
+
+	var groupId: Long = -1
 
 	var rainbow: Rainbow = null
 
@@ -105,6 +143,9 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 
 	def removeAllRouteOverlays()
 	def createRouteOverlays(routeInfo: core.Route, routeParams: RouteInfo)
+
+	def getMapCameraPosition: MapCameraPosition
+	def restoreMapCameraPosition(position: MapCameraPosition)
 
 	def navigateTo(left: Double, top: Double, right: Double, bottom: Double)
 	def navigateTo(latitude: Double, longitude: Double)
@@ -167,6 +208,7 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 
 	override def onNewIntent(intent: Intent) {
 		setIntent(intent)
+		hasOldState = false
 
 		if (vehiclesWatcher != null)
 			vehiclesWatcher.stopUpdatingVehiclesLocation()
@@ -177,7 +219,7 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 
 		val db = getApplication.asInstanceOf[CustomApplication].database
 
-		val groupId = intent.getLongExtra(EXTRA_GROUP_ID, -1)
+		groupId = intent.getLongExtra(EXTRA_GROUP_ID, -1)
 		if (groupId != -1) {
 			val (groupName, dbRouteIds) = db.transaction {
 				(db.getGroupName(groupId), db.getGroupItems(groupId))
@@ -222,6 +264,21 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 		})
 
 		vehiclesWatcher.subscribe (updateVehiclesLocation _)
+
+		if (! hasOldState) {
+			val rootView =  getWindow.getDecorView
+			rootView.getViewTreeObserver.addOnGlobalLayoutListener(new OnGlobalLayoutListener {
+				def onGlobalLayout() {
+					rootView.getViewTreeObserver.removeGlobalOnLayoutListener(this)
+
+					val savedCameraPosition = if (groupId != -1) db.loadGroupMapPosition(groupId) else None
+					savedCameraPosition match {
+						case Some(pos) => restoreMapCameraPosition(MapCameraPosition.fromJson(new JSONObject(pos)))
+						case None => showWholeRoutes()
+					}
+				}
+			})
+		}
 	}
 
 	def showWholeRoutes() {
@@ -261,6 +318,13 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 	override def onPause() {
 		if (updatingVehiclesLocationIsOn && vehiclesWatcher != null)
 			vehiclesWatcher.stopUpdatingVehiclesLocation()
+
+		if (groupId != -1) {
+			Log.d(TAG, s"Save camera position for group #$groupId")
+			val pos = getMapCameraPosition
+			val db = getApplication.asInstanceOf[CustomApplication].database
+			db.saveGroupMapPosition(groupId, pos.toJson.toString)
+		}
 
 		super.onPause()
 	}

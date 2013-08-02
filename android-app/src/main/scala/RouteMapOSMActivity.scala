@@ -28,8 +28,6 @@ import org.osmdroid.util.{BoundingBoxE6, GeoPoint}
 import org.osmdroid.DefaultResourceProxyImpl
 import org.osmdroid.api.IMapView
 import org.osmdroid.views.overlay.OverlayItem.HotspotPlace
-import android.view.ViewTreeObserver.OnGlobalLayoutListener
-import utils.functionAsRunnable
 
 object RouteMapOSMActivity {
 	private[this] val CLASS_NAME = classOf[RouteMapOSMActivity].getName
@@ -92,18 +90,6 @@ class RouteMapOSMActivity extends SherlockActivity
 			newMapNotice.setOnClickListener(new OnClickListener {
 				def onClick(v: View) {
 					showDialog(DIALOG_NEW_MAP_NOTICE)
-				}
-			})
-		}
-
-		if (! hasOldState) {
-			mapView.getViewTreeObserver.addOnGlobalLayoutListener(new OnGlobalLayoutListener {
-				def onGlobalLayout() {
-					mapView.getViewTreeObserver.removeGlobalOnLayoutListener(this)
-
-					runOnUiThread { () =>
-						showWholeRoutes()
-					}
 				}
 			})
 		}
@@ -225,6 +211,30 @@ class RouteMapOSMActivity extends SherlockActivity
 		(name, R.drawable.route_map)
 	}
 
+	/** Same zoom level in Google Maps v1 and v2 leads to different actual
+	  * scale. Since MapCameraPosition is based on Google Maps v2 CameraPosition,
+	  * we must correct zoom here. */
+	final val ZOOM_OFFSET = 1
+
+	def getMapCameraPosition: RouteMapLike.MapCameraPosition = {
+		val pos = mapView.getMapCenter
+		val zoom = mapView.getZoomLevel
+
+		RouteMapLike.MapCameraPosition(
+			latitude = pos.getLatitudeE6.toDouble / 1e6,
+			longitude = pos.getLongitudeE6.toDouble / 1e6,
+			zoom = zoom-ZOOM_OFFSET
+		)
+	}
+
+	def restoreMapCameraPosition(pos: RouteMapLike.MapCameraPosition) {
+		val ctrl = mapView.getController
+		ctrl.setZoom(math.round(pos.zoom+ZOOM_OFFSET))
+		ctrl.setCenter(new GeoPoint(
+			(pos.latitude * 1e6).toInt,
+			(pos.longitude * 1e6).toInt
+		))
+	}
 
 	def createProcessIndicator() = new ActionBarProcessIndicator(this)
 

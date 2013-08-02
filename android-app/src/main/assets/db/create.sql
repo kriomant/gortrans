@@ -75,6 +75,8 @@ CREATE TABLE routeGroups (
 	 _id INTEGER PRIMARY KEY AUTOINCREMENT
 
 	, name TEXT NOT NULL
+
+	, cameraPosition TEXT
 );
 
 ---x
