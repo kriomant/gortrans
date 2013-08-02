@@ -264,6 +264,11 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			.width(getRouteStrokeWidth(map.getCameraPosition.zoom))
 			.geodesic(true)
 		)
+		routeMarkers += map.addPolyline(new PolylineOptions()
+			.addAll(routeParams.backwardRoutePoints.map(p => new LatLng(p.y, p.x)).asJava)
+			.width(getRouteStrokeWidth(map.getCameraPosition.zoom))
+			.geodesic(true)
+		)
 
 		// Create vehicle marker bitmap for route.
 		def renderVehicle(color: Int, direction: Direction.Value, angle: Option[Float]): Bitmap = {
