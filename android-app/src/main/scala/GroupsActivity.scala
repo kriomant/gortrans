@@ -215,6 +215,9 @@ class RouteGroupsAdapter(val context: Context, val items: Seq[Database.GroupInfo
 		group.routes.foreach { case (vehicleType, routeName) =>
 			builder.appendWithSpan(" ", new ImageSpan(context, RouteGroupsAdapter.vehicleTypeDrawables(vehicleType)))
 			builder.append(routeName)
+			RouteListBaseActivity.routeRenames.get((vehicleType, routeName)).foreach { oldName =>
+				builder.append(" (").append(oldName).append(')')
+			}
 			builder.append(" ")
 		}
 		views.routes.setText(builder)
