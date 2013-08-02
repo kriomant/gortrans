@@ -714,9 +714,10 @@ class VehiclesOverlay(
 	}
 
 	private def showBalloon(vehicleInfo: VehicleInfo, item: OverlayItem) {
+		val oldName = RouteListBaseActivity.routeRenames.get(vehicleInfo.vehicleType, vehicleInfo.routeName)
 		val title = context.getString(
 			RouteMapLike.routeNameResourceByVehicleType(vehicleInfo.vehicleType),
-			vehicleInfo.routeName
+			vehicleInfo.routeName + oldName.map(n => s" ($n)").getOrElse("")
 		)
 		balloon.findViewById(R.id.vehicle_title).asInstanceOf[TextView].setText(title)
 
