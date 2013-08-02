@@ -11,7 +11,7 @@ import net.kriomant.gortrans.geometry.Point
 import net.kriomant.gortrans.parsing.VehicleInfo
 import com.google.android.gms.maps.GoogleMap.{InfoWindowAdapter, OnCameraChangeListener}
 import android.graphics.{Color, LightingColorFilter, Canvas, Bitmap}
-import net.kriomant.gortrans.core.{VehicleType, Direction}
+import net.kriomant.gortrans.core.{Route, VehicleType, Direction}
 import android.graphics.drawable.Drawable
 import android.view.View
 import android.widget.{Toast, TextView}
@@ -232,6 +232,28 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
 	def createProcessIndicator() = new FragmentActionBarProcessIndicator(this)
 
+
+	override def announceRoutes(routes: Seq[(Route, /*color*/ Int)]) {
+		routes foreach { case (routeInfo, color) =>
+			// Create vehicle marker bitmap for route.
+			def renderVehicle(color: Int, direction: Direction.Value, angle: Option[Float]): Bitmap = {
+				val drawable = new VehicleMarker(getResources, angle, color)
+				drawable.setBounds(0, 0, drawable.getIntrinsicWidth, drawable.getIntrinsicHeight)
+				val bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth, drawable.getIntrinsicHeight, Bitmap.Config.ARGB_8888)
+				val canvas = new Canvas(bitmap)
+				drawable.draw(canvas)
+				bitmap
+			}
+
+			val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
+			(0 until DIRECTION_SECTORS_NUMBER) foreach { angleSector =>
+				val angle = angleSector * sectorAngle
+				vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Some(angleSector))) = renderVehicle(color, Direction.Forward, Some(angle.toFloat))
+			}
+			vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, None)) = renderVehicle(color, Direction.Forward, None)
+		}
+	}
+
 	def createRouteOverlays(routeInfo: core.Route, routeParams: RouteInfo) {
 		// Display stop name next to one of folded stops.
 		/*val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
@@ -269,23 +291,6 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 			.width(getRouteStrokeWidth(map.getCameraPosition.zoom))
 			.geodesic(true)
 		)
-
-		// Create vehicle marker bitmap for route.
-		def renderVehicle(color: Int, direction: Direction.Value, angle: Option[Float]): Bitmap = {
-			val drawable = new VehicleMarker(getResources, angle, color)
-			drawable.setBounds(0, 0, drawable.getIntrinsicWidth, drawable.getIntrinsicHeight)
-			val bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth, drawable.getIntrinsicHeight, Bitmap.Config.ARGB_8888)
-			val canvas = new Canvas(bitmap)
-			drawable.draw(canvas)
-			bitmap
-		}
-
-		val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
-		(0 until DIRECTION_SECTORS_NUMBER) foreach { angleSector =>
-			val angle = angleSector * sectorAngle
-			vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Some(angleSector))) = renderVehicle(routeParams.color, Direction.Forward, Some(angle.toFloat))
-		}
-		vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, None)) = renderVehicle(routeParams.color, Direction.Forward, None)
 	}
 
 	def removeAllRouteOverlays() {

@@ -143,6 +143,7 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 
 	def removeAllRouteOverlays()
 	def createRouteOverlays(routeInfo: core.Route, routeParams: RouteInfo)
+	def announceRoutes(routes: Seq[(core.Route, /* color */ Int)]) {}
 
 	def getMapCameraPosition: MapCameraPosition
 	def restoreMapCameraPosition(position: MapCameraPosition)
@@ -248,6 +249,8 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 
 			loadRouteInfo(vehicleType, routeId, routeName)
 		}
+
+		announceRoutes(routesInfo.toSeq.zipWithIndex map { case (r, i) => (r, rainbow(i)) })
 
 		vehiclesWatcher = new VehiclesWatcher(this, routesInfo.map(r => (r.vehicleType, r.id, r.name)), new Listener {
 			def onVehiclesLocationUpdated(vehicles: Either[String, Seq[VehicleInfo]]) {
