@@ -687,6 +687,7 @@ class VehiclesOverlayOSM(
 			case HotspotPlace.LOWER_RIGHT_CORNER =>  rect.offset(-markerWidth, -markerHeight)
 			case HotspotPlace.UPPER_LEFT_CORNER =>  rect.offset(0, 0)
 			case HotspotPlace.LOWER_LEFT_CORNER =>  rect.offset(0, -markerHeight)
+			case HotspotPlace.NONE =>
 		}
 		marker.setBounds(rect)
 
