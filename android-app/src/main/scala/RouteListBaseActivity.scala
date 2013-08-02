@@ -16,6 +16,7 @@ import scala.collection.mutable
 import com.actionbarsherlock.internal.widget.ScrollingTabContainerView
 import android.util.TypedValue
 import android.view.View.OnClickListener
+import android.content.Context
 
 object RouteListBaseActivity {
 	val routeRenames = Map(
@@ -111,6 +112,18 @@ object RouteListBaseActivity {
 		(VehicleType.MiniBus, "21") -> "1321",
 		(VehicleType.MiniBus, "22") -> "1444а"
 	)
+
+	val routeNameFormatByVehicleType = Map(
+		VehicleType.Bus -> R.string.bus_n,
+		VehicleType.TrolleyBus -> R.string.trolleybus_n,
+		VehicleType.TramWay -> R.string.tramway_n,
+		VehicleType.MiniBus -> R.string.minibus_n
+	)
+
+	def getRouteTitle(context: Context, vehicleType: VehicleType.Value, routeName: String): String = {
+		val name = routeName + routeRenames.get((vehicleType, routeName)).map(n => s" ($n)").getOrElse("")
+		context.getString(routeNameFormatByVehicleType(vehicleType), name)
+	}
 }
 class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity with TypedActivity {
 	private[this] final val TAG = classOf[RouteListBaseActivity].getSimpleName

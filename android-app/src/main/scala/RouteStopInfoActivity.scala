@@ -155,16 +155,8 @@ class RouteStopInfoActivity extends SherlockActivity
 		stopName = intent.getStringExtra(EXTRA_STOP_NAME)
 		foldedStopIndex = intent.getIntExtra(EXTRA_FOLDED_STOP_INDEX, -1)
 
-		// Set title.
-		val routeNameFormatByVehicleType = Map(
-			VehicleType.Bus -> R.string.bus_n,
-			VehicleType.TrolleyBus -> R.string.trolleybus_n,
-			VehicleType.TramWay -> R.string.tramway_n,
-			VehicleType.MiniBus -> R.string.minibus_n
-		).mapValues(getString)
-
 		val actionBar = getSupportActionBar
-		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+		actionBar.setTitle(RouteListBaseActivity.getRouteTitle(this, vehicleType, routeName))
 		actionBar.setSubtitle(stopName)
 		actionBar.setDisplayHomeAsUpEnabled(true)
 

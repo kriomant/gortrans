@@ -66,15 +66,8 @@ class StopScheduleActivity extends SherlockActivity with BaseActivity with Typed
 		stopName = intent.getStringExtra(EXTRA_STOP_NAME)
 		direction = Direction(intent.getIntExtra(EXTRA_DIRECTION, -1))
 
-		val stopScheduleFormatByVehicleType = Map(
-			VehicleType.Bus -> R.string.bus_n,
-			VehicleType.TrolleyBus -> R.string.trolleybus_n,
-			VehicleType.TramWay -> R.string.tramway_n,
-			VehicleType.MiniBus -> R.string.minibus_n
-		).mapValues(getString)
-
 		val actionBar = getSupportActionBar
-		actionBar.setTitle(stopScheduleFormatByVehicleType(vehicleType).format(routeName, stopName))
+		actionBar.setTitle(RouteListBaseActivity.getRouteTitle(this, vehicleType, routeName))
 		actionBar.setSubtitle(stopName)
 		actionBar.setDisplayHomeAsUpEnabled(true)
 	}

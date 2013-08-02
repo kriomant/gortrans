@@ -118,10 +118,7 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 					vehicleMarkers.get(marker) match {
 						case Some((info, angle)) =>
 							val oldName = RouteListBaseActivity.routeRenames.get(info.vehicleType, info.routeName)
-							titleView.setText(getString(
-								RouteMapLike.routeNameResourceByVehicleType(info.vehicleType),
-								info.routeName + oldName.map(n => s" ($n)").getOrElse("")
-							))
+							titleView.setText(RouteListBaseActivity.getRouteTitle(RouteMapV2Activity.this, info.vehicleType, info.routeName))
 							scheduleView.setText(formatVehicleSchedule(info))
 							scheduleNrView.setText(getString(R.string.vehicle_schedule_number, info.scheduleNr.asInstanceOf[AnyRef]))
 							speedView.setText(getString(R.string.vehicle_speed_format, info.speed.asInstanceOf[AnyRef]))

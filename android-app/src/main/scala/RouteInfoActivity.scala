@@ -68,16 +68,9 @@ class RouteInfoActivity extends SherlockActivity with BaseActivity with TypedAct
 		routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
 		vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
 
-		val routeNameFormatByVehicleType = Map(
-			VehicleType.Bus -> R.string.bus_n,
-			VehicleType.TrolleyBus -> R.string.trolleybus_n,
-			VehicleType.TramWay -> R.string.tramway_n,
-			VehicleType.MiniBus -> R.string.minibus_n
-		).mapValues(getString)
-
 		val actionBar = getSupportActionBar
 		actionBar.setDisplayHomeAsUpEnabled(true)
-		actionBar.setTitle(routeNameFormatByVehicleType(vehicleType).format(routeName))
+		actionBar.setTitle(RouteListBaseActivity.getRouteTitle(this, vehicleType, routeName))
 		actionBar.setSubtitle(R.string.route)
 
 		dataManager = getApplication.asInstanceOf[CustomApplication].dataManager

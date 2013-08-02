@@ -62,13 +62,6 @@ object RouteMapLike {
 	val ZOOM_WHOLE_ROUTE = 14
 	val ZOOM_SHOW_STOP_NAMES = 17
 
-	val routeNameResourceByVehicleType = Map(
-		VehicleType.Bus -> R.string.bus_n,
-		VehicleType.TrolleyBus -> R.string.trolleybus_n,
-		VehicleType.TramWay -> R.string.tramway_n,
-		VehicleType.MiniBus -> R.string.minibus_n
-	)
-
 	final val PHYSICAL_ROUTE_STROKE_WIDTH: Float = 3 // meters
 	final val MIN_ROUTE_STROKE_WIDTH: Float = 2 // pixels
 
@@ -245,7 +238,7 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 
 			routesInfo = Set(core.Route(vehicleType, routeId, routeName, "", ""))
 
-			setTitle(getString(routeNameResourceByVehicleType(vehicleType), routeName))
+			setTitle(RouteListBaseActivity.getRouteTitle(this, vehicleType, routeName))
 
 			loadRouteInfo(vehicleType, routeId, routeName)
 		}

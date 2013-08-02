@@ -641,10 +641,7 @@ class VehiclesOverlayOSM(
 
 	private def showBalloon(vehicleInfo: VehicleInfo, item: OverlayItem) {
 		val oldName = RouteListBaseActivity.routeRenames.get(vehicleInfo.vehicleType, vehicleInfo.routeName)
-		val title = context.getString(
-			RouteMapLike.routeNameResourceByVehicleType(vehicleInfo.vehicleType),
-			vehicleInfo.routeName + oldName.map(n => s" ($n)").getOrElse("")
-		)
+		val title = RouteListBaseActivity.getRouteTitle(context, vehicleInfo.vehicleType, vehicleInfo.routeName)
 		balloon.findViewById(R.id.vehicle_title).asInstanceOf[TextView].setText(title)
 
 		val vehicleMarker = item.getMarker(0).getConstantState.newDrawable(balloon.getResources)
