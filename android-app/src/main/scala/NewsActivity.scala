@@ -21,7 +21,9 @@ object NewsActivity {
 	def createIntent(context: Context): Intent = new Intent(context, classOf[NewsActivity])
 }
 
-class NewsActivity extends SherlockFragmentActivity with BaseActivity with TypedActivity with HavingSidebar {
+class NewsActivity extends NewsActivityBase with HavingSidebar
+
+class NewsActivityBase extends SherlockFragmentActivity with BaseActivity with TypedActivity {
 	import NewsActivity._
 
 	var listView: ListView = null
@@ -42,7 +44,7 @@ class NewsActivity extends SherlockFragmentActivity with BaseActivity with Typed
 
 		getSupportLoaderManager.initLoader(LOADER_NEWS, null, new LoaderCallbacks[Database.NewsTable.Cursor] {
 			def onCreateLoader(p1: Int, p2: Bundle): Loader[Database.NewsTable.Cursor] = {
-				new SQLiteCursorLoader(NewsActivity.this, { db.loadNews() })
+				new SQLiteCursorLoader(NewsActivityBase.this, { db.loadNews() })
 			}
 
 			def onLoadFinished(loader: Loader[Database.NewsTable.Cursor], cursor: Database.NewsTable.Cursor) {
