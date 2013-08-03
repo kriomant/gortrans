@@ -13,6 +13,7 @@
 			android:dividerHeight="8dip"
 			android:footerDividersEnabled="false"
 			android:headerDividersEnabled="false"
+			android:background="@color/card_list_background"
 		/>
 		<TextView android:id="@+id/no_news"
 			android:layout_width="match_parent"
