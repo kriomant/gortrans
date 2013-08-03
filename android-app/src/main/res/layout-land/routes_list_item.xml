@@ -10,17 +10,22 @@
 		android:id="@+id/route_name"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:minWidth="65sp"
+		android:minWidth="60sp"
 		android:textColor="?android:textColorPrimary"
 		android:textAppearance="?android:attr/textAppearanceMedium"
+		android:typeface="monospace"
+		android:gravity="right"
+		android:paddingRight="10dp"
 	/>
 	<TextView
 		android:id="@+id/route_old_name"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:minWidth="65sp"
+		android:minWidth="60sp"
 		android:textColor="?android:textColorSecondary"
 		android:textAppearance="?android:attr/textAppearanceSmall"
+		android:gravity="right"
+		android:paddingRight="10dp"
 		/>
 	<TextView
 		android:id="@+id/start_stop_name"

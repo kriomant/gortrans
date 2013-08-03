@@ -307,7 +307,14 @@ class RoutesListFragment extends ListFragment {
 					RouteListBaseActivity.routeRenames.get((vehicleType, cursor.name))
 					.map("(%s)" format _)
 					.getOrElse("")
-				views.number.setText(cursor.name)
+
+				// Typical route name form is either digits only ("1243") or digits + letter
+				// ("43л"). Append space to names without letter to align numbers on right edge of digits.
+				// TextView font must be monospace for this to work.
+				val name = cursor.name.toLowerCase
+				val alignedName = if (name.last.isDigit) name+" " else name
+
+				views.number.setText(alignedName)
 				views.oldNumber.setText(oldName)
 				views.begin.setText(cursor.firstStopName)
 				views.end.setText(cursor.lastStopName)
