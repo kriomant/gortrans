@@ -12,9 +12,14 @@ import net.kriomant.gortrans.core.VehicleType
 import com.actionbarsherlock.view
 import android.widget.AdapterView.OnItemClickListener
 import android.app.Activity
+import android.support.v4.content.{Loader, AsyncTaskLoader}
+import net.kriomant.gortrans.Database.GroupInfo
+import android.support.v4.app.LoaderManager.LoaderCallbacks
+import android.util.Log
 
 object GroupsActivity {
 	val REQUEST_CREATE_GROUP = 1
+	val REQUEST_EDIT_GROUP = 2
 
 	def createIntent(context: Context): Intent = {
 		new Intent(context, classOf[GroupsActivity])
@@ -41,8 +46,15 @@ class GroupsActivity extends GroupsActivityBase with HavingSidebar {
 
 }
 
+object GroupsActivityBase {
+	private final val GROUPS_LOADER = 0
+}
+
 class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with TypedActivity with CreateGroupDialog.Listener {
+	import GroupsActivityBase._
+
 	private[this] var groupList: ListView = _
+	private[this] var loadingProgress: ProgressBar = _
 
 	override def onCreate(savedInstanceState: Bundle) {
 		super.onCreate(savedInstanceState)
@@ -50,13 +62,14 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 		setContentView(R.layout.groups_activity)
 
 		groupList = findView(TR.group_list)
-		groupList.setEmptyView(findView(TR.group_list_empty))
 		groupList.setOnItemClickListener(new OnItemClickListener {
 			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
 				val intent = RouteMapLike.createShowGroupIntent(GroupsActivityBase.this, id)
 				startActivity(intent)
 			}
 		})
+
+		loadingProgress = findView(TR.loading)
 
 		val actionModeHelper = new MultiListActionModeHelper(this, new ActionMode.Callback with ListSelectionActionModeCallback {
 			var menu_ : Menu = null
@@ -78,7 +91,7 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 						}
 					}
 					mode.finish()
-					loadGroups()
+					reloadGroups()
 					true
 
 				case R.id.edit_group =>
@@ -86,7 +99,7 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 					mode.finish()
 
 					val intent = EditGroupActivity.createIntent(GroupsActivityBase.this, groupId)
-					startActivity(intent)
+					startActivityForResult(intent, GroupsActivity.REQUEST_EDIT_GROUP)
 
 					true
 
@@ -106,6 +119,8 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 			}
 		})
 		actionModeHelper.attach(groupList)
+
+		loadGroups()
 	}
 
 	override def onCreateOptionsMenu(menu: Menu) = {
@@ -114,10 +129,28 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 		true
 	}
 
+	val loaderCallbacks = new LoaderCallbacks[Seq[GroupInfo]] {
+		def onCreateLoader(p1: Int, p2: Bundle) = android_utils.cachingLoader(GroupsActivityBase.this) {
+			getApplication.asInstanceOf[CustomApplication].database.loadGroups()
+		}
+
+		def onLoadFinished(loader: Loader[Seq[GroupInfo]], groups: Seq[GroupInfo]) {
+			groupList.setAdapter(new RouteGroupsAdapter(GroupsActivityBase.this, groups))
+			groupList.setEmptyView(findView(TR.group_list_empty))
+			loadingProgress.setVisibility(View.INVISIBLE)
+		}
+
+		def onLoaderReset(p1: Loader[Seq[GroupInfo]]) {
+			groupList.setAdapter(null)
+		}
+	}
+
 	private def loadGroups() {
-		val db = getApplication.asInstanceOf[CustomApplication].database
-		val groups = db.loadGroups()
-		groupList.setAdapter(new RouteGroupsAdapter(this, groups))
+		getSupportLoaderManager.initLoader(GROUPS_LOADER, null, loaderCallbacks)
+	}
+
+	private def reloadGroups() {
+		getSupportLoaderManager.restartLoader(GROUPS_LOADER, null, loaderCallbacks)
 	}
 
 	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
@@ -140,6 +173,8 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 				createGroupData = data
 			}
 
+		case GroupsActivity.REQUEST_EDIT_GROUP => reloadGroups()
+
 		case _ => super.onActivityResult(requestCode, resultCode, data)
 	}
 
@@ -150,9 +185,8 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 		if (createGroupData != null) {
 			createGroup(createGroupData)
 			createGroupData = null
+			reloadGroups()
 		}
-
-		loadGroups()
 	}
 
 
@@ -182,7 +216,7 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 	}
 
 	def onCreateGroup(dialog: CreateGroupDialog, groupId: Long) {
-		loadGroups()
+		reloadGroups()
 	}
 }
 

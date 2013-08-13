@@ -4,15 +4,24 @@
 	android:id="@+id/drawer_layout"
 	android:layout_width="match_parent" android:layout_height="match_parent"
 >
-	<LinearLayout
+	<FrameLayout
 		android:layout_width="match_parent"
-		android:layout_height="match_parent"
-		android:orientation="vertical">
+		android:layout_height="match_parent">
+
+		<ProgressBar
+			android:id="@+id/loading"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="center"
+			android:indeterminateOnly="true"
+		/>
 
 		<TextView android:id="@+id/group_list_empty"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
+			android:layout_gravity="top"
 			android:text="@string/group_list_empty"
+			android:visibility="invisible"
 			android:textAppearance="?android:attr/textAppearanceMedium"/>
 
 		<ListView
@@ -20,7 +29,7 @@
 			android:layout_height="match_parent"
 			android:id="@+id/group_list"/>
 
-	</LinearLayout>
+	</FrameLayout>
 
 	<include layout="@layout/sidebar"/>
 </android.support.v4.widget.DrawerLayout>

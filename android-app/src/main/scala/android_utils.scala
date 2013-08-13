@@ -5,6 +5,8 @@ import android.os.{Debug, SystemClock}
 
 import scala.collection.mutable
 import android.text.{Spanned, SpannableStringBuilder}
+import android.support.v4.content.{AsyncTaskLoader, Loader}
+import android.content.Context
 
 object android_utils {
 
@@ -60,5 +62,22 @@ object android_utils {
 
 		private val getRequests = mutable.Queue[T => Unit]()
 		private val subscribers = mutable.Queue[T => Unit]()
+	}
+
+	def cachingLoader[T](context: Context)(load: => T): Loader[T] = new AsyncTaskLoader[T](context) {
+		var result: Option[T] = None
+
+		def loadInBackground() = {
+			val value = load
+			result = Some(value)
+			value
+		}
+
+		override def onStartLoading() {
+			result match {
+				case Some(value) => deliverResult(value)
+				case None => forceLoad()
+			}
+		}
 	}
 }
