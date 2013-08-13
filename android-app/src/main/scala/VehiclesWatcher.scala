@@ -6,12 +6,9 @@ import net.kriomant.gortrans.Client.RouteInfoRequest
 import net.kriomant.gortrans.core.{VehicleType, DirectionsEx}
 import android.app.Activity
 import android.widget.Toast
-import java.net.{SocketTimeoutException, SocketException, ConnectException, UnknownHostException}
-import java.io.EOFException
 import android.util.Log
 import java.util
 import net.kriomant.gortrans.android_utils.Observable
-import com.sun.xml.internal.ws.client.ClientTransportException
 
 object VehiclesWatcher {
 	trait Listener {
@@ -74,18 +71,9 @@ class VehiclesWatcher(
 					parsing.parseVehiclesLocation(json, new util.Date)
 				})
 			} catch {
-				// TODO: Reuse code from DataManager.
-				case ex @ (
-					_: UnknownHostException |
-					_: ConnectException |
-					_: SocketException |
-					_: EOFException |
-					_: SocketTimeoutException |
-					_: ClientException
-				) => {
+				case DataManager.NetworkExceptionGroup(ex) =>
 					Log.v(TAG, "Network failure during data fetching", ex)
 					Left(context.getString(R.string.cant_fetch_vehicles))
-				}
 
 				case _: org.json.JSONException => Left(context.getString(R.string.cant_parse_vehicles))
 			}

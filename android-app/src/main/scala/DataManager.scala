@@ -167,6 +167,29 @@ object DataManager {
 			}
 		}
 	}
+
+	/** Checks whether exception is typical for network or server failure.
+	  * Usage:
+	  *   try {
+	  *     ...
+	  *   } catch {
+	  *     case NetworkExceptionGroup(ex) => ...
+	  *   }
+	  */
+	object NetworkExceptionGroup {
+		def unapply(ex: Throwable) = ex match {
+			case
+				_: UnknownHostException |
+				_: ConnectException |
+				_: SocketException |
+				_: EOFException |
+				_: SocketTimeoutException |
+				_: FileNotFoundException |
+				_: ClientException => Some(ex)
+			case _ => None
+		}
+	}
+
 }
 
 class DataManager(context: Context, db: Database) {
@@ -233,13 +256,7 @@ class DataManager(context: Context, db: Database) {
 							Log.v(TAG, "Data is successfully fetched")
 							Some(rawData)
 						} catch {
-							case ex @ (
-								_: UnknownHostException |
-								_: ConnectException |
-								_: SocketException |
-								_: EOFException |
-								_: SocketTimeoutException
-							) => {
+							case NetworkExceptionGroup(ex) => {
 								Log.v(TAG, "Network failure during data fetching", ex)
 								None
 							}

@@ -20,8 +20,6 @@ import scala.Left
 import net.kriomant.gortrans.parsing.VehicleInfo
 import net.kriomant.gortrans.geometry.Point
 import scala.collection.mutable
-import java.net.{SocketTimeoutException, SocketException, ConnectException, UnknownHostException}
-import java.io.EOFException
 
 object RouteStopInfoActivity {
 	private[this] val CLASS_NAME = classOf[RouteStopInfoActivity].getName
@@ -89,13 +87,7 @@ class RouteStopInfoActivity extends SherlockActivity
 					times.map(t => new Date(t.getTime() + diff))
 				}
 			} catch {
-				case ex @ (
-					_: UnknownHostException |
-					_: ConnectException |
-					_: SocketException |
-					_: EOFException |
-					_: SocketTimeoutException
-					) => {
+				case DataManager.NetworkExceptionGroup(ex) => {
 					Log.v(TAG, "Network failure during arrivals fetching", ex)
 					Left(getString(R.string.cant_fetch_arrivals))
 				}

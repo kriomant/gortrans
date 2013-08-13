@@ -5,8 +5,6 @@ import android.content.{Context, Intent}
 import android.support.v4.app.NotificationCompat
 import java.util
 import android.util.Log
-import java.net.{SocketTimeoutException, SocketException, ConnectException, UnknownHostException}
-import java.io.EOFException
 
 object Service {
 	private final val TAG = classOf[Service].getName
@@ -75,13 +73,7 @@ class Service extends IntentService("Service") {
 		val news = try {
 			parsing.parseNews(client.getNews())
 		} catch {
-			case ex @ (
-				_: UnknownHostException |
-				_: ConnectException |
-				_: SocketException |
-				_: EOFException |
-				_: SocketTimeoutException
-			) => {
+			case DataManager.NetworkExceptionGroup(ex) => {
 				Log.v(TAG, "Network failure during news fetching")
 				return
 			}
