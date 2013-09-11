@@ -122,9 +122,16 @@ object parsing {
 					// According to crash reports nskgortrans sometimes sends time without date
 					// part.
 					case e: java.text.ParseException => {
-						val dateFormat = new SimpleDateFormat("HH:mm:ss")
-						dateFormat.setTimeZone(NSK_TIME_ZONE)
-						combineDateAndTime(serverTime, dateFormat.parse(timeString), NSK_TIME_ZONE)
+						try {
+							val dateFormat = new SimpleDateFormat("HH:mm:ss")
+							dateFormat.setTimeZone(NSK_TIME_ZONE)
+							combineDateAndTime(serverTime, dateFormat.parse(timeString), NSK_TIME_ZONE)
+						} catch {
+							// And sometimes it sends date as 20.05.13 10:00:11
+							case e: java.text.ParseException => {
+								new SimpleDateFormat("dd.MM.yy HH:mm:ss").parse(timeString)
+							}
+						}
 					}
 				}
 
