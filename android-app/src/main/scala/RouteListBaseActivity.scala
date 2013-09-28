@@ -295,6 +295,8 @@ class RoutesListFragment extends ListFragment {
 			val itemLayout = R.layout.routes_list_item
 			case class SubViews(number: TextView, oldNumber: TextView, begin: TextView, end: TextView)
 
+			val nameRegex = java.util.regex.Pattern.compile("^(.+) \\((.+)\\)$")
+
 			def findSubViews(view: View) = SubViews(
 				view.findViewById(R.id.route_name).asInstanceOf[TextView],
 				view.findViewById(R.id.route_old_name).asInstanceOf[TextView],
@@ -303,19 +305,23 @@ class RoutesListFragment extends ListFragment {
 			)
 
 			def adjustItem(cursor: Database.RoutesTable.Cursor, views: SubViews) {
-				val oldName =
-					RouteListBaseActivity.routeRenames.get((vehicleType, cursor.name))
-					.map("(%s)" format _)
-					.getOrElse("")
+				val m = nameRegex.matcher(cursor.name)
+				val (name, oldName) = if (m.matches) {
+					(m.group(1), Some(m.group(2)))
+				} else {
+					(cursor.name, RouteListBaseActivity.routeRenames.get((vehicleType, cursor.name)))
+				}
+
+				val oldNameStr = oldName.map("(%s)" format _).getOrElse("")
 
 				// Typical route name form is either digits only ("1243") or digits + letter
 				// ("43л"). Append space to names without letter to align numbers on right edge of digits.
 				// TextView font must be monospace for this to work.
-				val name = cursor.name.toLowerCase
-				val alignedName = if (name.last.isDigit) name+" " else name
+				val lcName = name.toLowerCase
+				val alignedName = if (lcName.last.isDigit) lcName+" " else lcName
 
 				views.number.setText(alignedName)
-				views.oldNumber.setText(oldName)
+				views.oldNumber.setText(oldNameStr)
 				views.begin.setText(cursor.firstStopName)
 				views.end.setText(cursor.lastStopName)
 			}
