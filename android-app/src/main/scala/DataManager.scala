@@ -36,7 +36,7 @@ object DataManager {
 
 	object RoutesListSource extends Source[RoutesInfo, Database.RoutesTable.Cursor] {
 		val name = "routes"
-		val maxAge = 4 * 24 * 60 * 60 * 1000l /* ms = 4 days */
+		val maxAge = 1 * 24 * 60 * 60 * 1000l /* ms = 1 day */
 
 		def fetch(client: Client): RoutesInfo = {
 			val json = retryOnceIfEmpty { client.getRoutesList() }
