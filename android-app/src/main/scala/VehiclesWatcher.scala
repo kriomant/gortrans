@@ -1,7 +1,7 @@
 package net.kriomant.gortrans
 
 import android.os.Handler
-import net.kriomant.gortrans.parsing.VehicleInfo
+import net.kriomant.gortrans.parsing.{VehicleSchedule, VehicleInfo}
 import net.kriomant.gortrans.Client.RouteInfoRequest
 import net.kriomant.gortrans.core.{VehicleType, DirectionsEx}
 import android.app.Activity
@@ -69,6 +69,8 @@ class VehiclesWatcher(
 				Right(requests.grouped(MAX_ROUTES_PER_QUERY).toSeq.flatMap { reqs =>
 					val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(reqs) }
 					parsing.parseVehiclesLocation(json, new util.Date)
+						// Vehicles without schedule are not shown on site.
+						.filterNot(_.schedule == VehicleSchedule.NotProvided)
 				})
 			} catch {
 				case DataManager.NetworkExceptionGroup(ex) =>
