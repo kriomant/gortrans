@@ -107,10 +107,11 @@ object parsing {
 				val scheduleNr = o.getString("graph").toInt
 				val direction = {
 					val dir = o.getString("direction")
-					(dir != "-") ? (dir match {
-						case "A" => Direction.Forward
-						case "B" => Direction.Backward
-					})
+					dir match {
+						case "A" => Some(Direction.Forward)
+						case "B" => Some(Direction.Backward)
+						case _   => None
+					}
 				}
 				val latitude = o.getString("lat").toFloat
 				val longitude = o.getString("lng").toFloat
