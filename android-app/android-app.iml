@@ -7,7 +7,7 @@
         <option name="MANIFEST_FILE_RELATIVE_PATH" value="/src/main/AndroidManifest.xml" />
         <option name="RES_FOLDER_RELATIVE_PATH" value="/src/main/res" />
         <option name="ASSETS_FOLDER_RELATIVE_PATH" value="/src/main/assets" />
-        <option name="APK_PATH" value="/target/gortrans-1.0.12.apk" />
+        <option name="APK_PATH" value="/target/gortrans-1.0.13.apk" />
         <option name="PROGUARD_CFG_PATH" value="/proguard.cfg" />
         <includeSystemProguardFile>false</includeSystemProguardFile>
         <includeAssetsFromLibraries>true</includeAssetsFromLibraries>
