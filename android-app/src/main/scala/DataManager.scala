@@ -10,6 +10,7 @@ import android.util.Log
 import java.util
 import java.net.{SocketTimeoutException, SocketException, UnknownHostException, ConnectException}
 import scala.collection.mutable
+import org.json.JSONException
 
 object DataManager {
 	final val TAG = "DataManager"
@@ -190,6 +191,13 @@ object DataManager {
 		}
 	}
 
+	object DataExtractionExceptionGroup {
+		def unapply(ex: Throwable) = ex match {
+			case _: JSONException => Some(ex)
+			case _ => None
+		}
+	}
+
 }
 
 class DataManager(context: Context, db: Database) {
@@ -258,6 +266,10 @@ class DataManager(context: Context, db: Database) {
 						} catch {
 							case NetworkExceptionGroup(ex) => {
 								Log.v(TAG, "Network failure during data fetching", ex)
+								None
+							}
+							case DataExtractionExceptionGroup(ex) => {
+								Log.v(TAG, "Data extraction failure during data fetching", ex)
 								None
 							}
 						}
