@@ -69,8 +69,11 @@ class VehiclesWatcher(
 				Right(requests.grouped(MAX_ROUTES_PER_QUERY).toSeq.flatMap { reqs =>
 					val json = DataManager.retryOnceIfEmpty { client.getVehiclesLocation(reqs) }
 					parsing.parseVehiclesLocation(json, new util.Date)
-						// Vehicles without schedule are not shown on site.
-						.filterNot(_.schedule == VehicleSchedule.NotProvided)
+						// Vehicles without schedule (besides minibuses) and vehicles not on route are not shown.
+						.filterNot(v =>
+							v.schedule == VehicleSchedule.Status("Отстой") ||
+							(v.vehicleType != VehicleType.MiniBus && v.schedule == VehicleSchedule.NotProvided)
+						)
 				})
 			} catch {
 				case DataManager.NetworkExceptionGroup(ex) =>
