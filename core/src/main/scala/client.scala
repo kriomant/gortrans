@@ -66,19 +66,19 @@ class Client(logger: Logger) {
 	}
 
 	def getStopsList(query: String = ""): String = {
-		fetch(new URL(HOST, "components/com_planrasp/helpers/grasp.php?q=%s&typeview=stops" format URLEncoder.encode(query, "UTF-8")))
+		fetch(new URL(MAPS_HOST, "components/com_planrasp/helpers/grasp.php?q=%s&typeview=stops" format URLEncoder.encode(query, "UTF-8")))
 	}
 
 	def getAvailableScheduleTypes(vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value): String = {
 		fetch(new URL(
-			HOST,
+			MAPS_HOST,
 			"components/com_planrasp/helpers/grasp.php?m=%s&t=%d&r=%s" format (routeId, vehicleType.id+1, directionCodes(direction))
 		))
 	}
 
 	def getRouteStops(vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value, schedule: Int): String = {
 		fetch(new URL(
-			HOST,
+			MAPS_HOST,
 			"components/com_planrasp/helpers/grasp.php?m=%s&t=%d&r=%s&sch=%d" format (routeId, vehicleType.id+1, directionCodes(direction), schedule)
 		))
 	}
@@ -86,7 +86,7 @@ class Client(logger: Logger) {
 	def getStopSchedule(stopId: Int, vehicleType: VehicleType.Value, routeId: String, direction: Direction.Value, scheduleType: ScheduleType.Value) = {
 		fetch(
 			new URL(
-				HOST,
+				MAPS_HOST,
 				"components/com_planrasp/helpers/grasp.php?tv=mr&m=%s&t=%d&r=%s&sch=%d&s=%d&v=0" format (routeId, vehicleType.id+1, directionCodes(direction), scheduleType.id, stopId)
 			)
 			// v=0 - detailed, v=1 - intervals
