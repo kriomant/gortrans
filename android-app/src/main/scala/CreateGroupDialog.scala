@@ -33,7 +33,7 @@ class CreateGroupDialog extends DialogFragment {
 		val layoutInflater = getActivity.getLayoutInflater
 		val view = layoutInflater.inflate(R.layout.create_group_dialog, null)
 
-		val nameEdit = view.findViewById(R.id.group_name).asInstanceOf[EditText]
+		val nameEdit = view.findViewById(R.id.group_name_edit).asInstanceOf[EditText]
 
 		nameEdit.setOnEditorActionListener(new OnEditorActionListener {
 			def onEditorAction(v: TextView, actionId: Int, event: KeyEvent) = actionId match {

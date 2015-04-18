@@ -38,7 +38,7 @@ class EditGroupActivity extends SherlockActivity with BaseActivity with TypedAct
 
 		setContentView(R.layout.edit_group_activity)
 
-		groupNameEdit = findView(TR.group_name)
+		groupNameEdit = findView(TR.group_name_edit)
 		routesText = findView(TR.routes_list)
 		val editRoutesButton = findView(TR.edit_routes)
 
