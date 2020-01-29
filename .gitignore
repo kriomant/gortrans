@@ -5,5 +5,4 @@ target/
 android-app/gen/
 android-app/src/main/res/values/generated.xml
 android-app/user.sbt
-.idea/workspace.xml
-
+.idea/
