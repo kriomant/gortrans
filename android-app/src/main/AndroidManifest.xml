@@ -91,7 +91,7 @@
 
 				<meta-data
 					android:name="com.google.android.maps.v2.API_KEY"
-					android:value="AIzaSyCh_UwVC1E3Ayy12fR1njIBfTn0KndpX60"/>
+					android:value="${API_KEY}"/>
     </application>
 
     <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="15"/>

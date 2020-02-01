@@ -57,9 +57,14 @@ object General {
 
 			libraryDependencies += "com.actionbarsherlock" % "actionbarsherlock" % "4.3.1" artifacts(Artifact("actionbarsherlock", "apklib", "apklib")) exclude("com.google.android", "support-v4"),
 			libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.2.0" from "https://github.com/downloads/JakeWharton/ActionBarSherlock-Plugin-Maps/actionbarsherlock-plugin-maps-4.2.0.jar",
-      // Prevent ProGuard from stripping ActionBarSherlock implementation classes which are used through reflection.
-      proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep class android.support.v4.content.Loader* -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
+      // Prevent ProGuard from stripping ActionBarSherlock (and support library) implementation classes which are used through reflection.
+			proguardOption in Android ~= { _ + " -keep class android.support.v4.** { *; } -keep interface android.support.v4.** { *; } " },
+			proguardOption in Android ~= { _ + " -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
 	    proguardOption in Android ~= { _ + " -keep class net.kriomant.gortrans.compatibility.* { *; } " },
+			// and some more libraries
+			proguardOption in Android ~= { _ + " -keep class org.osmdroid.** { *; } -keep interface org.osmdroid.** { *; } " },
+			proguardOption in Android ~= { _ + " -keep class org.metalev.** { *; } -keep interface org.metalev.** { *; } " },
+			proguardOption in Android ~= { _ + " -keep class com.google.android.gms.** { *; } -keep interface com.google.android.gms.** { *; } " },
 
       // Workaround for https://issues.scala-lang.org/browse/SI-5397. Doesn't work for me, unfortunately.
       proguardOption in Android ~= { _ + " -keep class scala.collection.immutable.StringLike { public protected *; } -keep class scala.collection.SeqLike { public java.lang.String toString(); } " },
@@ -95,7 +100,7 @@ object General {
 				)
       },
 	    unmanagedJars in Compile <+= googlePlayServices map { path => Attributed.blank(path / "libs" / "google-play-services.jar") },
-      proguardOption in Android ~= { _ + " -keep class * extends java.util.ListResourceBundle { protected Object[][] getContents(); } " },
+      proguardOption in Android ~= { _ + " -keep class * extends java.util.ListResourceBundle { protected java.lang.Object[][] getContents(); } " },
 	    proguardOption in Android ~= { _ + " -keep class com.google.android.gms.maps.SupportMapFragment { *; } " },
 
       customResourcesPath in Android <<= (mainResPath in Android) map { _ / "values" / "generated.xml" },
