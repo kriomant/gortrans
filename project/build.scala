@@ -48,7 +48,6 @@ object General {
     General.settings ++
 		General.scalaSettings ++
     AndroidProject.androidSettings ++
-		BuketanPlugin.buketanSettings ++
     TypedResources.settings ++
     proguardSettings ++
     AndroidManifestGenerator.settings ++
@@ -56,9 +55,8 @@ object General {
       keyalias in Android := "change-me",
       libraryDependencies += "org.ccil.cowan.tagsoup" % "tagsoup" % "1.2",
 
-			resolvers += "ActionBarSherlock" at  "http://r.jakewharton.com/maven/release/",
 			libraryDependencies += "com.actionbarsherlock" % "actionbarsherlock" % "4.3.1" artifacts(Artifact("actionbarsherlock", "apklib", "apklib")) exclude("com.google.android", "support-v4"),
-	    libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.2.0",
+			libraryDependencies += "com.actionbarsherlock" % "plugin-maps" % "4.2.0" from "https://github.com/downloads/JakeWharton/ActionBarSherlock-Plugin-Maps/actionbarsherlock-plugin-maps-4.2.0.jar",
       // Prevent ProGuard from stripping ActionBarSherlock implementation classes which are used through reflection.
       proguardOption in Android ~= { _ + " -keep class android.support.v4.app.** { *; } -keep class android.support.v4.content.Loader* -keep interface android.support.v4.app.** { *; } -keep class com.actionbarsherlock.** { *; } -keep interface com.actionbarsherlock.** { *; } -keepattributes *Annotation* " },
 	    proguardOption in Android ~= { _ + " -keep class net.kriomant.gortrans.compatibility.* { *; } " },
