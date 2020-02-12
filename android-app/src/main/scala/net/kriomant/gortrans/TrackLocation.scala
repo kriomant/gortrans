@@ -1,95 +1,96 @@
 package net.kriomant.gortrans
 
 import android.app.Activity
-import android.os.Bundle
 import android.content.Context
-import android.location.{LocationManager, Location, LocationListener}
+import android.location.{Location, LocationListener, LocationManager}
+import android.os.Bundle
 import android.util.Log
 
 trait TrackLocation extends Activity {
-	private[this] final val MINIMUM_LOCATION_UPDATE_INTERVAL = 0 /* ms */
-	private[this] final val MINIMUM_LOCATION_DISTANCE_CHANGE = 0 /* m */
+  private[this] final val MINIMUM_LOCATION_UPDATE_INTERVAL = 0
+  /* ms */
+  private[this] final val MINIMUM_LOCATION_DISTANCE_CHANGE = 0 /* m */
 
-	def onLocationUpdated(location: Location)
+  def onLocationUpdated(location: Location)
 
-	var locationManager: LocationManager = null
-	var gpsEnabled = false
-	var currentLocation: Location = null
+  var locationManager: LocationManager = _
+  var gpsEnabled = false
+  var currentLocation: Location = _
 
-	object locationListener extends LocationListener {
-		def onStatusChanged(provider: String, status: Int, extras: Bundle) {}
+  object locationListener extends LocationListener {
+    def onStatusChanged(provider: String, status: Int, extras: Bundle) {}
 
-		def onProviderEnabled(provider: String) {
-			val lastKnownLocation = locationManager.getLastKnownLocation(provider)
-			if (lastKnownLocation != null)
-				onLocationUpdated(lastKnownLocation)
-		}
+    def onProviderEnabled(provider: String) {
+      val lastKnownLocation = locationManager.getLastKnownLocation(provider)
+      if (lastKnownLocation != null)
+        onLocationUpdated(lastKnownLocation)
+    }
 
-		def onProviderDisabled(provider: String) {
-			onLocationUpdated(null)
-		}
+    def onProviderDisabled(provider: String) {
+      onLocationUpdated(null)
+    }
 
-		def onLocationChanged(location: Location) {
-			onLocationUpdated(location)
-		}
-	}
+    def onLocationChanged(location: Location) {
+      onLocationUpdated(location)
+    }
+  }
 
-	def setGpsEnabled(enabled: Boolean) {
-		if (enabled != gpsEnabled) {
-			if (enabled)
-				enableGps()
-			else
-				disableGps()
-		}
-	}
-	
-	private def enableGps() {
-		Log.d("TrackLocation", "Enable GPS")
-		locationManager.requestLocationUpdates(
-			LocationManager.GPS_PROVIDER,
-			MINIMUM_LOCATION_UPDATE_INTERVAL, MINIMUM_LOCATION_DISTANCE_CHANGE,
-			locationListener
-		)
+  def setGpsEnabled(enabled: Boolean) {
+    if (enabled != gpsEnabled) {
+      if (enabled)
+        enableGps()
+      else
+        disableGps()
+    }
+  }
 
-		gpsEnabled = true
+  private def enableGps() {
+    Log.d("TrackLocation", "Enable GPS")
+    locationManager.requestLocationUpdates(
+      LocationManager.GPS_PROVIDER,
+      MINIMUM_LOCATION_UPDATE_INTERVAL, MINIMUM_LOCATION_DISTANCE_CHANGE,
+      locationListener
+    )
 
-		val lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-		if (lastKnownLocation != null) {
-			currentLocation = lastKnownLocation
-			onLocationUpdated(currentLocation)
-		}
-	}
+    gpsEnabled = true
 
-	private def disableGps() {
-		Log.d("TrackLocation", "Disable GPS")
-		locationManager.removeUpdates(locationListener)
+    val lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+    if (lastKnownLocation != null) {
+      currentLocation = lastKnownLocation
+      onLocationUpdated(currentLocation)
+    }
+  }
 
-		gpsEnabled = false
+  private def disableGps() {
+    Log.d("TrackLocation", "Disable GPS")
+    locationManager.removeUpdates(locationListener)
 
-		currentLocation = null
-		onLocationUpdated(null)
-	}
+    gpsEnabled = false
 
-	override def onCreate(savedInstanceState: Bundle) {
-		super.onCreate(savedInstanceState)
+    currentLocation = null
+    onLocationUpdated(null)
+  }
 
-		locationManager = getSystemService(Context.LOCATION_SERVICE).asInstanceOf[LocationManager]
-		
-		if (gpsEnabled)
-			enableGps()
-	}
+  override def onCreate(savedInstanceState: Bundle) {
+    super.onCreate(savedInstanceState)
 
-	override def onResume() {
-		super.onResume()
+    locationManager = getSystemService(Context.LOCATION_SERVICE).asInstanceOf[LocationManager]
 
-		if (gpsEnabled)
-			enableGps()
-	}
+    if (gpsEnabled)
+      enableGps()
+  }
 
-	override def onPause() {
-		if (gpsEnabled)
-			disableGps()
+  override def onResume() {
+    super.onResume()
 
-		super.onPause()
-	}
+    if (gpsEnabled)
+      enableGps()
+  }
+
+  override def onPause() {
+    if (gpsEnabled)
+      disableGps()
+
+    super.onPause()
+  }
 }

@@ -1,12 +1,14 @@
 package net.kriomant.gortrans
 
-import org.scalatest.FunSuite
-import net.kriomant.gortrans.parsing._
 import java.util.Date
 
+import net.kriomant.gortrans.parsing._
+import org.scalatest.FunSuite
+
 class ParseExpectedArrivalsTest extends FunSuite {
-	test("response with 'closest departure time' is properly parsed") {
-		val response = """<?xml version="1.0" encoding="UTF-8"?>
+  test("response with 'closest departure time' is properly parsed") {
+    val response =
+      """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
@@ -32,13 +34,14 @@ class ParseExpectedArrivalsTest extends FunSuite {
 </div>
 </body>
 </html>"""
-		val now = new Date(2012, 1, 1, 0, 0, 0)
-		val arrivals = parseExpectedArrivals(response, """М "Площадь К.Маркса" (т)""", now)
-		assert(arrivals === Right(Seq(new Date(2012, 1, 1, 22, 58))))
-	}
+    val now = new Date(2012, 1, 1, 0, 0, 0)
+    val arrivals = parseExpectedArrivals(response, """М "Площадь К.Маркса" (т)""", now)
+    assert(arrivals === Right(Seq(new Date(2012, 1, 1, 22, 58))))
+  }
 
-	test("empty arrivals list") {
-		val response = """<?xml version="1.0" encoding="UTF-8"?>
+  test("empty arrivals list") {
+    val response =
+      """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
@@ -66,13 +69,14 @@ class ParseExpectedArrivalsTest extends FunSuite {
 </div>
 </body>
 </html>"""
-		val now = new Date(2012, 1, 1, 0, 0, 0)
-		val arrivals = parseExpectedArrivals(response, """Кинотеатр "Обь" (Оловозавод.)""", now)
-		assert(arrivals === Right(Seq.empty))
-	}
+    val now = new Date(2012, 1, 1, 0, 0, 0)
+    val arrivals = parseExpectedArrivals(response, """Кинотеатр "Обь" (Оловозавод.)""", now)
+    assert(arrivals === Right(Seq.empty))
+  }
 
-	test("relative time") {
-		val response = """<?xml version="1.0" encoding="UTF-8"?>
+  test("relative time") {
+    val response =
+      """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
@@ -100,13 +104,14 @@ class ParseExpectedArrivalsTest extends FunSuite {
 </div>
 </body>
 </html>"""
-		val now = new Date(2012, 1, 1, 0, 0, 0)
-		val arrivals = parseExpectedArrivals(response, """Кинотеатр "Обь" (Оловозавод.)""", now)
-		assert(arrivals === Right(Seq(new Date(2012, 1, 1, 21, 33, 0))))
-	}
+    val now = new Date(2012, 1, 1, 0, 0, 0)
+    val arrivals = parseExpectedArrivals(response, """Кинотеатр "Обь" (Оловозавод.)""", now)
+    assert(arrivals === Right(Seq(new Date(2012, 1, 1, 21, 33, 0))))
+  }
 
-	test("data error") {
-		val response = """<?xml version="1.0" encoding="UTF-8"?>
+  test("data error") {
+    val response =
+      """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
@@ -136,13 +141,14 @@ class ParseExpectedArrivalsTest extends FunSuite {
 </body>
 </html>
 """
-		val now = new Date(2012, 1, 1, 0, 0, 0)
-		val arrivals = parseExpectedArrivals(response, """Кинотеатр "Обь" (Оловозавод.)""", now)
-		assert(arrivals === Left("Данные не верны"))
-	}
+    val now = new Date(2012, 1, 1, 0, 0, 0)
+    val arrivals = parseExpectedArrivals(response, """Кинотеатр "Обь" (Оловозавод.)""", now)
+    assert(arrivals === Left("Данные не верны"))
+  }
 
-	test("no stop in route") {
-		val response = """<?xml version="1.0" encoding="UTF-8"?>
+  test("no stop in route") {
+    val response =
+      """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
@@ -170,8 +176,8 @@ class ParseExpectedArrivalsTest extends FunSuite {
 </html>
 """
 
-		val now = new Date(2012, 1, 1, 0, 0, 0)
-		val arrivals = parseExpectedArrivals(response, """Площадь Свердлова""", now)
-		assert(arrivals === Left("В выбранном маршруте отсутствует данная остановка"))
-	}
+    val now = new Date(2012, 1, 1, 0, 0, 0)
+    val arrivals = parseExpectedArrivals(response, """Площадь Свердлова""", now)
+    assert(arrivals === Left("В выбранном маршруте отсутствует данная остановка"))
+  }
 }

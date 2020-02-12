@@ -1,385 +1,398 @@
 package net.kriomant.gortrans
 
-import com.actionbarsherlock.app.SherlockFragmentActivity
-import android.os.Bundle
-import com.google.android.gms.maps.{CameraUpdateFactory, SupportMapFragment, GoogleMap}
-import com.google.android.gms.maps.model._
-import collection.JavaConverters.asJavaIterableConverter
+import android.content.Intent
+import android.graphics.{Bitmap, Canvas}
 import android.location.Location
-import android.view.ViewTreeObserver.OnGlobalLayoutListener
-import net.kriomant.gortrans.geometry.Point
-import net.kriomant.gortrans.parsing.VehicleInfo
-import com.google.android.gms.maps.GoogleMap.{InfoWindowAdapter, OnCameraChangeListener}
-import android.graphics.{Color, LightingColorFilter, Canvas, Bitmap}
-import net.kriomant.gortrans.core.{Route, VehicleType, Direction}
-import android.graphics.drawable.Drawable
-import android.view.View
-import android.widget.{Toast, TextView}
-import com.actionbarsherlock.view.{MenuItem, Window}
-import net.kriomant.gortrans.RouteMapLike.RouteInfo
-import scala.collection.mutable
-import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
+import android.os.Bundle
 import android.preference.PreferenceManager
 import android.util.Log
-import android.content.Intent
+import android.view.View
+import android.widget.{TextView, Toast}
+import com.actionbarsherlock.app.SherlockFragmentActivity
+import com.actionbarsherlock.view.{MenuItem, Window}
+import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
+import com.google.android.gms.maps.GoogleMap.{InfoWindowAdapter, OnCameraChangeListener}
+import com.google.android.gms.maps.model._
+import com.google.android.gms.maps.{CameraUpdateFactory, GoogleMap, SupportMapFragment}
+import net.kriomant.gortrans.RouteMapLike.RouteInfo
+import net.kriomant.gortrans.core.{Direction, Route, VehicleType}
+import net.kriomant.gortrans.geometry.Point
+import net.kriomant.gortrans.parsing.VehicleInfo
+
+import scala.collection.JavaConverters.asJavaIterableConverter
+import scala.collection.mutable
 
 object RouteMapV2Activity {
-	final val TAG = getClass.getName
+  final val TAG = getClass.getName
 
-	object StopMarkersState extends Enumeration {
-		val Hidden, Small, Large = Value
-	}
+  object StopMarkersState extends Enumeration {
+    val Hidden, Small, Large = Value
+  }
 
-	private final val DIRECTION_SECTORS_NUMBER = 16
+  private final val DIRECTION_SECTORS_NUMBER = 16
 }
 
 class RouteMapV2Activity extends SherlockFragmentActivity
-	with RouteMapLike
-	with TypedActivity
-{
-	import RouteMapV2Activity._
+  with RouteMapLike
+  with TypedActivity {
 
-	// Padding between route markers and map edge in pixels.
-	final val ROUTE_PADDING = 10
+  import RouteMapV2Activity._
 
-	var map: GoogleMap = null
-	var previousStopMarkersState: StopMarkersState.Value = StopMarkersState.Hidden
+  // Padding between route markers and map edge in pixels.
+  final val ROUTE_PADDING = 10
 
-	var routeMarkers = mutable.Buffer[Polyline]()
-	var stopMarkers = mutable.Buffer[Marker]()
-	var smallStopMarkers = mutable.Buffer[Marker]()
-	val vehicleMarkers = mutable.Map.empty[Marker, (VehicleInfo, Option[Double])]
+  var map: GoogleMap = _
+  var previousStopMarkersState: StopMarkersState.Value = StopMarkersState.Hidden
 
-	/** Vehicle marker for which info windows was shown last time. */
-	var infoWindowMarker: Option[Marker] = None
+  var routeMarkers: mutable.Buffer[Polyline] = mutable.Buffer[Polyline]()
+  var stopMarkers: mutable.Buffer[Marker] = mutable.Buffer[Marker]()
+  var smallStopMarkers: mutable.Buffer[Marker] = mutable.Buffer[Marker]()
+  val vehicleMarkers = mutable.Map.empty[Marker, (VehicleInfo, Option[Double])]
 
-	var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Option[Int]), Bitmap]
+  /** Vehicle marker for which info windows was shown last time. */
+  var infoWindowMarker: Option[Marker] = None
 
-	override def onCreate(savedInstanceState: Bundle) {
-		super.onCreate(savedInstanceState)
+  var vehicleBitmaps = mutable.Map.empty[(VehicleType.Value, String, Option[Int]), Bitmap]
 
-		// Enable to show indeterminate progress indicator in activity header.
-		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
-		setSupportProgressBarIndeterminateVisibility(false)
+  override def onCreate(savedInstanceState: Bundle) {
+    super.onCreate(savedInstanceState)
 
-		setContentView(R.layout.route_map_v2)
+    // Enable to show indeterminate progress indicator in activity header.
+    requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
+    setSupportProgressBarIndeterminateVisibility(false)
 
-		getSupportActionBar.setDisplayShowHomeEnabled(true)
-		getSupportActionBar.setDisplayHomeAsUpEnabled(true)
+    setContentView(R.layout.route_map_v2)
 
-		val googlePlayServicesStatus = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this)
-		Log.d(TAG, "Google Play Services status: %d" format googlePlayServicesStatus)
+    getSupportActionBar.setDisplayShowHomeEnabled(true)
+    getSupportActionBar.setDisplayHomeAsUpEnabled(true)
 
-		if (googlePlayServicesStatus != ConnectionResult.SUCCESS) {
-			if (! GooglePlayServicesUtil.isUserRecoverableError(googlePlayServicesStatus)) {
-				Log.e(TAG, "Non-recoverable Google Play Services error, disable new map")
+    val googlePlayServicesStatus = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this)
+    Log.d(TAG, "Google Play Services status: %d" format googlePlayServicesStatus)
 
-				// Show error message.
-				Toast.makeText(this, R.string.new_map_not_supported, Toast.LENGTH_LONG).show()
+    if (googlePlayServicesStatus != ConnectionResult.SUCCESS) {
+      if (!GooglePlayServicesUtil.isUserRecoverableError(googlePlayServicesStatus)) {
+        Log.e(TAG, "Non-recoverable Google Play Services error, disable new map")
 
-				// Turn off new maps.
-				val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-				prefs.edit().putBoolean(SettingsActivity.KEY_USE_NEW_MAP, false).commit()
+        // Show error message.
+        Toast.makeText(this, R.string.new_map_not_supported, Toast.LENGTH_LONG).show()
 
-				// Redirect to old maps.
-				val intent = getIntent
-				intent.setClass(this, classOf[RouteMapActivity])
-				intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-				startActivity(intent)
+        // Turn off new maps.
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        prefs.edit().putBoolean(SettingsActivity.KEY_USE_NEW_MAP, false).commit()
 
-				finish()
-			}
+        // Redirect to old maps.
+        val intent = getIntent
+        intent.setClass(this, classOf[RouteMapActivity])
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        startActivity(intent)
 
-			// If error is recoverable, do nothing. Corresponding message with action button
-			// will be shown instead of map by Google Play Services library.
+        finish()
+      }
 
-			return
-		}
+      // If error is recoverable, do nothing. Corresponding message with action button
+      // will be shown instead of map by Google Play Services library.
 
-		val mapFragment = getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment]
-		map = mapFragment.getMap
-		// `map` may be null if Google Play services are not available or not updated.
+      return
+    }
 
-		// Default marker info window shows snippet text all in one line.
-		// Use own layout in order to show multi-line schedule.
-		locally {
-			val infoWindowView = getLayoutInflater.inflate(R.layout.map_v2_vehicle_info_window, null, false)
-			val titleView = infoWindowView.findViewById(R.id.marker_info_title).asInstanceOf[TextView]
-			val scheduleView = infoWindowView.findViewById(R.id.marker_info_schedule).asInstanceOf[TextView]
-			val scheduleNrView = infoWindowView.findViewById(R.id.marker_info_schedule_nr).asInstanceOf[TextView]
-			val speedView = infoWindowView.findViewById(R.id.marker_info_speed).asInstanceOf[TextView]
+    val mapFragment = getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment]
+    map = mapFragment.getMap
+    // `map` may be null if Google Play services are not available or not updated.
 
-			val stopWindowView = getLayoutInflater.inflate(R.layout.map_v2_stop_info_window, null, false)
-			val stopNameView = stopWindowView.findViewById(R.id.stop_info_title).asInstanceOf[TextView]
+    // Default marker info window shows snippet text all in one line.
+    // Use own layout in order to show multi-line schedule.
+    locally {
+      val infoWindowView = getLayoutInflater.inflate(R.layout.map_v2_vehicle_info_window, null, false)
+      val titleView = infoWindowView.findViewById(R.id.marker_info_title).asInstanceOf[TextView]
+      val scheduleView = infoWindowView.findViewById(R.id.marker_info_schedule).asInstanceOf[TextView]
+      val scheduleNrView = infoWindowView.findViewById(R.id.marker_info_schedule_nr).asInstanceOf[TextView]
+      val speedView = infoWindowView.findViewById(R.id.marker_info_speed).asInstanceOf[TextView]
 
-			map.setInfoWindowAdapter(new InfoWindowAdapter {
-				def getInfoWindow(marker: Marker): View = null
-				def getInfoContents(marker: Marker): View = {
-					vehicleMarkers.get(marker) match {
-						case Some((info, angle)) =>
-							val oldName = RouteListBaseActivity.routeRenames.get(info.vehicleType, info.routeName)
-							titleView.setText(RouteListBaseActivity.getRouteTitle(RouteMapV2Activity.this, info.vehicleType, info.routeName))
-							scheduleView.setText(formatVehicleSchedule(info))
-							scheduleNrView.setText(getString(R.string.vehicle_schedule_number, info.scheduleNr.asInstanceOf[AnyRef]))
-							speedView.setText(getString(R.string.vehicle_speed_format, info.speed.asInstanceOf[AnyRef]))
+      val stopWindowView = getLayoutInflater.inflate(R.layout.map_v2_stop_info_window, null, false)
+      val stopNameView = stopWindowView.findViewById(R.id.stop_info_title).asInstanceOf[TextView]
 
-							infoWindowMarker = Some(marker)
+      map.setInfoWindowAdapter(new InfoWindowAdapter {
+        def getInfoWindow(marker: Marker): View = null
 
-							infoWindowView
+        def getInfoContents(marker: Marker): View = {
+          vehicleMarkers.get(marker) match {
+            case Some((info, angle)) =>
+              val oldName = RouteListBaseActivity.routeRenames.get(info.vehicleType, info.routeName)
+              titleView.setText(RouteListBaseActivity.getRouteTitle(RouteMapV2Activity.this, info.vehicleType, info.routeName))
+              scheduleView.setText(formatVehicleSchedule(info))
+              scheduleNrView.setText(getString(R.string.vehicle_schedule_number, info.scheduleNr.asInstanceOf[AnyRef]))
+              speedView.setText(getString(R.string.vehicle_speed_format, info.speed.asInstanceOf[AnyRef]))
 
-						case None => // Stop marker
-							stopNameView.setText(marker.getTitle)
-							stopWindowView
-					}
-				}
-			})
-		}
+              infoWindowMarker = Some(marker)
 
-		var previousCameraPosition = map.getCameraPosition
-		map.setOnCameraChangeListener(new OnCameraChangeListener {
-			def onCameraChange(camera: CameraPosition) {
-				val stopMarkersState =
-					if (camera.zoom < RouteMapLike.ZOOM_WHOLE_ROUTE)
-						StopMarkersState.Hidden
-					else if (camera.zoom < RouteMapLike.ZOOM_WHOLE_ROUTE+2)
-						StopMarkersState.Small
-					else
-						StopMarkersState.Large
+              infoWindowView
 
-				if (stopMarkersState != previousStopMarkersState) {
-					stopMarkersState match {
-						case StopMarkersState.Hidden =>
-							stopMarkers      foreach { _.setVisible(false) }
-							smallStopMarkers foreach { _.setVisible(false) }
-						case StopMarkersState.Small =>
-							stopMarkers      foreach { _.setVisible(false) }
-							smallStopMarkers foreach { _.setVisible(true) }
-						case StopMarkersState.Large =>
-							stopMarkers      foreach { _.setVisible(true) }
-							smallStopMarkers foreach { _.setVisible(false) }
-					}
-					previousStopMarkersState = stopMarkersState
-				}
+            case None => // Stop marker
+              stopNameView.setText(marker.getTitle)
+              stopWindowView
+          }
+        }
+      })
+    }
 
-				if (previousCameraPosition.zoom != camera.zoom) {
-					routeMarkers.foreach(_.setWidth(getRouteStrokeWidth(camera.zoom)))
-				}
+    val previousCameraPosition = map.getCameraPosition
+    map.setOnCameraChangeListener(new OnCameraChangeListener {
+      def onCameraChange(camera: CameraPosition) {
+        val stopMarkersState =
+          if (camera.zoom < RouteMapLike.ZOOM_WHOLE_ROUTE)
+            StopMarkersState.Hidden
+          else if (camera.zoom < RouteMapLike.ZOOM_WHOLE_ROUTE + 2)
+            StopMarkersState.Small
+          else
+            StopMarkersState.Large
 
-				if (previousCameraPosition.bearing != camera.bearing) {
-					vehicleMarkers.foreach { case (marker, (vehicleInfo, angle)) =>
-						marker.setIcon(getVehicleIcon(vehicleInfo, angle, camera.bearing))
-					}
-				}
-			}
-		})
-	}
+        if (stopMarkersState != previousStopMarkersState) {
+          stopMarkersState match {
+            case StopMarkersState.Hidden =>
+              stopMarkers foreach {
+                _.setVisible(false)
+              }
+              smallStopMarkers foreach {
+                _.setVisible(false)
+              }
+            case StopMarkersState.Small =>
+              stopMarkers foreach {
+                _.setVisible(false)
+              }
+              smallStopMarkers foreach {
+                _.setVisible(true)
+              }
+            case StopMarkersState.Large =>
+              stopMarkers foreach {
+                _.setVisible(true)
+              }
+              smallStopMarkers foreach {
+                _.setVisible(false)
+              }
+          }
+          previousStopMarkersState = stopMarkersState
+        }
 
-	override def isInitialized = {
-		getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment].getMap != null
-	}
+        if (previousCameraPosition.zoom != camera.zoom) {
+          routeMarkers.foreach(_.setWidth(getRouteStrokeWidth(camera.zoom)))
+        }
 
-	override def onOptionsItemSelected(item: MenuItem): Boolean = {
-		import RouteMapLike._
+        if (previousCameraPosition.bearing != camera.bearing) {
+          vehicleMarkers.foreach { case (marker, (vehicleInfo, angle)) =>
+            marker.setIcon(getVehicleIcon(vehicleInfo, angle, camera.bearing))
+          }
+        }
+      }
+    })
+  }
 
-		item.getItemId match {
-			case android.R.id.home => {
-				val intent = getIntent
-				val parentIntent = intent.getLongExtra(EXTRA_GROUP_ID, -1) match {
-					case -1 =>
-						val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
-						val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
-						val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
-						RouteInfoActivity.createIntent(this, routeId, routeName, vehicleType)
-					case groupId =>
-						GroupsActivity.createIntent(this)
-				}
-				parentIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-				startActivity(parentIntent)
-				true
-			}
-			case _ => super.onOptionsItemSelected(item)
-		}
-	}
+  override def isInitialized: Boolean = {
+    getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment].getMap != null
+  }
 
+  override def onOptionsItemSelected(item: MenuItem): Boolean = {
+    import RouteMapLike._
 
-	def getMapCameraPosition: RouteMapLike.MapCameraPosition = {
-		val camera = map.getCameraPosition
-
-		RouteMapLike.MapCameraPosition(
-			latitude = camera.target.latitude,
-			longitude = camera.target.longitude,
-			bearing = camera.bearing,
-			tilt = camera.tilt,
-			zoom = camera.zoom
-		)
-	}
-
-	def restoreMapCameraPosition(pos: RouteMapLike.MapCameraPosition) {
-		val builder = new CameraPosition.Builder
-
-		val position = builder
-			.target(new LatLng(pos.latitude, pos.longitude))
-			.bearing(pos.bearing)
-			.tilt(pos.tilt)
-			.zoom(pos.zoom)
-			.build()
-
-		map.moveCamera(CameraUpdateFactory.newCameraPosition(position))
-	}
-
-	def createProcessIndicator() = new FragmentActionBarProcessIndicator(this)
+    item.getItemId match {
+      case android.R.id.home =>
+        val intent = getIntent
+        val parentIntent = intent.getLongExtra(EXTRA_GROUP_ID, -1) match {
+          case -1 =>
+            val routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
+            val routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
+            val vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
+            RouteInfoActivity.createIntent(this, routeId, routeName, vehicleType)
+          case _ =>
+            GroupsActivity.createIntent(this)
+        }
+        parentIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        startActivity(parentIntent)
+        true
+      case _ => super.onOptionsItemSelected(item)
+    }
+  }
 
 
-	override def announceRoutes(routes: Seq[(Route, /*color*/ Int)]) {
-		routes foreach { case (routeInfo, color) =>
-			// Create vehicle marker bitmap for route.
-			def renderVehicle(color: Int, direction: Direction.Value, angle: Option[Float]): Bitmap = {
-				val drawable = new VehicleMarker(getResources, angle, color)
-				drawable.setBounds(0, 0, drawable.getIntrinsicWidth, drawable.getIntrinsicHeight)
-				val bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth, drawable.getIntrinsicHeight, Bitmap.Config.ARGB_8888)
-				val canvas = new Canvas(bitmap)
-				drawable.draw(canvas)
-				bitmap
-			}
+  def getMapCameraPosition: RouteMapLike.MapCameraPosition = {
+    val camera = map.getCameraPosition
 
-			val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
-			(0 until DIRECTION_SECTORS_NUMBER) foreach { angleSector =>
-				val angle = angleSector * sectorAngle
-				vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Some(angleSector))) = renderVehicle(color, Direction.Forward, Some(angle.toFloat))
-			}
-			vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, None)) = renderVehicle(color, Direction.Forward, None)
-		}
-	}
+    RouteMapLike.MapCameraPosition(
+      latitude = camera.target.latitude,
+      longitude = camera.target.longitude,
+      bearing = camera.bearing,
+      tilt = camera.tilt,
+      zoom = camera.zoom
+    )
+  }
 
-	def createRouteOverlays(routeInfo: core.Route, routeParams: RouteInfo) {
-		// Display stop name next to one of folded stops.
-		/*val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
-		val stopOverlayManager = routeStopNameOverlayManager
-		val stopNameOverlays: Iterator[Overlay] = stopNames.iterator map { case (pos, name) =>
-			new stopOverlayManager.RouteStopNameOverlay(name, routePointToGeoPoint(pos))
-		}*/
+  def restoreMapCameraPosition(pos: RouteMapLike.MapCameraPosition) {
+    val builder = new CameraPosition.Builder
 
-		val knownStops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
-		val newStops = routeParams.stops &~ knownStops
-		def createStopMarker(point: Point, name: String, iconRes: Int): Marker = {
-			val marker = map.addMarker(new MarkerOptions()
-				.icon(BitmapDescriptorFactory.fromResource(iconRes))
-				.anchor(0.5f, 0.5f)
-				.position(new LatLng(point.y, point.x))
-				.title(name)
-				.visible(false)
-			)
-			// `MarkerOptions.visible` has no effect (http://code.google.com/p/gmaps-api-issues/issues/detail?id=4677),
-			// so hide marker manually after creation. Call to 'visible' is left so it will work (and possible)
-			// avoid flicker when bug is fixed.
-			marker.setVisible(false)
-			marker
-		}
-		stopMarkers ++= newStops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker) }
-		smallStopMarkers ++= newStops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker_small) }
+    val position = builder
+      .target(new LatLng(pos.latitude, pos.longitude))
+      .bearing(pos.bearing)
+      .tilt(pos.tilt)
+      .zoom(pos.zoom)
+      .build()
 
-		routeMarkers += map.addPolyline(new PolylineOptions()
-			.addAll(routeParams.forwardRoutePoints.map(p => new LatLng(p.y, p.x)).asJava)
-			.width(getRouteStrokeWidth(map.getCameraPosition.zoom))
-			.geodesic(true)
-		)
-		routeMarkers += map.addPolyline(new PolylineOptions()
-			.addAll(routeParams.backwardRoutePoints.map(p => new LatLng(p.y, p.x)).asJava)
-			.width(getRouteStrokeWidth(map.getCameraPosition.zoom))
-			.geodesic(true)
-		)
-	}
+    map.moveCamera(CameraUpdateFactory.newCameraPosition(position))
+  }
 
-	def removeAllRouteOverlays() {
-		stopMarkers.foreach(_.remove())
-		stopMarkers.clear()
+  def createProcessIndicator() = new FragmentActionBarProcessIndicator(this)
 
-		smallStopMarkers.foreach(_.remove())
-		smallStopMarkers.clear()
 
-		routeMarkers.foreach(_.remove())
-		routeMarkers.clear()
-	}
+  override def announceRoutes(routes: Seq[(Route, /*color*/ Int)]) {
+    routes foreach { case (routeInfo, color) =>
+      // Create vehicle marker bitmap for route.
+      def renderVehicle(color: Int, direction: Direction.Value, angle: Option[Float]): Bitmap = {
+        val drawable = new VehicleMarker(getResources, angle, color)
+        drawable.setBounds(0, 0, drawable.getIntrinsicWidth, drawable.getIntrinsicHeight)
+        val bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth, drawable.getIntrinsicHeight, Bitmap.Config.ARGB_8888)
+        val canvas = new Canvas(bitmap)
+        drawable.draw(canvas)
+        bitmap
+      }
 
-	def navigateTo(left: Double, top: Double, right: Double, bottom: Double) {
-		val motion = CameraUpdateFactory.newLatLngBounds(
-			new LatLngBounds(new LatLng(bottom, left), new LatLng(top, right)),
-			ROUTE_PADDING
-		)
-		map.animateCamera(motion)
-	}
+      val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
+      (0 until DIRECTION_SECTORS_NUMBER) foreach { angleSector =>
+        val angle = angleSector * sectorAngle
+        vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, Some(angleSector))) = renderVehicle(color, Direction.Forward, Some(angle.toFloat))
+      }
+      vehicleBitmaps((routeInfo.vehicleType, routeInfo.name, None)) = renderVehicle(color, Direction.Forward, None)
+    }
+  }
 
-	def navigateTo(latitude: Double, longitude: Double) {
-		val motion = CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude))
-		map.animateCamera(motion)
-	}
+  def createRouteOverlays(routeInfo: core.Route, routeParams: RouteInfo) {
+    // Display stop name next to one of folded stops.
+    /*val stopNames = routes.values map(_.stopNames) reduceLeftOption  (_ | _) getOrElse Set()
+    val stopOverlayManager = routeStopNameOverlayManager
+    val stopNameOverlays: Iterator[Overlay] = stopNames.iterator map { case (pos, name) =>
+      new stopOverlayManager.RouteStopNameOverlay(name, routePointToGeoPoint(pos))
+    }*/
 
-	def setTitle(title: String) {
-		getSupportActionBar.setTitle(title)
-	}
+    val knownStops = routes.values map (_.stops) reduceLeftOption (_ | _) getOrElse Set()
+    val newStops = routeParams.stops &~ knownStops
 
-	def startBackgroundProcessIndication() {
-		setSupportProgressBarIndeterminateVisibility(true)
-	}
+    def createStopMarker(point: Point, name: String, iconRes: Int): Marker = {
+      val marker = map.addMarker(new MarkerOptions()
+        .icon(BitmapDescriptorFactory.fromResource(iconRes))
+        .anchor(0.5f, 0.5f)
+        .position(new LatLng(point.y, point.x))
+        .title(name)
+        .visible(false)
+      )
+      // `MarkerOptions.visible` has no effect (http://code.google.com/p/gmaps-api-issues/issues/detail?id=4677),
+      // so hide marker manually after creation. Call to 'visible' is left so it will work (and possible)
+      // avoid flicker when bug is fixed.
+      marker.setVisible(false)
+      marker
+    }
 
-	def stopBackgroundProcessIndication() {
-		setSupportProgressBarIndeterminateVisibility(true)
-	}
+    stopMarkers ++= newStops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker) }
+    smallStopMarkers ++= newStops.toSeq.map { case (point, name) => createStopMarker(point, name, R.drawable.route_stop_marker_small) }
 
-	def clearVehicleMarkers() {
-		infoWindowMarker = None
-		vehicleMarkers.keys.foreach(_.remove())
-		vehicleMarkers.clear()
-	}
+    routeMarkers += map.addPolyline(new PolylineOptions()
+      .addAll(routeParams.forwardRoutePoints.map(p => new LatLng(p.y, p.x)).asJava)
+      .width(getRouteStrokeWidth(map.getCameraPosition.zoom))
+      .geodesic(true)
+    )
+    routeMarkers += map.addPolyline(new PolylineOptions()
+      .addAll(routeParams.backwardRoutePoints.map(p => new LatLng(p.y, p.x)).asJava)
+      .width(getRouteStrokeWidth(map.getCameraPosition.zoom))
+      .geodesic(true)
+    )
+  }
 
-	def getVehicleIcon(info: VehicleInfo, angle: Option[Double], cameraBearing: Float): BitmapDescriptor = {
-		val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
-		val angleSector = angle map { a =>
-			((a + cameraBearing + 360 + sectorAngle/2) % 360 / sectorAngle).toInt
-		}
-		info.direction match {
-			case Some(dir) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, angleSector))
-			case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
-		}
-	}
+  def removeAllRouteOverlays() {
+    stopMarkers.foreach(_.remove())
+    stopMarkers.clear()
 
-	def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
-		val cameraPosition = map.getCameraPosition
+    smallStopMarkers.foreach(_.remove())
+    smallStopMarkers.clear()
 
-		val showInfoFor = infoWindowMarker.filter(_.isInfoWindowShown).map { m =>
-			val info = vehicleMarkers(m)._1
-			(info.vehicleType, info.routeId, info.scheduleNr)
-		}
+    routeMarkers.foreach(_.remove())
+    routeMarkers.clear()
+  }
 
-		// Reuse already existing vehicle markers. Spare markers are not removed, but just hidden.
-		vehicleMarkers.keys.zipAll(vehicles, null, null) foreach {
-			case (marker, null) =>
-				marker.setVisible(false)
+  def navigateTo(left: Double, top: Double, right: Double, bottom: Double) {
+    val motion = CameraUpdateFactory.newLatLngBounds(
+      new LatLngBounds(new LatLng(bottom, left), new LatLng(top, right)),
+      ROUTE_PADDING
+    )
+    map.animateCamera(motion)
+  }
 
-			case (existingMarker, (info, point, angle, baseColor)) =>
-				val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
-				val marker = if (existingMarker == null) {
-					val options = new MarkerOptions()
-						.icon(bitmapDescriptor)
-						.position(new LatLng(point.y, point.x))
-						.anchor(0.5f, 1)
-					map.addMarker(options)
-				} else {
-					val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
-					existingMarker.setIcon(bitmapDescriptor)
-					existingMarker.setPosition(new LatLng(point.y, point.x))
-					existingMarker.setVisible(true)
-					existingMarker
-				}
+  def navigateTo(latitude: Double, longitude: Double) {
+    val motion = CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude))
+    map.animateCamera(motion)
+  }
 
-				vehicleMarkers(marker) = (info, angle)
+  def setTitle(title: String) {
+    getSupportActionBar.setTitle(title)
+  }
 
-				if (showInfoFor.nonEmpty && showInfoFor == Some(info.vehicleType, info.routeId, info.scheduleNr)) {
-					infoWindowMarker = Some(marker)
-					marker.showInfoWindow()
-				}
-		}
-	}
+  def startBackgroundProcessIndication() {
+    setSupportProgressBarIndeterminateVisibility(true)
+  }
 
-	def setLocationMarker(location: Location) {}
+  def stopBackgroundProcessIndication() {
+    setSupportProgressBarIndeterminateVisibility(true)
+  }
+
+  def clearVehicleMarkers() {
+    infoWindowMarker = None
+    vehicleMarkers.keys.foreach(_.remove())
+    vehicleMarkers.clear()
+  }
+
+  def getVehicleIcon(info: VehicleInfo, angle: Option[Double], cameraBearing: Float): BitmapDescriptor = {
+    val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
+    val angleSector = angle map { a =>
+      ((a + cameraBearing + 360 + sectorAngle / 2) % 360 / sectorAngle).toInt
+    }
+    info.direction match {
+      case Some(_) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, angleSector))
+      case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
+    }
+  }
+
+  def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
+    val cameraPosition = map.getCameraPosition
+
+    val showInfoFor = infoWindowMarker.filter(_.isInfoWindowShown).map { m =>
+      val info = vehicleMarkers(m)._1
+      (info.vehicleType, info.routeId, info.scheduleNr)
+    }
+
+    // Reuse already existing vehicle markers. Spare markers are not removed, but just hidden.
+    vehicleMarkers.keys.zipAll(vehicles, null, null) foreach {
+      case (marker, null) =>
+        marker.setVisible(false)
+
+      case (existingMarker, (info, point, angle, baseColor)) =>
+        val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
+        val marker = if (existingMarker == null) {
+          val options = new MarkerOptions()
+            .icon(bitmapDescriptor)
+            .position(new LatLng(point.y, point.x))
+            .anchor(0.5f, 1)
+          map.addMarker(options)
+        } else {
+          val bitmapDescriptor = getVehicleIcon(info, angle, cameraPosition.bearing)
+          existingMarker.setIcon(bitmapDescriptor)
+          existingMarker.setPosition(new LatLng(point.y, point.x))
+          existingMarker.setVisible(true)
+          existingMarker
+        }
+
+        vehicleMarkers(marker) = (info, angle)
+
+        if (showInfoFor.nonEmpty && showInfoFor == Some(info.vehicleType, info.routeId, info.scheduleNr)) {
+          infoWindowMarker = Some(marker)
+          marker.showInfoWindow()
+        }
+    }
+  }
+
+  def setLocationMarker(location: Location) {}
 }

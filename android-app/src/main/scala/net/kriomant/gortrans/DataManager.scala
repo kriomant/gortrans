@@ -1,317 +1,327 @@
 package net.kriomant.gortrans
 
 import java.io._
-import net.kriomant.gortrans.utils.{closing, ReaderUtils}
-import net.kriomant.gortrans.core._
-import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint, RoutesInfo}
-import net.kriomant.gortrans.Client.{RouteInfoRequest}
+import java.net.{ConnectException, SocketException, SocketTimeoutException, UnknownHostException}
+import java.util
+
 import android.content.Context
 import android.util.Log
-import java.util
-import java.net.{SocketTimeoutException, SocketException, UnknownHostException, ConnectException}
-import scala.collection.mutable
+import net.kriomant.gortrans.Client.RouteInfoRequest
+import net.kriomant.gortrans.core._
+import net.kriomant.gortrans.parsing.{RoutePoint, RouteStop, RoutesInfo}
+import net.kriomant.gortrans.utils.closing
 import org.json.JSONException
 
+import scala.collection.mutable
+
 object DataManager {
-	final val TAG = "DataManager"
+  final val TAG = "DataManager"
 
-	trait ProcessIndicator {
-		def startFetch()
-		def stopFetch()
-		def onSuccess()
-		def onError()
-	}
+  trait ProcessIndicator {
+    def startFetch()
 
-	trait Source[Data, Cursor] {
-		val name: String
-		val maxAge: Long
+    def stopFetch()
 
-		def fetch(client: Client): Data
-		def update(db: Database, old: Boolean, fresh: Data)
-	}
+    def onSuccess()
 
-	def retryOnceIfEmpty(f: => String): String = {
-		var res = f
-		if (res.nonEmpty) res else f
-	}
+    def onError()
+  }
 
-	object RoutesListSource extends Source[RoutesInfo, Database.RoutesTable.Cursor] {
-		val name = "routes"
-		val maxAge = 1 * 24 * 60 * 60 * 1000l /* ms = 1 day */
+  trait Source[Data, Cursor] {
+    val name: String
+    val maxAge: Long
 
-		def fetch(client: Client): RoutesInfo = {
-			val json = retryOnceIfEmpty { client.getRoutesList() }
-			parsing.parseRoutesJson(json)
-		}
+    def fetch(client: Client): Data
 
-		def update(db: Database, old: Boolean, fresh: RoutesInfo) {
-			// Collect known routes.
-			val known = mutable.Set[(VehicleType.Value, String)]()
-			if (old) {
-				closing(db.fetchRoutes()) { cursor =>
-					while (cursor.moveToNext())
-						known.add((cursor.vehicleType, cursor.externalId))
-				}
-			}
+    def update(db: Database, old: Boolean, fresh: Data)
+  }
 
-			val routes = fresh.values.flatten[Route].toSeq
-			routes.foreach { route =>
-				db.addOrUpdateRoute(route.vehicleType, route.id, route.name, route.begin, route.end)
-			}
+  def retryOnceIfEmpty(f: => String): String = {
+    val res = f
+    if (res.nonEmpty) res else f
+  }
 
-			val obsolete = known -- routes.map(r => (r.vehicleType, r.id)).toSet
-			obsolete.foreach { case (vehicleType, id) => db.deleteRoute(vehicleType, id) }
-		}
-	}
+  object RoutesListSource extends Source[RoutesInfo, Database.RoutesTable.Cursor] {
+    val name = "routes"
+    val maxAge: Long = 1 * 24 * 60 * 60 * 1000L /* ms = 1 day */
 
-	case class RoutePointsListSource(
-		vehicleType: VehicleType.Value, routeId: String, routeName: String,
-		routeBegin: String, routeEnd: String
-	) extends Source[Seq[RoutePoint], Unit]
-	{
-		val name = "route-%d-%s" format (vehicleType.id, routeId)
-		val maxAge = 2 * 24 * 60 * 60 * 1000l /* ms = 2 days */
+    def fetch(client: Client): RoutesInfo = {
+      val json = retryOnceIfEmpty {
+        client.getRoutesList
+      }
+      parsing.parseRoutesJson(json)
+    }
 
-		def fetch(client: Client): Seq[RoutePoint] = {
-			val response = retryOnceIfEmpty {
-				client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)))
-			}
-			parsing.parseRoutesPoints(response)(routeId)
-		}
+    def update(db: Database, old: Boolean, fresh: RoutesInfo) {
+      // Collect known routes.
+      val known = mutable.Set[(VehicleType.Value, String)]()
+      if (old) {
+        closing(db.fetchRoutes()) { cursor =>
+          while (cursor.moveToNext())
+            known.add((cursor.vehicleType, cursor.externalId))
+        }
+      }
 
-		def update(db: Database, old: Boolean, routePoints: Seq[RoutePoint]) {
-			val dbRouteId = db.findRoute(vehicleType, routeId)
+      val routes = fresh.values.flatten[Route].toSeq
+      routes.foreach { route =>
+        db.addOrUpdateRoute(route.vehicleType, route.id, route.name, route.begin, route.end)
+      }
 
-			db.clearStopsAndPoints(dbRouteId)
+      val obsolete = known -- routes.map(r => (r.vehicleType, r.id)).toSet
+      obsolete.foreach { case (vehicleType, id) => db.deleteRoute(vehicleType, id) }
+    }
+  }
 
-			if (routePoints.nonEmpty) {
-				// Split route into forward and backward parts.
-				val (forward, backward) = splitRoute(routePoints, routeBegin, routeEnd)
+  case class RoutePointsListSource(
+                                    vehicleType: VehicleType.Value, routeId: String, routeName: String,
+                                    routeBegin: String, routeEnd: String
+                                  ) extends Source[Seq[RoutePoint], Unit] {
+    val name: String = "route-%d-%s" format(vehicleType.id, routeId)
+    val maxAge: Long = 2 * 24 * 60 * 60 * 1000L /* ms = 2 days */
 
-				for ((point, index) <- (forward ++ backward).zipWithIndex) {
-					db.addRoutePoint(dbRouteId, index, point)
-				}
+    def fetch(client: Client): Seq[RoutePoint] = {
+      val response = retryOnceIfEmpty {
+        client.getRoutesInfo(Seq(RouteInfoRequest(vehicleType, routeId, routeName, DirectionsEx.Both)))
+      }
+      parsing.parseRoutesPoints(response)(routeId)
+    }
 
-				// Get stop names and corresponding point indices.
-				val forwardStops = forward.zipWithIndex.collect {
-					case (RoutePoint(Some(RouteStop(name)), _, _), index) => (name, index)
-				}
-				val backwardStops = backward.zipWithIndex.collect {
-					case (RoutePoint(Some(RouteStop(name)), _, _), index) => (name, index + forward.length)
-				}
-				val folded = core.foldRoute[(String, Int)](forwardStops, backwardStops, _._1)
+    def update(db: Database, old: Boolean, routePoints: Seq[RoutePoint]) {
+      val dbRouteId = db.findRoute(vehicleType, routeId)
 
-				for ((stop, index) <- folded.zipWithIndex) {
-					db.addRouteStop(dbRouteId, stop.name, index, stop.forward.map(_._2), stop.backward.map(_._2))
-				}
-			}
-		}
-	}
+      db.clearStopsAndPoints(dbRouteId)
 
-	case class RouteSchedulesSource(vehicleType: VehicleType.Value, routeId: String, stopId: Int, direction: Direction.Value)
-		extends Source[Map[ScheduleType.Value, (String, Seq[(Int, Seq[Int])])], Unit]
-	{
-		val name = "schedule-%d-%s-%d-%s" format (vehicleType.id, routeId, stopId, direction)
-		val maxAge = 2 * 24 * 60 * 60 * 1000l /* ms = 2 days */
+      if (routePoints.nonEmpty) {
+        // Split route into forward and backward parts.
+        val (forward, backward) = splitRoute(routePoints, routeBegin, routeEnd)
 
-		def fetch(client: Client): Map[ScheduleType.Value, (String, Seq[(Int, Seq[Int])])] = {
-			// I assume schedules types are equal for both directions.
-			val scheduleTypes = parsing.parseAvailableScheduleTypes(client.getAvailableScheduleTypes(vehicleType, routeId, Direction.Forward))
+        for ((point, index) <- (forward ++ backward).zipWithIndex) {
+          db.addRoutePoint(dbRouteId, index, point)
+        }
 
-			scheduleTypes.map { case (scheduleType, name) =>
-				scheduleType -> (name, parsing.parseStopSchedule(client.getStopSchedule(stopId, vehicleType, routeId, direction, scheduleType)))
-			}.toMap
-		}
+        // Get stop names and corresponding point indices.
+        val forwardStops = forward.zipWithIndex.collect {
+          case (RoutePoint(Some(RouteStop(name)), _, _), index) => (name, index)
+        }
+        val backwardStops = backward.zipWithIndex.collect {
+          case (RoutePoint(Some(RouteStop(name)), _, _), index) => (name, index + forward.length)
+        }
+        val folded = core.foldRoute[(String, Int)](forwardStops, backwardStops, _._1)
 
-		def update(db: Database, old: Boolean, schedules: Map[ScheduleType.Value, (String, Seq[(Int, Seq[Int])])]) {
-			val dbRouteId = db.findRoute(vehicleType, routeId)
+        for ((stop, index) <- folded.zipWithIndex) {
+          db.addRouteStop(dbRouteId, stop.name, index, stop.forward.map(_._2), stop.backward.map(_._2))
+        }
+      }
+    }
+  }
 
-			db.clearSchedules(dbRouteId, stopId, direction)
+  case class RouteSchedulesSource(vehicleType: VehicleType.Value, routeId: String, stopId: Int, direction: Direction.Value)
+    extends Source[Map[ScheduleType.Value, (String, Seq[(Int, Seq[Int])])], Unit] {
+    val name: String = "schedule-%d-%s-%d-%s" format(vehicleType.id, routeId, stopId, direction)
+    val maxAge: Long = 2 * 24 * 60 * 60 * 1000L /* ms = 2 days */
 
-			for ((scheduleType, (name, schedule)) <- schedules) {
-				val expanded = schedule.flatMap{case (hour, minutes) => minutes.map(m => (hour, m))}
-				db.addSchedule(dbRouteId, stopId, direction, scheduleType, name, expanded)
-			}
-		}
-	}
+    def fetch(client: Client): Map[ScheduleType.Value, (String, Seq[(Int, Seq[Int])])] = {
+      // I assume schedules types are equal for both directions.
+      val scheduleTypes = parsing.parseAvailableScheduleTypes(client.getAvailableScheduleTypes(vehicleType, routeId, Direction.Forward))
 
-	object ScheduleStopsSource extends Source[Map[String, Int], Unit] {
-		val name = "stops"
-		val maxAge = 4 * 24 * 60 * 60 * 1000l /* ms = 4 days */
+      scheduleTypes.map { case (scheduleType, name) =>
+        scheduleType -> (name, parsing.parseStopSchedule(client.getStopSchedule(stopId, vehicleType, routeId, direction, scheduleType)))
+      }
+    }
 
-		def fetch(client: Client): Map[String, Int] = {
-			parsing.parseStopsList(client.getStopsList(""))
-		}
+    def update(db: Database, old: Boolean, schedules: Map[ScheduleType.Value, (String, Seq[(Int, Seq[Int])])]) {
+      val dbRouteId = db.findRoute(vehicleType, routeId)
 
-		def update(db: Database, old: Boolean, stops: Map[String, Int]) {
-			db.clearStops()
+      db.clearSchedules(dbRouteId, stopId, direction)
 
-			for ((name, stopId) <- stops) {
-				db.addStop(name, stopId)
-			}
-		}
-	}
+      for ((scheduleType, (name, schedule)) <- schedules) {
+        val expanded = schedule.flatMap { case (hour, minutes) => minutes.map(m => (hour, m)) }
+        db.addSchedule(dbRouteId, stopId, direction, scheduleType, name, expanded)
+      }
+    }
+  }
 
-	object NewsSource extends Source[Seq[NewsStory], Database.NewsTable.Cursor] {
-		val name: String = "news"
-		val maxAge = 1 * 24 * 60 * 60 * 1000l /* ms = 1 day */
+  object ScheduleStopsSource extends Source[Map[String, Int], Unit] {
+    val name = "stops"
+    val maxAge: Long = 4 * 24 * 60 * 60 * 1000L /* ms = 4 days */
 
-		def fetch(client: Client): Seq[NewsStory] = {
-			parsing.parseNews(client.getNews())
-		}
+    def fetch(client: Client): Map[String, Int] = {
+      parsing.parseStopsList(client.getStopsList())
+    }
 
-		def update(db: Database, old: Boolean, fresh: Seq[NewsStory]) {
-			val loadedAt = new util.Date
-			val latestExternalId = db.loadLatestNewsStoryExternalId()
-			for (story <- fresh.takeWhile(_.id != latestExternalId)) {
-				db.addNews(story, loadedAt)
-			}
-		}
-	}
+    def update(db: Database, old: Boolean, stops: Map[String, Int]) {
+      db.clearStops()
 
-	/** Checks whether exception is typical for network or server failure.
-	  * Usage:
-	  *   try {
-	  *     ...
-	  *   } catch {
-	  *     case NetworkExceptionGroup(ex) => ...
-	  *   }
-	  */
-	object NetworkExceptionGroup {
-		def unapply(ex: Throwable) = ex match {
-			case
-				_: UnknownHostException |
-				_: ConnectException |
-				_: SocketException |
-				_: EOFException |
-				_: SocketTimeoutException |
-				_: FileNotFoundException |
-				_: ClientException => Some(ex)
-			case _ => None
-		}
-	}
+      for ((name, stopId) <- stops) {
+        db.addStop(name, stopId)
+      }
+    }
+  }
 
-	object DataExtractionExceptionGroup {
-		def unapply(ex: Throwable) = ex match {
-			case _: JSONException => Some(ex)
-			case _ => None
-		}
-	}
+  object NewsSource extends Source[Seq[NewsStory], Database.NewsTable.Cursor] {
+    val name: String = "news"
+    val maxAge: Long = 1 * 24 * 60 * 60 * 1000L /* ms = 1 day */
+
+    def fetch(client: Client): Seq[NewsStory] = {
+      parsing.parseNews(client.getNews)
+    }
+
+    def update(db: Database, old: Boolean, fresh: Seq[NewsStory]) {
+      val loadedAt = new util.Date
+      val latestExternalId = db.loadLatestNewsStoryExternalId()
+      for (story <- fresh.takeWhile(_.id != latestExternalId)) {
+        db.addNews(story, loadedAt)
+      }
+    }
+  }
+
+  /** Checks whether exception is typical for network or server failure.
+   * Usage:
+   * try {
+   * ...
+   * } catch {
+   * case NetworkExceptionGroup(ex) => ...
+   * }
+   */
+  object NetworkExceptionGroup {
+    def unapply(ex: Throwable): Option[Throwable] = ex match {
+      case
+        _: UnknownHostException |
+        _: ConnectException |
+        _: SocketException |
+        _: EOFException |
+        _: SocketTimeoutException |
+        _: FileNotFoundException |
+        _: ClientException => Some(ex)
+      case _ => None
+    }
+  }
+
+  object DataExtractionExceptionGroup {
+    def unapply(ex: Throwable): Option[Throwable] = ex match {
+      case _: JSONException => Some(ex)
+      case _ => None
+    }
+  }
 
 }
 
 class DataManager(context: Context, db: Database) {
-	import DataManager._
 
-	private[this] final val TAG = "DataManager"
+  import DataManager._
 
-	object AndroidLogger extends Logger {
-		def debug(msg: String) { Log.d("gortrans", msg) }
-		def verbose(msg: String) { Log.v("gortrans", msg) }
-	}
-	val client = new Client(AndroidLogger)
-	                                                           
-	/**
-	 * @note Must be called from UI thread only.
-	 */
-	def requestRoutesList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: => Unit) {
-		requestDatabaseData(RoutesListSource,	 getIndicator, updateIndicator, f)
-	}
+  private[this] final val TAG = "DataManager"
 
-	def requestStopsList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: => Unit) {
-		requestDatabaseData(ScheduleStopsSource, getIndicator, updateIndicator, f)
-	}
+  object AndroidLogger extends Logger {
+    def debug(msg: String) {
+      Log.d("gortrans", msg)
+    }
 
-	def requestRoutePoints(
-		vehicleType: VehicleType.Value, routeId: String, routeName: String,
-		routeBegin: String, routeEnd: String,
-		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
-	)(f: => Unit) {
-		requestDatabaseData(
-			RoutePointsListSource(vehicleType, routeId, routeName, routeBegin, routeEnd),
-			getIndicator, updateIndicator, f
-		)
-	}
+    def verbose(msg: String) {
+      Log.v("gortrans", msg)
+    }
+  }
 
-	def requestStopSchedules(
-		vehicleType: VehicleType.Value, routeId: String, stopId: Int, direction: Direction.Value,
-		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
-	)(f: => Unit) {
-		requestDatabaseData(RouteSchedulesSource(vehicleType, routeId, stopId, direction), getIndicator, updateIndicator, f)
-	}
+  val client = new Client(AndroidLogger)
 
-	/**
-	 * @note Must be called from UI thread only.
-	 */
-	def requestDatabaseData[T, Cursor](
-		source: Source[T, Cursor],
-		getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator,
-		f: => Unit
-	) {
+  /**
+   * @note Must be called from UI thread only.
+   */
+  def requestRoutesList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: => Unit) {
+    requestDatabaseData(RoutesListSource, getIndicator, updateIndicator, f)
+  }
 
-		def fetchData(old: Boolean, indicator: ProcessIndicator) {
-			val task = new AsyncTaskBridge[Unit, Boolean] {
-				override def onPreExecute() {
-					indicator.startFetch()
-				}
+  def requestStopsList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: => Unit) {
+    requestDatabaseData(ScheduleStopsSource, getIndicator, updateIndicator, f)
+  }
 
-				protected def doInBackgroundBridge(): Boolean = {
-					Thread.currentThread.setName("AsyncTask: request %s" format source.name)
-					try {
-						val optData = try {
-							Log.v(TAG, "Fetch data")
-							val rawData = source.fetch(client)
-							Log.v(TAG, "Data is successfully fetched")
-							Some(rawData)
-						} catch {
-							case NetworkExceptionGroup(ex) => {
-								Log.v(TAG, "Network failure during data fetching", ex)
-								None
-							}
-							case DataExtractionExceptionGroup(ex) => {
-								Log.v(TAG, "Data extraction failure during data fetching", ex)
-								None
-							}
-						}
+  def requestRoutePoints(
+                          vehicleType: VehicleType.Value, routeId: String, routeName: String,
+                          routeBegin: String, routeEnd: String,
+                          getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
+                        )(f: => Unit) {
+    requestDatabaseData(
+      RoutePointsListSource(vehicleType, routeId, routeName, routeBegin, routeEnd),
+      getIndicator, updateIndicator, f
+    )
+  }
 
-						optData map { rawData =>
-							db.transaction {
-								source.update(db, old, rawData)
-								db.updateLastUpdateTime(source.name, new util.Date)
-							}
-						}
-						optData.isDefined
+  def requestStopSchedules(
+                            vehicleType: VehicleType.Value, routeId: String, stopId: Int, direction: Direction.Value,
+                            getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
+                          )(f: => Unit) {
+    requestDatabaseData(RouteSchedulesSource(vehicleType, routeId, stopId, direction), getIndicator, updateIndicator, f)
+  }
 
-					} finally {
-						Thread.currentThread.setName("AsyncTask: idle")
-					}
-				}
+  /**
+   * @note Must be called from UI thread only.
+   */
+  def requestDatabaseData[T, Cursor](
+                                      source: Source[T, Cursor],
+                                      getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator,
+                                      f: => Unit
+                                    ) {
 
-				override def onPostExecute(success: Boolean) {
-					indicator.stopFetch()
-					if (success) {
-						indicator.onSuccess()
-						f
-					} else {
-						indicator.onError()
-					}
-				}
-			}
+    def fetchData(old: Boolean, indicator: ProcessIndicator) {
+      val task = new AsyncTaskBridge[Unit, Boolean] {
+        override def onPreExecute() {
+          indicator.startFetch()
+        }
 
-			task.execute()
-		}
+        protected def doInBackgroundBridge(): Boolean = {
+          Thread.currentThread.setName("AsyncTask: request %s" format source.name)
+          try {
+            val optData = try {
+              Log.v(TAG, "Fetch data")
+              val rawData = source.fetch(client)
+              Log.v(TAG, "Data is successfully fetched")
+              Some(rawData)
+            } catch {
+              case NetworkExceptionGroup(ex) =>
+                Log.v(TAG, "Network failure during data fetching", ex)
+                None
+              case DataExtractionExceptionGroup(ex) =>
+                Log.v(TAG, "Data extraction failure during data fetching", ex)
+                None
+            }
 
-		db.getLastUpdateTime(source.name) match {
-			case Some(modificationTime) => {
-				f
+            optData foreach { rawData =>
+              db.transaction {
+                source.update(db, old, rawData)
+                db.updateLastUpdateTime(source.name, new util.Date)
+              }
+            }
+            optData.isDefined
 
-				if (modificationTime.getTime() + source.maxAge < (new util.Date).getTime) {
-					// Cache is out of date.
-					fetchData(true, updateIndicator)
-				}
-			}
+          } finally {
+            Thread.currentThread.setName("AsyncTask: idle")
+          }
+        }
 
-			case None => fetchData(false, getIndicator)
-		}
-	}
+        override def onPostExecute(success: Boolean) {
+          indicator.stopFetch()
+          if (success) {
+            indicator.onSuccess()
+            f
+          } else {
+            indicator.onError()
+          }
+        }
+      }
+
+      task.execute()
+    }
+
+    db.getLastUpdateTime(source.name) match {
+      case Some(modificationTime) =>
+        f
+
+        if (modificationTime.getTime + source.maxAge < (new util.Date).getTime) {
+          // Cache is out of date.
+          fetchData(old = true, updateIndicator)
+        }
+
+      case None => fetchData(old = false, getIndicator)
+    }
+  }
 }

@@ -1,7 +1,7 @@
 package net.kriomant.gortrans
 
-import android.widget.Checkable
 import android.view.View
+import android.widget.Checkable
 
 /**
  * Since Honeycomb `ListView` supports 'activated' state for checked items
@@ -17,28 +17,29 @@ import android.view.View
  * for all platform versions.
  */
 trait CheckableToActivatedStateConversion extends View with Checkable {
-	private[this] var checked: Boolean = false
+  private[this] var checked: Boolean = false
 
-	def setChecked(value: Boolean) {
-		if (checked != value) {
-			checked = value
-			refreshDrawableState()
-		}
-	}
+  def setChecked(value: Boolean) {
+    if (checked != value) {
+      checked = value
+      refreshDrawableState()
+    }
+  }
 
-	def isChecked: Boolean = checked
-	def toggle() {
-		checked = !checked
-		refreshDrawableState()
-	}
+  def isChecked: Boolean = checked
 
-	override def onCreateDrawableState(extraSpace: Int): Array[Int] = {
-		if (checked)
-			ViewStaticBridge.mergeDrawableStates(
-				super.onCreateDrawableState(extraSpace+1),
-				Array(android.R.attr.state_activated)
-			)
-		else
-			super.onCreateDrawableState(extraSpace)
-	}
+  def toggle() {
+    checked = !checked
+    refreshDrawableState()
+  }
+
+  override def onCreateDrawableState(extraSpace: Int): Array[Int] = {
+    if (checked)
+      ViewStaticBridge.mergeDrawableStates(
+        super.onCreateDrawableState(extraSpace + 1),
+        Array(android.R.attr.state_activated)
+      )
+    else
+      super.onCreateDrawableState(extraSpace)
+  }
 }

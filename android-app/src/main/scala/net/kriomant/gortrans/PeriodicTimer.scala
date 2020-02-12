@@ -1,35 +1,37 @@
 package net.kriomant.gortrans
 
-import android.os.Handler
 import java.util.Date
 
+import android.os.Handler
+
 class PeriodicTimer(period: Long)(callback: => Unit) {
-	private val handler = new Handler
-	private val runnable = new Runnable {
-		def run() {
-			_lastCalled = Some(new Date)
-			callback
-			handler.postDelayed(this, period)
-		}
-	}
+  private val handler = new Handler
+  private val runnable = new Runnable {
+    def run() {
+      _lastCalled = Some(new Date)
+      callback
+      handler.postDelayed(this, period)
+    }
+  }
 
-	private var _started = false
-	private var _lastCalled: Option[Date] = None
+  private var _started = false
+  private var _lastCalled: Option[Date] = None
 
-	def started = _started
-	def lastCalled = _lastCalled
+  def started: Boolean = _started
 
-	def start() {
-		if (! _started) {
-			handler.postDelayed(runnable, period)
-			_started = true
-		}
-	}
+  def lastCalled: Option[Date] = _lastCalled
 
-	def stop() {
-		if (_started) {
-			handler.removeCallbacks(runnable)
-			_started = false
-		}
-	}
+  def start() {
+    if (!_started) {
+      handler.postDelayed(runnable, period)
+      _started = true
+    }
+  }
+
+  def stop() {
+    if (_started) {
+      handler.removeCallbacks(runnable)
+      _started = false
+    }
+  }
 }

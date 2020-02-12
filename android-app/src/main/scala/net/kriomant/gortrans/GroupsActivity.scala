@@ -1,263 +1,266 @@
 package net.kriomant.gortrans
 
-import com.actionbarsherlock.app.{SherlockFragmentActivity, SherlockActivity}
-import android.os.Bundle
-import com.actionbarsherlock.view.{ActionMode, Menu, MenuItem}
-import android.view.{ViewGroup, View}
-import android.widget._
-import android.content.{Intent, Context}
-import android.text.{Spanned, SpannableStringBuilder}
-import android.text.style.ImageSpan
-import net.kriomant.gortrans.core.VehicleType
-import com.actionbarsherlock.view
-import android.widget.AdapterView.OnItemClickListener
 import android.app.Activity
-import android.support.v4.content.{Loader, AsyncTaskLoader}
-import net.kriomant.gortrans.Database.GroupInfo
+import android.content.{Context, Intent}
+import android.os.Bundle
 import android.support.v4.app.LoaderManager.LoaderCallbacks
-import android.util.Log
+import android.support.v4.content.Loader
+import android.text.SpannableStringBuilder
+import android.text.style.ImageSpan
+import android.view.View
+import android.widget.AdapterView.OnItemClickListener
+import android.widget._
+import com.actionbarsherlock.app.SherlockFragmentActivity
+import com.actionbarsherlock.view
+import com.actionbarsherlock.view.{ActionMode, Menu, MenuItem}
+import net.kriomant.gortrans.Database.GroupInfo
+import net.kriomant.gortrans.core.VehicleType
 
 object GroupsActivity {
-	val REQUEST_CREATE_GROUP = 1
-	val REQUEST_EDIT_GROUP = 2
+  val REQUEST_CREATE_GROUP = 1
+  val REQUEST_EDIT_GROUP = 2
 
-	def createIntent(context: Context): Intent = {
-		new Intent(context, classOf[GroupsActivity])
-	}
+  def createIntent(context: Context): Intent = {
+    new Intent(context, classOf[GroupsActivity])
+  }
 }
 
 class GroupsActivity extends GroupsActivityBase with HavingSidebar {
-	override def onWindowFocusChanged(hasFocus: Boolean) {
-		super.onWindowFocusChanged(hasFocus)
+  override def onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
 
-		if (hasFocus) {
-			// If this activity is shown for the first time after upgrade,
-			// show sidebar to present new functionality to user.
-			// This can't be done from onResume, because views are not yet
-			// laid out there.
-			val prefs = getPreferences(Context.MODE_PRIVATE)
-			val SHOW_SIDEBAR_ON_START = "showSidebarOnStart"
-			if (prefs.getBoolean(SHOW_SIDEBAR_ON_START, true)) {
-				prefs.edit().putBoolean(SHOW_SIDEBAR_ON_START, false).commit()
-				drawerLayout.openDrawer(drawer)
-			}
-		}
-	}
+    if (hasFocus) {
+      // If this activity is shown for the first time after upgrade,
+      // show sidebar to present new functionality to user.
+      // This can't be done from onResume, because views are not yet
+      // laid out there.
+      val prefs = getPreferences(Context.MODE_PRIVATE)
+      val SHOW_SIDEBAR_ON_START = "showSidebarOnStart"
+      if (prefs.getBoolean(SHOW_SIDEBAR_ON_START, true)) {
+        prefs.edit().putBoolean(SHOW_SIDEBAR_ON_START, false).commit()
+        drawerLayout.openDrawer(drawer)
+      }
+    }
+  }
 
 }
 
 object GroupsActivityBase {
-	private final val GROUPS_LOADER = 0
+  private final val GROUPS_LOADER = 0
 }
 
 class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with TypedActivity with CreateGroupDialog.Listener {
-	import GroupsActivityBase._
 
-	private[this] var groupList: ListView = _
-	private[this] var loadingProgress: ProgressBar = _
+  import GroupsActivityBase._
 
-	override def onCreate(savedInstanceState: Bundle) {
-		super.onCreate(savedInstanceState)
+  private[this] var groupList: ListView = _
+  private[this] var loadingProgress: ProgressBar = _
 
-		setContentView(R.layout.groups_activity)
+  override def onCreate(savedInstanceState: Bundle) {
+    super.onCreate(savedInstanceState)
 
-		groupList = findViewById(R.id.group_list).asInstanceOf[ListView]
-		groupList.setOnItemClickListener(new OnItemClickListener {
-			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
-				val intent = RouteMapLike.createShowGroupIntent(GroupsActivityBase.this, id)
-				startActivity(intent)
-			}
-		})
+    setContentView(R.layout.groups_activity)
 
-		loadingProgress = findViewById(R.id.loading).asInstanceOf[ProgressBar]
+    groupList = findViewById(R.id.group_list).asInstanceOf[ListView]
+    groupList.setOnItemClickListener(new OnItemClickListener {
+      def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
+        val intent = RouteMapLike.createShowGroupIntent(GroupsActivityBase.this, id)
+        startActivity(intent)
+      }
+    })
 
-		val actionModeHelper = new MultiListActionModeHelper(this, new ActionMode.Callback with ListSelectionActionModeCallback {
-			var menu_ : Menu = null
+    loadingProgress = findViewById(R.id.loading).asInstanceOf[ProgressBar]
 
-			def onCreateActionMode(mode: ActionMode, menu: Menu) = {
-				mode.getMenuInflater.inflate(R.menu.route_groups_actions, menu)
-				menu_ = menu
-				true
-			}
+    val actionModeHelper = new MultiListActionModeHelper(this, new ActionMode.Callback with ListSelectionActionModeCallback {
+      var menu_ : Menu = _
 
-			def onPrepareActionMode(mode: ActionMode, menu: Menu) = false
+      def onCreateActionMode(mode: ActionMode, menu: Menu): Boolean = {
+        mode.getMenuInflater.inflate(R.menu.route_groups_actions, menu)
+        menu_ = menu
+        true
+      }
 
-			def onActionItemClicked(mode: ActionMode, item: view.MenuItem) = item.getItemId match {
-				case R.id.delete_group =>
-					val db = getApplication.asInstanceOf[CustomApplication].database
-					db.transaction {
-						groupList.getCheckedItemIds.foreach { groupId =>
-							db.deleteGroup(groupId)
-						}
-					}
-					mode.finish()
-					reloadGroups()
-					true
+      def onPrepareActionMode(mode: ActionMode, menu: Menu) = false
 
-				case R.id.edit_group =>
-					val groupId = groupList.getCheckedItemIds.head
-					mode.finish()
+      def onActionItemClicked(mode: ActionMode, item: view.MenuItem): Boolean = item.getItemId match {
+        case R.id.delete_group =>
+          val db = getApplication.asInstanceOf[CustomApplication].database
+          db.transaction {
+            groupList.getCheckedItemIds.foreach { groupId =>
+              db.deleteGroup(groupId)
+            }
+          }
+          mode.finish()
+          reloadGroups()
+          true
 
-					val intent = EditGroupActivity.createIntent(GroupsActivityBase.this, groupId)
-					startActivityForResult(intent, GroupsActivity.REQUEST_EDIT_GROUP)
+        case R.id.edit_group =>
+          val groupId = groupList.getCheckedItemIds.head
+          mode.finish()
 
-					true
+          val intent = EditGroupActivity.createIntent(GroupsActivityBase.this, groupId)
+          startActivityForResult(intent, GroupsActivity.REQUEST_EDIT_GROUP)
 
-				case _ => false
-			}
+          true
 
-			def onDestroyActionMode(mode: ActionMode) {}
+        case _ => false
+      }
 
-			def itemCheckedStateChanged(mode: ActionMode) {
-				val checkedItemCount = Compatibility.getCheckedItemCount(groupList)
-				if (checkedItemCount == 0) {
-					mode.finish()
-				} else {
-					mode.setTitle(compatibility.plurals.getQuantityString(GroupsActivityBase.this, R.plurals.groups, checkedItemCount, checkedItemCount))
-					menu_.setGroupVisible(R.id.single_item_actions, checkedItemCount == 1)
-				}
-			}
-		})
-		actionModeHelper.attach(groupList)
+      def onDestroyActionMode(mode: ActionMode) {}
 
-		loadGroups()
-	}
+      def itemCheckedStateChanged(mode: ActionMode) {
+        val checkedItemCount = Compatibility.getCheckedItemCount(groupList)
+        if (checkedItemCount == 0) {
+          mode.finish()
+        } else {
+          mode.setTitle(compatibility.plurals.getQuantityString(GroupsActivityBase.this, R.plurals.groups, checkedItemCount, checkedItemCount))
+          menu_.setGroupVisible(R.id.single_item_actions, checkedItemCount == 1)
+        }
+      }
+    })
+    actionModeHelper.attach(groupList)
 
-	override def onCreateOptionsMenu(menu: Menu) = {
-		super.onCreateOptionsMenu(menu)
-		getSupportMenuInflater.inflate(R.menu.route_groups_menu, menu)
-		true
-	}
+    loadGroups()
+  }
 
-	val loaderCallbacks = new LoaderCallbacks[Seq[GroupInfo]] {
-		def onCreateLoader(p1: Int, p2: Bundle) = android_utils.cachingLoader(GroupsActivityBase.this) {
-			getApplication.asInstanceOf[CustomApplication].database.loadGroups()
-		}
+  override def onCreateOptionsMenu(menu: Menu): Boolean = {
+    super.onCreateOptionsMenu(menu)
+    getSupportMenuInflater.inflate(R.menu.route_groups_menu, menu)
+    true
+  }
 
-		def onLoadFinished(loader: Loader[Seq[GroupInfo]], groups: Seq[GroupInfo]) {
-			groupList.setAdapter(new RouteGroupsAdapter(GroupsActivityBase.this, groups))
-			groupList.setEmptyView(findViewById(R.id.group_list_empty))
-			loadingProgress.setVisibility(View.INVISIBLE)
-		}
+  val loaderCallbacks: LoaderCallbacks[Seq[GroupInfo]] = new LoaderCallbacks[Seq[GroupInfo]] {
+    def onCreateLoader(p1: Int, p2: Bundle): Loader[Seq[GroupInfo]] = android_utils.cachingLoader(GroupsActivityBase.this) {
+      getApplication.asInstanceOf[CustomApplication].database.loadGroups()
+    }
 
-		def onLoaderReset(p1: Loader[Seq[GroupInfo]]) {
-			groupList.setAdapter(null)
-		}
-	}
+    def onLoadFinished(loader: Loader[Seq[GroupInfo]], groups: Seq[GroupInfo]) {
+      groupList.setAdapter(new RouteGroupsAdapter(GroupsActivityBase.this, groups))
+      groupList.setEmptyView(findViewById(R.id.group_list_empty))
+      loadingProgress.setVisibility(View.INVISIBLE)
+    }
 
-	private def loadGroups() {
-		getSupportLoaderManager.initLoader(GROUPS_LOADER, null, loaderCallbacks)
-	}
+    def onLoaderReset(p1: Loader[Seq[GroupInfo]]) {
+      groupList.setAdapter(null)
+    }
+  }
 
-	private def reloadGroups() {
-		getSupportLoaderManager.restartLoader(GROUPS_LOADER, null, loaderCallbacks)
-	}
+  private def loadGroups() {
+    getSupportLoaderManager.initLoader(GROUPS_LOADER, null, loaderCallbacks)
+  }
 
-	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
-		case R.id.create_group =>
-			startActivityForResult(RouteChooseActivity.createIntent(this), GroupsActivity.REQUEST_CREATE_GROUP)
-			true
+  private def reloadGroups() {
+    getSupportLoaderManager.restartLoader(GROUPS_LOADER, null, loaderCallbacks)
+  }
 
-		case _ => super.onOptionsItemSelected(item)
-	}
+  override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+    case R.id.create_group =>
+      startActivityForResult(RouteChooseActivity.createIntent(this), GroupsActivity.REQUEST_CREATE_GROUP)
+      true
 
-	var createGroupData: Intent = null
+    case _ => super.onOptionsItemSelected(item)
+  }
 
-	override def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) = requestCode match {
-		case GroupsActivity.REQUEST_CREATE_GROUP =>
-			if (resultCode == Activity.RESULT_OK) {
-				// There are two bugs in Android which don't allow to show dialog from onActivityResult:
-				// * http://code.google.com/p/android/issues/detail?id=17787
-				// * http://code.google.com/p/android/issues/detail?id=23761
-				// So just set flag here and check it in onResume.
-				createGroupData = data
-			}
+  var createGroupData: Intent = _
 
-		case GroupsActivity.REQUEST_EDIT_GROUP => reloadGroups()
+  override def onActivityResult(requestCode: Int, resultCode: Int, data: Intent): Unit = requestCode match {
+    case GroupsActivity.REQUEST_CREATE_GROUP =>
+      if (resultCode == Activity.RESULT_OK) {
+        // There are two bugs in Android which don't allow to show dialog from onActivityResult:
+        // * http://code.google.com/p/android/issues/detail?id=17787
+        // * http://code.google.com/p/android/issues/detail?id=23761
+        // So just set flag here and check it in onResume.
+        createGroupData = data
+      }
 
-		case _ => super.onActivityResult(requestCode, resultCode, data)
-	}
+    case GroupsActivity.REQUEST_EDIT_GROUP => reloadGroups()
 
-
-	override def onResume() {
-		super.onResume()
-
-		if (createGroupData != null) {
-			createGroup(createGroupData)
-			createGroupData = null
-			reloadGroups()
-		}
-	}
+    case _ => super.onActivityResult(requestCode, resultCode, data)
+  }
 
 
-	override def onWindowFocusChanged(hasFocus: Boolean) {
-		super.onWindowFocusChanged(hasFocus)
+  override def onResume() {
+    super.onResume()
 
-		if (hasFocus) {
-			// If this activity is shown for the first time after upgrade,
-			// show sidebar to present new functionality to user.
-			// This can't be done from onResume, because views are not yet
-			// laid out there.
-			val prefs = getPreferences(Context.MODE_PRIVATE)
-			val SHOW_SIDEBAR_ON_START = "showSidebarOnStart"
-			if (prefs.getBoolean(SHOW_SIDEBAR_ON_START, true)) {
-				prefs.edit().putBoolean(SHOW_SIDEBAR_ON_START, false).commit()
-				//sidebarContainer.animateOpen()
-			}
-		}
-	}
+    if (createGroupData != null) {
+      createGroup(createGroupData)
+      createGroupData = null
+      reloadGroups()
+    }
+  }
 
-	val TAG_CREATE_GROUP = "tag-create-group"
 
-	def createGroup(data: Intent) {
-		val routeIds = RouteChooseActivity.intentToResult(data)
-		val dialog = new CreateGroupDialog(routeIds)
-		dialog.show(getSupportFragmentManager, TAG_CREATE_GROUP)
-	}
+  override def onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
 
-	def onCreateGroup(dialog: CreateGroupDialog, groupId: Long) {
-		reloadGroups()
-	}
+    if (hasFocus) {
+      // If this activity is shown for the first time after upgrade,
+      // show sidebar to present new functionality to user.
+      // This can't be done from onResume, because views are not yet
+      // laid out there.
+      val prefs = getPreferences(Context.MODE_PRIVATE)
+      val SHOW_SIDEBAR_ON_START = "showSidebarOnStart"
+      if (prefs.getBoolean(SHOW_SIDEBAR_ON_START, true)) {
+        prefs.edit().putBoolean(SHOW_SIDEBAR_ON_START, false).commit()
+        //sidebarContainer.animateOpen()
+      }
+    }
+  }
+
+  val TAG_CREATE_GROUP = "tag-create-group"
+
+  def createGroup(data: Intent) {
+    val routeIds = RouteChooseActivity.intentToResult(data)
+    val dialog = new CreateGroupDialog(routeIds)
+    dialog.show(getSupportFragmentManager, TAG_CREATE_GROUP)
+  }
+
+  def onCreateGroup(dialog: CreateGroupDialog, groupId: Long) {
+    reloadGroups()
+  }
 }
 
 object RouteGroupsAdapter {
-	val vehicleTypeDrawables = Map(
-		VehicleType.Bus -> R.drawable.tab_bus,
-		VehicleType.TrolleyBus -> R.drawable.tab_trolleybus,
-		VehicleType.TramWay -> R.drawable.tab_tram,
-		VehicleType.MiniBus -> R.drawable.tab_minibus
-	)
+  val vehicleTypeDrawables = Map(
+    VehicleType.Bus -> R.drawable.tab_bus,
+    VehicleType.TrolleyBus -> R.drawable.tab_trolleybus,
+    VehicleType.TramWay -> R.drawable.tab_tram,
+    VehicleType.MiniBus -> R.drawable.tab_minibus
+  )
 }
 
 class RouteGroupsAdapter(val context: Context, val items: Seq[Database.GroupInfo]) extends SeqAdapter with EasyAdapter {
-	import android_utils.SpannableStringBuilderUtils
 
-	case class SubViews(name: TextView, routes: TextView)
-	val itemLayout = R.layout.group_list_item_layout
+  import android_utils.SpannableStringBuilderUtils
 
-	def findSubViews(view: View) = SubViews(
-		view.findViewById(R.id.group_name).asInstanceOf[TextView],
-		view.findViewById(R.id.group_routes).asInstanceOf[TextView]
-	)
+  case class SubViews(name: TextView, routes: TextView)
 
-	def adjustItem(position: Int, views: SubViews) {
-		val group = items(position)
+  val itemLayout: Int = R.layout.group_list_item_layout
 
-		views.name.setText(group.name)
+  def findSubViews(view: View): SubViews = SubViews(
+    view.findViewById(R.id.group_name).asInstanceOf[TextView],
+    view.findViewById(R.id.group_routes).asInstanceOf[TextView]
+  )
 
-		val builder = new SpannableStringBuilder
-		group.routes.foreach { case (vehicleType, routeName) =>
-			builder.appendWithSpan(" ", new ImageSpan(context, RouteGroupsAdapter.vehicleTypeDrawables(vehicleType)))
-			builder.append(routeName)
-			RouteListBaseActivity.routeRenames.get((vehicleType, routeName)).foreach { oldName =>
-				builder.append(" (").append(oldName).append(')')
-			}
-			builder.append(" ")
-		}
-		views.routes.setText(builder)
-	}
+  def adjustItem(position: Int, views: SubViews) {
+    val group = items(position)
+
+    views.name.setText(group.name)
+
+    val builder = new SpannableStringBuilder
+    group.routes.foreach { case (vehicleType, routeName) =>
+      builder.appendWithSpan(" ", new ImageSpan(context, RouteGroupsAdapter.vehicleTypeDrawables(vehicleType)))
+      builder.append(routeName)
+      RouteListBaseActivity.routeRenames.get((vehicleType, routeName)).foreach { oldName =>
+        builder.append(" (").append(oldName).append(')')
+      }
+      builder.append(" ")
+    }
+    views.routes.setText(builder)
+  }
 
 
-	override def hasStableIds: Boolean = true
-	override def getItemId(position: Int): Long = items(position).id
+  override def hasStableIds: Boolean = true
+
+  override def getItemId(position: Int): Long = items(position).id
 }

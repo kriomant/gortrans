@@ -1,98 +1,101 @@
 package net.kriomant.gortrans
 
+import android.app.Activity
 import android.content.{Context, Intent}
-import com.actionbarsherlock.app.SherlockActivity
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.style.ImageSpan
-
-import android_utils.SpannableStringBuilderUtils
-import android.widget.{TextView, EditText, Button}
-import android.view.View.OnClickListener
 import android.view.View
-import android.app.Activity
+import android.view.View.OnClickListener
+import android.widget.{EditText, TextView}
+import com.actionbarsherlock.app.SherlockActivity
+import net.kriomant.gortrans.android_utils.SpannableStringBuilderUtils
 
 object EditGroupActivity {
-	private final val EXTRA_GROUP_ID = "group-id"
+  private final val EXTRA_GROUP_ID = "group-id"
 
-	private final val REQUEST_EDIT_ROUTES = 1
+  private final val REQUEST_EDIT_ROUTES = 1
 
-	def createIntent(context: Context, groupId: Long): Intent = {
-		val intent = new Intent(context, classOf[EditGroupActivity])
-		intent.putExtra(EXTRA_GROUP_ID, groupId)
-		intent
-	}
+  def createIntent(context: Context, groupId: Long): Intent = {
+    val intent = new Intent(context, classOf[EditGroupActivity])
+    intent.putExtra(EXTRA_GROUP_ID, groupId)
+    intent
+  }
 }
 
-class EditGroupActivity extends SherlockActivity with BaseActivity with TypedActivity { self =>
-	import EditGroupActivity._
+class EditGroupActivity extends SherlockActivity with BaseActivity with TypedActivity {
+  self =>
 
-	var groupId: Long = -1
-	var routeIds: Set[Long] = null
+  import EditGroupActivity._
 
-	var groupNameEdit: EditText = null
-	var routesText: TextView = null
+  var groupId: Long = -1
+  var routeIds: Set[Long] = _
 
-	override def onCreate(savedInstanceState: Bundle) {
-		super.onCreate(savedInstanceState)
+  var groupNameEdit: EditText = _
+  var routesText: TextView = _
 
-		setContentView(R.layout.edit_group_activity)
+  override def onCreate(savedInstanceState: Bundle) {
+    super.onCreate(savedInstanceState)
 
-		groupNameEdit = findViewById(R.id.group_name_edit).asInstanceOf[EditText]
-		routesText = findViewById(R.id.routes_list).asInstanceOf[TextView]
-		val editRoutesButton = findViewById(R.id.edit_routes)
+    setContentView(R.layout.edit_group_activity)
 
-		editRoutesButton.setOnClickListener(new OnClickListener {
-			def onClick(v: View) {
-				startActivityForResult(RouteChooseActivity.createIntent(self, self.routeIds), REQUEST_EDIT_ROUTES)
-			}
-		})
+    groupNameEdit = findViewById(R.id.group_name_edit).asInstanceOf[EditText]
+    routesText = findViewById(R.id.routes_list).asInstanceOf[TextView]
+    val editRoutesButton = findViewById(R.id.edit_routes)
 
-		groupId = getIntent.getLongExtra(EXTRA_GROUP_ID, -1)
+    editRoutesButton.setOnClickListener(new OnClickListener {
+      def onClick(v: View) {
+        startActivityForResult(RouteChooseActivity.createIntent(self, self.routeIds), REQUEST_EDIT_ROUTES)
+      }
+    })
 
-		val db = getApplication.asInstanceOf[CustomApplication].database
-		val (groupName, routeIds) = db.transaction {(
-			db.getGroupName(groupId),
-			db.getGroupItems(groupId)
-		)}
-		this.routeIds = routeIds
+    groupId = getIntent.getLongExtra(EXTRA_GROUP_ID, -1)
 
-		groupNameEdit.setText(groupName)
-	}
+    val db = getApplication.asInstanceOf[CustomApplication].database
+    val (groupName, routeIds) = db.transaction {
+      (
+        db.getGroupName(groupId),
+        db.getGroupItems(groupId)
+      )
+    }
+    this.routeIds = routeIds
 
-	override def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
-		requestCode match {
-			case REQUEST_EDIT_ROUTES => if (resultCode == Activity.RESULT_OK) {
-				routeIds = RouteChooseActivity.intentToResult(data)
-			}
+    groupNameEdit.setText(groupName)
+  }
 
-			case _ => super.onActivityResult(requestCode, resultCode, data)
-		}
-	}
+  override def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+    requestCode match {
+      case REQUEST_EDIT_ROUTES => if (resultCode == Activity.RESULT_OK) {
+        routeIds = RouteChooseActivity.intentToResult(data)
+      }
 
-	override def onResume() {
-		super.onResume()
+      case _ => super.onActivityResult(requestCode, resultCode, data)
+    }
+  }
 
-		val db = getApplication.asInstanceOf[CustomApplication].database
-		val routes = routeIds map { rid =>
-			utils.closing(db.fetchRoute(rid)) { c =>
-				core.Route(c.vehicleType, c.externalId, c.name, c.firstStopName, c.lastStopName)
-			}
-		}
+  override def onResume() {
+    super.onResume()
 
-		val builder = new SpannableStringBuilder
-		routes.foreach { r =>
-			builder.appendWithSpan(" ", new ImageSpan(this, RouteGroupsAdapter.vehicleTypeDrawables(r.vehicleType)))
-			builder.append(r.name)
-			builder.append(" ")
-		}
-		routesText.setText(builder)
-	}
+    val db = getApplication.asInstanceOf[CustomApplication].database
+    val routes = routeIds map { rid =>
+      utils.closing(db.fetchRoute(rid)) { c =>
+        core.Route(c.vehicleType, c.externalId, c.name, c.firstStopName, c.lastStopName)
+      }
+    }
 
-	protected override def onPause() {
-		val db = getApplication.asInstanceOf[CustomApplication].database
-		db.updateGroup(groupId, groupNameEdit.getText.toString, routeIds)
+    val builder = new SpannableStringBuilder
+    routes.foreach { r =>
+      builder.appendWithSpan(" ", new ImageSpan(this, RouteGroupsAdapter.vehicleTypeDrawables(r.vehicleType)))
+      builder.append(r.name)
+      builder.append(" ")
+    }
+    routesText.setText(builder)
+  }
 
-		super.onPause()
-	}
+  protected override def onPause() {
+    val db = getApplication.asInstanceOf[CustomApplication].database
+    db.updateGroup(groupId, groupNameEdit.getText.toString, routeIds)
+
+    super.onPause()
+  }
 }

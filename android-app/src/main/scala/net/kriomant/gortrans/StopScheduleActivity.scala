@@ -1,235 +1,236 @@
 package net.kriomant.gortrans
 
-import _root_.android.os.Bundle
-import net.kriomant.gortrans.core.{Direction, VehicleType}
-import android.support.v4.view.{PagerAdapter, ViewPager}
-
-import scala.collection.JavaConverters._
-import android.util.Log
-import android.view._
-import android.widget.{ListView, SimpleAdapter, TextView}
-import com.actionbarsherlock.app.SherlockActivity
-import com.actionbarsherlock.view.MenuItem
-import android.content.{Context, Intent}
 import java.util.Calendar
 
-import CursorIterator.cursorUtils
-import android.text.{SpannableString, SpannableStringBuilder, Spanned}
+import android.content.{Context, Intent}
+import android.os.Bundle
+import android.support.v4.view.{PagerAdapter, ViewPager}
 import android.text.style.{CharacterStyle, ForegroundColorSpan}
+import android.text.{SpannableString, SpannableStringBuilder, Spanned}
+import android.util.Log
+import android.view._
+import android.widget.{ListView, TextView}
+import com.actionbarsherlock.app.SherlockActivity
+import com.actionbarsherlock.view.MenuItem
+import net.kriomant.gortrans.CursorIterator.cursorUtils
+import net.kriomant.gortrans.core.{Direction, VehicleType}
 
 object StopScheduleActivity {
-	private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
+  private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
 
-	private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
-	private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
-	private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
-	private final val EXTRA_STOP_ID = CLASS_NAME + ".STOP_ID"
-	private final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
-	private final val EXTRA_DIRECTION = CLASS_NAME + ".DIRECTION"
+  private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
+  private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
+  private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
+  private final val EXTRA_STOP_ID = CLASS_NAME + ".STOP_ID"
+  private final val EXTRA_STOP_NAME = CLASS_NAME + ".STOP_NAME"
+  private final val EXTRA_DIRECTION = CLASS_NAME + ".DIRECTION"
 
-	def createIntent(
-		caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value,
-		stopId: Int, stopName: String, direction: Direction.Value
-	): Intent = {
-		val intent = new Intent(caller, classOf[StopScheduleActivity])
-		intent.putExtra(EXTRA_ROUTE_ID, routeId)
-		intent.putExtra(EXTRA_ROUTE_NAME, routeName)
-		intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
-		intent.putExtra(EXTRA_STOP_ID, stopId)
-		intent.putExtra(EXTRA_STOP_NAME, stopName)
-		intent.putExtra(EXTRA_DIRECTION, direction.id)
-		intent
-	}
+  def createIntent(
+                    caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value,
+                    stopId: Int, stopName: String, direction: Direction.Value
+                  ): Intent = {
+    val intent = new Intent(caller, classOf[StopScheduleActivity])
+    intent.putExtra(EXTRA_ROUTE_ID, routeId)
+    intent.putExtra(EXTRA_ROUTE_NAME, routeName)
+    intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
+    intent.putExtra(EXTRA_STOP_ID, stopId)
+    intent.putExtra(EXTRA_STOP_NAME, stopName)
+    intent.putExtra(EXTRA_DIRECTION, direction.id)
+    intent
+  }
 }
 
 class StopScheduleActivity extends SherlockActivity with BaseActivity with TypedActivity with ShortcutTarget {
-	import StopScheduleActivity._
 
-	private[this] final val TAG = "StopScheduleActivity"
+  import StopScheduleActivity._
 
-	private var routeId: String = null
-	private var routeName: String = null
-	private var vehicleType: VehicleType.Value = null
-	private var stopId: Int = -1
-	private var stopName: String = null
-	private var direction: Direction.Value = null
+  private[this] final val TAG = "StopScheduleActivity"
 
-	override def onCreate(bundle: Bundle) {
-		super.onCreate(bundle)
+  private var routeId: String = _
+  private var routeName: String = _
+  private var vehicleType: VehicleType.Value = _
+  private var stopId: Int = -1
+  private var stopName: String = _
+  private var direction: Direction.Value = _
 
-		setContentView(R.layout.stop_schedule_activity)
+  override def onCreate(bundle: Bundle) {
+    super.onCreate(bundle)
 
-		val intent = getIntent
-		routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
-		routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
-		vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
-		stopId = intent.getIntExtra(EXTRA_STOP_ID, -1)
-		stopName = intent.getStringExtra(EXTRA_STOP_NAME)
-		direction = Direction(intent.getIntExtra(EXTRA_DIRECTION, -1))
+    setContentView(R.layout.stop_schedule_activity)
 
-		val actionBar = getSupportActionBar
-		actionBar.setTitle(RouteListBaseActivity.getRouteTitle(this, vehicleType, routeName))
-		actionBar.setSubtitle(stopName)
-		actionBar.setDisplayHomeAsUpEnabled(true)
-	}
+    val intent = getIntent
+    routeId = intent.getStringExtra(EXTRA_ROUTE_ID)
+    routeName = intent.getStringExtra(EXTRA_ROUTE_NAME)
+    vehicleType = VehicleType(intent.getIntExtra(EXTRA_VEHICLE_TYPE, -1))
+    stopId = intent.getIntExtra(EXTRA_STOP_ID, -1)
+    stopName = intent.getStringExtra(EXTRA_STOP_NAME)
+    direction = Direction(intent.getIntExtra(EXTRA_DIRECTION, -1))
 
-	override def onStart() {
-		super.onStart()
-		loadData()
-	}
+    val actionBar = getSupportActionBar
+    actionBar.setTitle(RouteListBaseActivity.getRouteTitle(this, vehicleType, routeName))
+    actionBar.setSubtitle(stopName)
+    actionBar.setDisplayHomeAsUpEnabled(true)
+  }
 
-	def loadData() {
-		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
+  override def onStart() {
+    super.onStart()
+    loadData()
+  }
 
-		dataManager.requestStopSchedules(
-			vehicleType, routeId, stopId, direction,
-			new ForegroundProcessIndicator(this, loadData),
-			new ActionBarProcessIndicator(this)
-		) {
-			val database = getApplication.asInstanceOf[CustomApplication].database
+  def loadData() {
+    val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
 
-			val dbRouteId = database.findRoute(vehicleType, routeId)
-			val cursor = database.fetchSchedules(dbRouteId, stopId, direction)
+    dataManager.requestStopSchedules(
+      vehicleType, routeId, stopId, direction,
+      new ForegroundProcessIndicator(this, loadData),
+      new ActionBarProcessIndicator(this)
+    ) {
+      val database = getApplication.asInstanceOf[CustomApplication].database
 
-			val schedulesMap = cursor.map { c =>
-				c.scheduleType -> ((c.scheduleName, c.schedule.groupBy(_._1).mapValues(_.map(_._2)).toSeq.sortBy(_._1)))
-			}.toMap
+      val dbRouteId = database.findRoute(vehicleType, routeId)
+      val cursor = database.fetchSchedules(dbRouteId, stopId, direction)
 
-			if (schedulesMap nonEmpty) {
-				// Schedules are presented as map, it is needed to order them somehow.
-				// I assume 'keys' and 'values' traverse items in the same order.
-				val schedules = schedulesMap.values.toSeq
-				val typeToIndex = schedulesMap.keys.zipWithIndex.toMap
+      val schedulesMap = cursor.map { c =>
+        c.scheduleType -> ((c.scheduleName, c.schedule.groupBy(_._1).mapValues(_.map(_._2)).toSeq.sortBy(_._1)))
+      }.toMap
 
-				// Display schedule.
-				val viewPager = findViewById(R.id.schedule_tabs).asInstanceOf[ViewPager]
-				viewPager.setAdapter(new SchedulePagesAdapter(StopScheduleActivity.this, schedules))
+      if (schedulesMap.nonEmpty) {
+        // Schedules are presented as map, it is needed to order them somehow.
+        // I assume 'keys' and 'values' traverse items in the same order.
+        val schedules = schedulesMap.values.toSeq
+        val typeToIndex = schedulesMap.keys.zipWithIndex.toMap
 
-				// Select page corresponding to current day of week.
-				val dayOfWeek = Calendar.getInstance.get(Calendar.DAY_OF_WEEK)
-				val optIndex = (dayOfWeek match {
-					case Calendar.SATURDAY | Calendar.SUNDAY => typeToIndex.get(core.ScheduleType.Holidays)
-					case _ => typeToIndex.get(core.ScheduleType.Workdays)
-				}).orElse(typeToIndex.get(core.ScheduleType.Daily))
+        // Display schedule.
+        val viewPager = findViewById(R.id.schedule_tabs).asInstanceOf[ViewPager]
+        viewPager.setAdapter(new SchedulePagesAdapter(StopScheduleActivity.this, schedules))
 
-				optIndex map { index => viewPager.setCurrentItem(index) }
+        // Select page corresponding to current day of week.
+        val dayOfWeek = Calendar.getInstance.get(Calendar.DAY_OF_WEEK)
+        val optIndex = (dayOfWeek match {
+          case Calendar.SATURDAY | Calendar.SUNDAY => typeToIndex.get(core.ScheduleType.Holidays)
+          case _ => typeToIndex.get(core.ScheduleType.Workdays)
+        }).orElse(typeToIndex.get(core.ScheduleType.Daily))
 
-				viewPager.setVisibility(View.VISIBLE)
+        optIndex foreach { index => viewPager.setCurrentItem(index) }
 
-			} else {
-				findViewById(R.id.no_schedules).setVisibility(View.VISIBLE)
-			}
-		}
-	}
+        viewPager.setVisibility(View.VISIBLE)
 
-	class SchedulePagesAdapter(context: Context, schedules: Seq[(String, Seq[(Int, Seq[Int])])]) extends PagerAdapter {
-		def getCount: Int = schedules.length
+      } else {
+        findViewById(R.id.no_schedules).setVisibility(View.VISIBLE)
+      }
+    }
+  }
 
-		override def getPageTitle(position: Int): CharSequence = schedules(position)._1
+  class SchedulePagesAdapter(context: Context, schedules: Seq[(String, Seq[(Int, Seq[Int])])]) extends PagerAdapter {
+    def getCount: Int = schedules.length
 
-		override def instantiateItem(container: ViewGroup, position: Int): AnyRef = {
-			val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
-			val view = inflater.inflate(R.layout.stop_schedule_tab, container, false).asInstanceOf[ListView]
-			container.addView(view)
+    override def getPageTitle(position: Int): CharSequence = schedules(position)._1
 
-			val stopSchedule = schedules(position)._2
-			Log.d("StopScheduleActivity", stopSchedule.length.toString)
+    override def instantiateItem(container: ViewGroup, position: Int): AnyRef = {
+      val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
+      val view = inflater.inflate(R.layout.stop_schedule_tab, container, false).asInstanceOf[ListView]
+      container.addView(view)
 
-			val calendar = Calendar.getInstance()
-			val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
-			val currentMinute = calendar.get(Calendar.MINUTE)
+      val stopSchedule = schedules(position)._2
+      Log.d("StopScheduleActivity", stopSchedule.length.toString)
 
-			def formatTimes(hour: Int, minutes: Seq[Int]) = {
-				val hourStr = new SpannableString(hour.toString)
-				val minBuilder = new SpannableStringBuilder
+      val calendar = Calendar.getInstance()
+      val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+      val currentMinute = calendar.get(Calendar.MINUTE)
 
-				if (hour < currentHour) {
-					val span = new ForegroundColorSpan(getResources.getColor(R.color.schedule_past))
+      def formatTimes(hour: Int, minutes: Seq[Int]) = {
+        val hourStr = new SpannableString(hour.toString)
+        val minBuilder = new SpannableStringBuilder
 
-					hourStr.setSpan(CharacterStyle.wrap(span), 0, hourStr.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+        if (hour < currentHour) {
+          val span = new ForegroundColorSpan(getResources.getColor(R.color.schedule_past))
 
-					minBuilder.append(minutes.mkString(" "))
-					minBuilder.setSpan(span, 0, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+          hourStr.setSpan(CharacterStyle.wrap(span), 0, hourStr.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
 
-				} else if (hour > currentHour) {
-					val span = new ForegroundColorSpan(getResources.getColor(R.color.schedule_future))
+          minBuilder.append(minutes.mkString(" "))
+          minBuilder.setSpan(span, 0, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
 
-					hourStr.setSpan(CharacterStyle.wrap(span), 0, hourStr.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+        } else if (hour > currentHour) {
+          val span = new ForegroundColorSpan(getResources.getColor(R.color.schedule_future))
 
-					minBuilder.append(minutes.mkString(" "))
-					minBuilder.setSpan(span, 0, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+          hourStr.setSpan(CharacterStyle.wrap(span), 0, hourStr.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
 
-				} else {
-					val (before, after) = minutes.span(_ < currentMinute)
+          minBuilder.append(minutes.mkString(" "))
+          minBuilder.setSpan(span, 0, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
 
-					val spanPast = new ForegroundColorSpan(getResources.getColor(R.color.schedule_past))
-					val spanFuture = new ForegroundColorSpan(getResources.getColor(R.color.schedule_future))
+        } else {
+          val (before, after) = minutes.span(_ < currentMinute)
 
-					hourStr.setSpan(CharacterStyle.wrap(spanFuture), 0, hourStr.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+          val spanPast = new ForegroundColorSpan(getResources.getColor(R.color.schedule_past))
+          val spanFuture = new ForegroundColorSpan(getResources.getColor(R.color.schedule_future))
 
-					minBuilder.append(before.mkString(" "))
-					minBuilder.setSpan(spanPast, 0, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+          hourStr.setSpan(CharacterStyle.wrap(spanFuture), 0, hourStr.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
 
-					minBuilder.append(" ")
+          minBuilder.append(before.mkString(" "))
+          minBuilder.setSpan(spanPast, 0, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
 
-					val mark = minBuilder.length
-					minBuilder.append(after.mkString(" "))
-					minBuilder.setSpan(spanFuture, mark, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-				}
+          minBuilder.append(" ")
 
-				(hourStr, minBuilder)
-			}
+          val mark = minBuilder.length
+          minBuilder.append(after.mkString(" "))
+          minBuilder.setSpan(spanFuture, mark, minBuilder.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+        }
 
-			val adapter = new SeqAdapter with EasyAdapter {
-				case class SubViews(hour: TextView, minutes: TextView)
-				val context = StopScheduleActivity.this
-				val itemLayout = R.layout.stop_schedule_item
-				def items = stopSchedule
+        (hourStr, minBuilder)
+      }
 
-				def findSubViews(view: View) = SubViews(
-					view.findViewById(R.id.hour).asInstanceOf[TextView],
-					view.findViewById(R.id.minutes).asInstanceOf[TextView]
-				)
+      val adapter: SeqAdapter with EasyAdapter = new SeqAdapter with EasyAdapter {
 
-				def adjustItem(position: Int, views: SubViews) {
-					val (hour, minutes) = items(position)
-					val (hourText, minutesText) = formatTimes(hour, minutes)
-					views.hour.setText(hourText)
-					views.minutes.setText(minutesText)
-				}
-			}
-			view.setAdapter(adapter)
+        case class SubViews(hour: TextView, minutes: TextView)
 
-			view
-		}
+        val context: Context = StopScheduleActivity.this
+        val itemLayout: Int = R.layout.stop_schedule_item
 
-		override def destroyItem(container: ViewGroup, position: Int, `object`: AnyRef) {
-			container.removeView(`object`.asInstanceOf[View])
-		}
+        def items: Seq[(Int, Seq[Int])] = stopSchedule
 
-		override def setPrimaryItem(container: ViewGroup, position: Int, `object`: AnyRef) {}
+        def findSubViews(view: View): SubViews = SubViews(
+          view.findViewById(R.id.hour).asInstanceOf[TextView],
+          view.findViewById(R.id.minutes).asInstanceOf[TextView]
+        )
 
-		def isViewFromObject(p1: View, p2: AnyRef): Boolean = p1 == p2.asInstanceOf[View]
-	}
+        def adjustItem(position: Int, views: SubViews) {
+          val (hour, minutes) = items(position)
+          val (hourText, minutesText) = formatTimes(hour, minutes)
+          views.hour.setText(hourText)
+          views.minutes.setText(minutesText)
+        }
+      }
+      view.setAdapter(adapter)
 
-	override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
-		case android.R.id.home => {
-			val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
-			startActivity(intent)
-			true
-		}
-		case _ => super.onOptionsItemSelected(item)
-	}
+      view
+    }
 
-	def getShortcutNameAndIcon: (String, Int) = {
-		val vehicleShortName = getString(vehicleType match {
-			case VehicleType.Bus => R.string.bus_short
-			case VehicleType.TrolleyBus => R.string.trolleybus_short
-			case VehicleType.TramWay => R.string.tramway_short
-			case VehicleType.MiniBus => R.string.minibus_short
-		})
-		val name = getString(R.string.stop_schedule_shortcut_format, vehicleShortName, routeName, stopName)
-		(name, R.drawable.route_stop_schedule)
-	}
+    override def destroyItem(container: ViewGroup, position: Int, `object`: AnyRef) {
+      container.removeView(`object`.asInstanceOf[View])
+    }
+
+    override def setPrimaryItem(container: ViewGroup, position: Int, `object`: AnyRef) {}
+
+    def isViewFromObject(p1: View, p2: AnyRef): Boolean = p1 == p2.asInstanceOf[View]
+  }
+
+  override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+    case android.R.id.home =>
+      val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
+      startActivity(intent)
+      true
+    case _ => super.onOptionsItemSelected(item)
+  }
+
+  def getShortcutNameAndIcon: (String, Int) = {
+    val vehicleShortName = getString(vehicleType match {
+      case VehicleType.Bus => R.string.bus_short
+      case VehicleType.TrolleyBus => R.string.trolleybus_short
+      case VehicleType.TramWay => R.string.tramway_short
+      case VehicleType.MiniBus => R.string.minibus_short
+    })
+    val name = getString(R.string.stop_schedule_shortcut_format, vehicleShortName, routeName, stopName)
+    (name, R.drawable.route_stop_schedule)
+  }
 }
 
