@@ -13,7 +13,7 @@ import scala.collection.mutable
 object RouteChooseActivity {
   def createIntent(caller: Context, selectedRoutes: Set[Long] = Set.empty): Intent = {
     val intent = new Intent(caller, classOf[RouteChooseActivity])
-    intent.putExtra(EXTRA_ROUTE_IDS, selectedRoutes.toArray)
+    intent.putExtra(EXTRA_ROUTE_IDS, mutable.WrappedArray.make(selectedRoutes.toArray))
     intent
   }
 
@@ -21,7 +21,7 @@ object RouteChooseActivity {
 
   private def resultToIntent(routeIds: collection.Set[Long]) = {
     val intent = new Intent
-    intent.putExtra(EXTRA_ROUTE_IDS, routeIds.toArray)
+    intent.putExtra(EXTRA_ROUTE_IDS, mutable.WrappedArray.make(routeIds.toArray))
     intent
   }
 

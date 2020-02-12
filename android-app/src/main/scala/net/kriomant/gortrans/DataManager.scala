@@ -169,8 +169,14 @@ object DataManager {
     def update(db: Database, old: Boolean, fresh: Seq[NewsStory]) {
       val loadedAt = new util.Date
       val latestExternalId = db.loadLatestNewsStoryExternalId()
-      for (story <- fresh.takeWhile(_.id != latestExternalId)) {
-        db.addNews(story, loadedAt)
+      val freshNews = latestExternalId match {
+        case Some(latestId) => fresh.takeWhile(_.id != latestId)
+        case None => fresh
+      }
+      if (freshNews.nonEmpty) {
+        for (story <- freshNews) {
+          db.addNews(story, loadedAt)
+        }
       }
     }
   }
