@@ -1,5 +1,4 @@
 package net.kriomant.gortrans
-package explorer
 
 import org.eclipse.swt.widgets.Display
 import org.eclipse.swt.events.{ShellEvent, ShellAdapter}

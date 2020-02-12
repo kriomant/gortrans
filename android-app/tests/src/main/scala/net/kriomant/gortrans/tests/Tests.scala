@@ -1,9 +1,8 @@
 package net.kriomant.gortrans.tests
 
-import net.kriomant.gortrans._
+import _root_.android.test.{ActivityInstrumentationTestCase2, AndroidTestCase}
 import junit.framework.Assert._
-import _root_.android.test.AndroidTestCase
-import _root_.android.test.ActivityInstrumentationTestCase2
+import net.kriomant.gortrans._
 
 class AndroidTests extends AndroidTestCase {
   def testPackageIsCorrect() {

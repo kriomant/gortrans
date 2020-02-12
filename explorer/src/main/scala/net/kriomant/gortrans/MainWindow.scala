@@ -1,5 +1,4 @@
 package net.kriomant.gortrans
-package explorer
 
 import org.eclipse.swt.widgets._
 import org.eclipse.swt.{widgets, SWT}

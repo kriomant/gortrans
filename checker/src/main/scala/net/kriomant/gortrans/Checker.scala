@@ -1,5 +1,4 @@
 package net.kriomant.gortrans
-package checker
 
 import org.slf4j.LoggerFactory
 import net.kriomant.gortrans.parsing.{RouteStop, RoutePoint}
