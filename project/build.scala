@@ -5,51 +5,6 @@ import sbt.{Def, _}
 import scala.xml.XML
 
 object General {
-  val apiLevel = SettingKey[Int]("api-level", "Target Android API level")
-  val googleMapsJar = SettingKey[File]("google-maps-jar", "Google Maps JAR path")
-  val googlePlayServices = SettingKey[File]("google-play-services-sdk", "Google Play services SDK")
-  val androidSupportJar = SettingKey[File]("android-support-jar", "Google Support Library JAR path")
-
-  // Generating custom resources file containing some project settings.
-  val customResourcesPath = TaskKey[File]("custom-resources-path", "Path to custom resources file")
-  val customResources = SettingKey[Seq[(String, String)]]("custom-resources", "Custom resources")
-  val generateCustomResources = TaskKey[File]("generate-custom-resources",
-    "Generate resources file based on build settings"
-  )
-
-  def generateCustomResourcesTask(path: File, res: Seq[(String, String)], streams: TaskStreams): File = {
-    val xml =
-      <resources>
-        {res map (r => <string name={r._1}>
-        {r._2}
-      </string>)}
-      </resources>
-    XML.save(path.toString, xml)
-    streams.log.info("Generated %s" format path.toString)
-    path
-  }
-
-  val settings: Seq[Def.Setting[_]] = Defaults.defaultSettings ++ Seq(
-    name := "GorTrans",
-    version := "1.0.14",
-    versionCode := 41,
-    apiLevel := 15,
-    platformName in Android <<= (apiLevel in Android) {
-      _ formatted "android-%d"
-    }
-  )
-
-  val scalaSettings = Seq(
-    scalaVersion := "2.10.2"
-  )
-
-  val proguardSettings = Seq(
-    useProguard in Android := true,
-    proguardOption in Android ~= {
-      _ + " -dontnote scala.** "
-    }
-  )
-
   lazy val fullAndroidSettings: Seq[Def.Setting[_]] =
     General.settings ++
       General.scalaSettings ++
@@ -159,6 +114,48 @@ object General {
       packageDebug in Android <<= (packageDebug in Android) dependsOn (generateCustomResources in(Android, packageDebug)),
       packageRelease in Android <<= (packageRelease in Android) dependsOn (generateCustomResources in(Android, packageRelease))
     )
+  val apiLevel = SettingKey[Int]("api-level", "Target Android API level")
+  val googleMapsJar = SettingKey[File]("google-maps-jar", "Google Maps JAR path")
+  val googlePlayServices = SettingKey[File]("google-play-services-sdk", "Google Play services SDK")
+  val androidSupportJar = SettingKey[File]("android-support-jar", "Google Support Library JAR path")
+  // Generating custom resources file containing some project settings.
+  val customResourcesPath = TaskKey[File]("custom-resources-path", "Path to custom resources file")
+  val customResources = SettingKey[Seq[(String, String)]]("custom-resources", "Custom resources")
+  val generateCustomResources = TaskKey[File]("generate-custom-resources",
+    "Generate resources file based on build settings"
+  )
+  val settings: Seq[Def.Setting[_]] = Defaults.defaultSettings ++ Seq(
+    name := "GorTrans",
+    version := "1.0.14",
+    versionCode := 41,
+    apiLevel := 15,
+    platformName in Android <<= (apiLevel in Android) {
+      _ formatted "android-%d"
+    }
+  )
+
+  val scalaSettings = Seq(
+    scalaVersion := "2.10.2"
+  )
+
+  val proguardSettings = Seq(
+    useProguard in Android := true,
+    proguardOption in Android ~= {
+      _ + " -dontnote scala.** "
+    }
+  )
+
+  def generateCustomResourcesTask(path: File, res: Seq[(String, String)], streams: TaskStreams): File = {
+    val xml =
+      <resources>
+        {res map (r => <string name={r._1}>
+        {r._2}
+      </string>)}
+      </resources>
+    XML.save(path.toString, xml)
+    streams.log.info("Generated %s" format path.toString)
+    path
+  }
 }
 
 object AndroidBuild extends Build {

@@ -132,15 +132,11 @@ object RouteListBaseActivity {
 
 class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity with TypedActivity {
   private[this] final val TAG = classOf[RouteListBaseActivity].getSimpleName
-
+  protected val layoutResource: Int = R.layout.route_list_base_activity
   var tabsOrder: Seq[core.VehicleType.Value] = _
   var tabFragmentsMap: mutable.Map[VehicleType.Value, RoutesListFragment] = mutable.Map()
   var tabsView: ScrollingTabContainerView = _
   var selectedTabIndex: Int = 0
-
-  protected val layoutResource: Int = R.layout.route_list_base_activity
-
-  protected def tabsAreEmbedded: Boolean = getResources.getBoolean(R.bool.abs__action_bar_embed_tabs)
 
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
@@ -217,18 +213,13 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
     })
   }
 
+  protected def tabsAreEmbedded: Boolean = getResources.getBoolean(R.bool.abs__action_bar_embed_tabs)
+
   override def onStart() {
     super.onStart()
 
     loadRoutes()
   }
-
-  protected def setSelectedTab(idx: Int) {
-    selectedTabIndex = idx
-    tabsView.setTabSelected(idx)
-  }
-
-  protected def getSelectedTab: Int = selectedTabIndex
 
   def updateRoutesList() {
     tabFragmentsMap.values.foreach {
@@ -268,10 +259,18 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
   /** This method is called by tab fragments when their views are created. */
   def registerRoutesList(fragment: RoutesListFragment) {
   }
+
+  protected def getSelectedTab: Int = selectedTabIndex
+
+  protected def setSelectedTab(idx: Int) {
+    selectedTabIndex = idx
+    tabsView.setTabSelected(idx)
+  }
 }
 
 class RoutesListFragment extends ListFragment {
   private[this] final val ARGUMENT_VEHICLE_TYPE = "vehicleType"
+  var cursor: Database.RoutesTable.Cursor = _
 
   def this(vehicleType: VehicleType.Value) {
     this()
@@ -280,10 +279,6 @@ class RoutesListFragment extends ListFragment {
     arguments.putInt(ARGUMENT_VEHICLE_TYPE, vehicleType.id)
     setArguments(arguments)
   }
-
-  private[this] def vehicleType = VehicleType(getArguments.getInt(ARGUMENT_VEHICLE_TYPE))
-
-  var cursor: Database.RoutesTable.Cursor = _
 
   override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = {
     inflater.inflate(R.layout.routes_list_tab, container, false)
@@ -362,6 +357,8 @@ class RoutesListFragment extends ListFragment {
 
     activity.asInstanceOf[RouteListBaseActivity].tabFragmentsMap(vehicleType) = this
   }
+
+  private[this] def vehicleType = VehicleType(getArguments.getInt(ARGUMENT_VEHICLE_TYPE))
 
 
 }

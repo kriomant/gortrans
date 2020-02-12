@@ -17,6 +17,8 @@ class MultiListActionModeHelper(
                                  actionModeCallback: ActionMode.Callback with ListSelectionActionModeCallback
                                ) {
   private[this] val listViews = new mutable.ArrayBuffer[ListView]
+  private var actionMode: ActionMode = _
+  private var savedItemClickListeners = new mutable.ArrayBuffer[OnItemClickListener]
 
   def getListViews: Seq[ListView] = listViews
 
@@ -55,9 +57,6 @@ class MultiListActionModeHelper(
       listView.setChoiceMode(AbsListView.CHOICE_MODE_MULTIPLE)
     }
   }
-
-  private var actionMode: ActionMode = _
-  private var savedItemClickListeners = new mutable.ArrayBuffer[OnItemClickListener]
 
   private def setUpClickListener(listView: ListView) {
     listView.setOnItemClickListener(new OnItemClickListener {

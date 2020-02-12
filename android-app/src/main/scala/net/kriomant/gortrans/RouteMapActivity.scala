@@ -3,8 +3,8 @@ package net.kriomant.gortrans
 import android.app.{AlertDialog, Dialog}
 import android.content.res.Resources
 import android.content.{Context, DialogInterface, Intent}
-import android.graphics.{Point, _}
 import android.graphics.drawable.{Drawable, NinePatchDrawable}
+import android.graphics.{Point, _}
 import android.location.Location
 import android.os.Bundle
 import android.preference.PreferenceManager
@@ -25,7 +25,6 @@ import scala.collection.mutable
 object RouteMapActivity {
   private[this] val CLASS_NAME = classOf[RouteMapActivity].getName
   final val TAG = CLASS_NAME
-
   private val DIALOG_NEW_MAP_NOTICE = 1
 }
 
@@ -37,9 +36,10 @@ class RouteMapActivity extends SherlockMapActivity
   import RouteMapActivity._
   import RouteMapLike._
 
-  private[this] var mapView: MapView = _
-  private[this] var newMapNotice: View = _
-
+  /** Same zoom level in Google Maps v1 and v2 leads to different actual
+   * scale. Since MapCameraPosition is based on Google Maps v2 CameraPosition,
+   * we must correct zoom here. */
+  final val ZOOM_OFFSET = 1
   // Overlays are splitted into constant ones which are
   // updated on new intent or updated route data only and
   // volatile which are frequently updated, like vehicles.
@@ -50,8 +50,9 @@ class RouteMapActivity extends SherlockMapActivity
   var vehiclesOverlay: VehiclesOverlay = _
   var locationOverlay: Overlay = _
   var realVehicleLocationOverlays: Seq[Overlay] = Seq()
-
   var balloonController: MapBalloonController = _
+  private[this] var mapView: MapView = _
+  private[this] var newMapNotice: View = _
 
   def isRouteDisplayed = false
 
@@ -132,25 +133,7 @@ class RouteMapActivity extends SherlockMapActivity
     updateOverlays()
   }
 
-  def updateOverlays() {
-    Log.d("RouteMapActivity", "updateOverlays")
-
-    val overlays = mapView.getOverlays
-    overlays.clear()
-
-    overlays.addAll(constantOverlays.asJavaCollection)
-
-    vehiclesOverlay.setVehicles(vehiclesData)
-    overlays.add(vehiclesOverlay)
-    for (o <- realVehicleLocationOverlays)
-      overlays.add(o)
-    if (locationOverlay != null)
-      overlays.add(locationOverlay)
-
-    overlays.add(balloonController.closeBalloonOverlay)
-
-    mapView.postInvalidate()
-  }
+  def routePointToGeoPoint(p: Pt): GeoPoint = new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
 
   override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
     case android.R.id.home =>
@@ -191,11 +174,6 @@ class RouteMapActivity extends SherlockMapActivity
     }
     (name, R.drawable.route_map)
   }
-
-  /** Same zoom level in Google Maps v1 and v2 leads to different actual
-   * scale. Since MapCameraPosition is based on Google Maps v2 CameraPosition,
-   * we must correct zoom here. */
-  final val ZOOM_OFFSET = 1
 
   def getMapCameraPosition: RouteMapLike.MapCameraPosition = {
     val pos = mapView.getMapCenter
@@ -256,6 +234,26 @@ class RouteMapActivity extends SherlockMapActivity
     updateOverlays()
   }
 
+  def updateOverlays() {
+    Log.d("RouteMapActivity", "updateOverlays")
+
+    val overlays = mapView.getOverlays
+    overlays.clear()
+
+    overlays.addAll(constantOverlays.asJavaCollection)
+
+    vehiclesOverlay.setVehicles(vehiclesData)
+    overlays.add(vehiclesOverlay)
+    for (o <- realVehicleLocationOverlays)
+      overlays.add(o)
+    if (locationOverlay != null)
+      overlays.add(locationOverlay)
+
+    overlays.add(balloonController.closeBalloonOverlay)
+
+    mapView.postInvalidate()
+  }
+
   def setLocationMarker(location: Location) {
     if (location != null) {
       val point = new GeoPoint((location.getLatitude * 1e6).toInt, (location.getLongitude * 1e6).toInt)
@@ -304,8 +302,6 @@ class RouteMapActivity extends SherlockMapActivity
       case _ => super.onCreateDialog(id)
     }
   }
-
-  def routePointToGeoPoint(p: Pt): GeoPoint = new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
 }
 
 class MarkerOverlay(drawable: Drawable, location: GeoPoint, anchorPosition: PointF) extends Overlay {
@@ -464,6 +460,7 @@ class MapBalloonController(context: Context, mapView: MapView) {
       false
     }
   }
+  private[this] var balloon: View = _
 
   def inflateView(layoutResourceId: Int): View = {
     val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
@@ -499,22 +496,6 @@ class MapBalloonController(context: Context, mapView: MapView) {
     }
   }
 
-  def isViewShown(view: View): Boolean = view eq balloon
-
-  def hideBalloon() {
-    if (balloon != null) {
-      mapView.removeView(balloon)
-      balloon = null
-    }
-  }
-
-  def hideView(view: View) {
-    if (balloon == view) {
-      mapView.removeView(balloon)
-      balloon = null
-    }
-  }
-
   private def ensureBalloonIsFullyVisible() {
     // Get current map center at translate to pixel coordinates.
     val geoCenter = mapView.getMapCenter
@@ -542,7 +523,21 @@ class MapBalloonController(context: Context, mapView: MapView) {
     mapView.getController.animateTo(mapView.getProjection.fromPixels(pt.x, pt.y))
   }
 
-  private[this] var balloon: View = _
+  def isViewShown(view: View): Boolean = view eq balloon
+
+  def hideBalloon() {
+    if (balloon != null) {
+      mapView.removeView(balloon)
+      balloon = null
+    }
+  }
+
+  def hideView(view: View) {
+    if (balloon == view) {
+      mapView.removeView(balloon)
+      balloon = null
+    }
+  }
 }
 
 object VehicleMarker {
@@ -551,6 +546,15 @@ object VehicleMarker {
                             back: Drawable, front: Drawable, arrow: Drawable,
                             angle: Option[Float], color: Int
                           ) extends Drawable.ConstantState {
+    val frontInsets: Rect = {
+      val diff = back.getIntrinsicWidth - front.getIntrinsicWidth
+      val offset = diff / 2
+      new Rect(offset, offset, diff - offset, back.getIntrinsicHeight - front.getIntrinsicHeight - offset)
+    }
+
+    back.setColorFilter(new LightingColorFilter(Color.BLACK, color))
+    arrow.setColorFilter(new LightingColorFilter(Color.BLACK, color))
+
     // VehicleMarker uses color filters to colorize some drawables and
     // color filter is part of constant state and is shared between
     // drawables, so they are needed to be mutated.
@@ -560,15 +564,6 @@ object VehicleMarker {
       resources.getDrawable(R.drawable.vehicle_marker_arrow).mutate(),
       angle, color
     )
-
-    back.setColorFilter(new LightingColorFilter(Color.BLACK, color))
-    arrow.setColorFilter(new LightingColorFilter(Color.BLACK, color))
-
-    val frontInsets: Rect = {
-      val diff = back.getIntrinsicWidth - front.getIntrinsicWidth
-      val offset = diff / 2
-      new Rect(offset, offset, diff - offset, back.getIntrinsicHeight - front.getIntrinsicHeight - offset)
-    }
 
     def newDrawable(): Drawable = new VehicleMarker(ConstantState(
       back.getConstantState.newDrawable(),
@@ -593,6 +588,8 @@ object VehicleMarker {
 }
 
 class VehicleMarker private(state: VehicleMarker.ConstantState) extends Drawable {
+  var _alpha: Int = 255
+
   def this(resources: Resources, angle: Option[Float], color: Int) =
     this(new VehicleMarker.ConstantState(resources, angle, color))
 
@@ -615,8 +612,6 @@ class VehicleMarker private(state: VehicleMarker.ConstantState) extends Drawable
 
     canvas.restore()
   }
-
-  var _alpha: Int = 255
 
   def setAlpha(alpha: Int) {
     _alpha = alpha
@@ -672,15 +667,15 @@ class VehicleMarker private(state: VehicleMarker.ConstantState) extends Drawable
 class VehiclesOverlay(
                        context: RouteMapActivity, resources: Resources, balloonController: MapBalloonController
                      ) extends ItemizedOverlay[OverlayItem](null) {
-  def boundCenterBottom: Drawable => Drawable = ItemizedOverlayBridge.boundCenterBottom_
-
   val vehicleUnknown: Drawable = resources.getDrawable(R.drawable.vehicle_stopped_marker)
-
+  val balloon: View = balloonController.inflateView(R.layout.map_vehicle_popup)
   // Information to identify vehicle for which balloon is shown.
   var balloonVehicle: (VehicleType.Value, String, Int) = _
-  val balloon: View = balloonController.inflateView(R.layout.map_vehicle_popup)
-
   var infos: Seq[(VehicleInfo, Pt, Option[Double], Int)] = Seq()
+
+  def clear() {
+    setVehicles(Seq())
+  }
 
   /**
    * @note This method manages balloon view, so it must be called from UI thread.
@@ -698,8 +693,27 @@ class VehiclesOverlay(
     }
   }
 
-  def clear() {
-    setVehicles(Seq())
+  private def showBalloon(vehicleInfo: VehicleInfo, item: OverlayItem) {
+    val oldName = RouteListBaseActivity.routeRenames.get(vehicleInfo.vehicleType, vehicleInfo.routeName)
+    val title = RouteListBaseActivity.getRouteTitle(context, vehicleInfo.vehicleType, vehicleInfo.routeName)
+    balloon.findViewById(R.id.vehicle_title).asInstanceOf[TextView].setText(title)
+
+    val vehicleMarker = item.getMarker(0).getConstantState.newDrawable(balloon.getResources)
+    balloon.findViewById(R.id.vehicle_icon).asInstanceOf[ImageView].setImageDrawable(vehicleMarker)
+
+    balloon.findViewById(R.id.vehicle_schedule_number).asInstanceOf[TextView].setText(
+      resources.getString(R.string.vehicle_schedule_number, vehicleInfo.scheduleNr.asInstanceOf[AnyRef])
+    )
+
+    val schedule = context.formatVehicleSchedule(vehicleInfo)
+    balloon.findViewById(R.id.vehicle_schedule).asInstanceOf[TextView].setText(schedule)
+
+    balloon.findViewById(R.id.vehicle_speed).asInstanceOf[TextView].setText(
+      resources.getString(R.string.vehicle_speed_format, vehicleInfo.speed.asInstanceOf[AnyRef])
+    )
+
+    balloonVehicle = (vehicleInfo.vehicleType, vehicleInfo.routeId, vehicleInfo.scheduleNr)
+    balloonController.showBalloon(balloon, item.getPoint)
   }
 
   def size: Int = infos.length
@@ -725,31 +739,10 @@ class VehiclesOverlay(
 
   populate()
 
+  def boundCenterBottom: Drawable => Drawable = ItemizedOverlayBridge.boundCenterBottom_
+
   override def onTap(index: Int): Boolean = {
     showBalloon(infos(index)._1, getItem(index))
     true
-  }
-
-  private def showBalloon(vehicleInfo: VehicleInfo, item: OverlayItem) {
-    val oldName = RouteListBaseActivity.routeRenames.get(vehicleInfo.vehicleType, vehicleInfo.routeName)
-    val title = RouteListBaseActivity.getRouteTitle(context, vehicleInfo.vehicleType, vehicleInfo.routeName)
-    balloon.findViewById(R.id.vehicle_title).asInstanceOf[TextView].setText(title)
-
-    val vehicleMarker = item.getMarker(0).getConstantState.newDrawable(balloon.getResources)
-    balloon.findViewById(R.id.vehicle_icon).asInstanceOf[ImageView].setImageDrawable(vehicleMarker)
-
-    balloon.findViewById(R.id.vehicle_schedule_number).asInstanceOf[TextView].setText(
-      resources.getString(R.string.vehicle_schedule_number, vehicleInfo.scheduleNr.asInstanceOf[AnyRef])
-    )
-
-    val schedule = context.formatVehicleSchedule(vehicleInfo)
-    balloon.findViewById(R.id.vehicle_schedule).asInstanceOf[TextView].setText(schedule)
-
-    balloon.findViewById(R.id.vehicle_speed).asInstanceOf[TextView].setText(
-      resources.getString(R.string.vehicle_speed_format, vehicleInfo.speed.asInstanceOf[AnyRef])
-    )
-
-    balloonVehicle = (vehicleInfo.vehicleType, vehicleInfo.routeId, vehicleInfo.scheduleNr)
-    balloonController.showBalloon(balloon, item.getPoint)
   }
 }

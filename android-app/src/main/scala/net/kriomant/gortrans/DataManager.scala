@@ -17,6 +17,11 @@ import scala.collection.mutable
 object DataManager {
   final val TAG = "DataManager"
 
+  def retryOnceIfEmpty(f: => String): String = {
+    val res = f
+    if (res.nonEmpty) res else f
+  }
+
   trait ProcessIndicator {
     def startFetch()
 
@@ -34,42 +39,6 @@ object DataManager {
     def fetch(client: Client): Data
 
     def update(db: Database, old: Boolean, fresh: Data)
-  }
-
-  def retryOnceIfEmpty(f: => String): String = {
-    val res = f
-    if (res.nonEmpty) res else f
-  }
-
-  object RoutesListSource extends Source[RoutesInfo, Database.RoutesTable.Cursor] {
-    val name = "routes"
-    val maxAge: Long = 1 * 24 * 60 * 60 * 1000L /* ms = 1 day */
-
-    def fetch(client: Client): RoutesInfo = {
-      val json = retryOnceIfEmpty {
-        client.getRoutesList
-      }
-      parsing.parseRoutesJson(json)
-    }
-
-    def update(db: Database, old: Boolean, fresh: RoutesInfo) {
-      // Collect known routes.
-      val known = mutable.Set[(VehicleType.Value, String)]()
-      if (old) {
-        closing(db.fetchRoutes()) { cursor =>
-          while (cursor.moveToNext())
-            known.add((cursor.vehicleType, cursor.externalId))
-        }
-      }
-
-      val routes = fresh.values.flatten[Route].toSeq
-      routes.foreach { route =>
-        db.addOrUpdateRoute(route.vehicleType, route.id, route.name, route.begin, route.end)
-      }
-
-      val obsolete = known -- routes.map(r => (r.vehicleType, r.id)).toSet
-      obsolete.foreach { case (vehicleType, id) => db.deleteRoute(vehicleType, id) }
-    }
   }
 
   case class RoutePointsListSource(
@@ -138,6 +107,37 @@ object DataManager {
         val expanded = schedule.flatMap { case (hour, minutes) => minutes.map(m => (hour, m)) }
         db.addSchedule(dbRouteId, stopId, direction, scheduleType, name, expanded)
       }
+    }
+  }
+
+  object RoutesListSource extends Source[RoutesInfo, Database.RoutesTable.Cursor] {
+    val name = "routes"
+    val maxAge: Long = 1 * 24 * 60 * 60 * 1000L /* ms = 1 day */
+
+    def fetch(client: Client): RoutesInfo = {
+      val json = retryOnceIfEmpty {
+        client.getRoutesList
+      }
+      parsing.parseRoutesJson(json)
+    }
+
+    def update(db: Database, old: Boolean, fresh: RoutesInfo) {
+      // Collect known routes.
+      val known = mutable.Set[(VehicleType.Value, String)]()
+      if (old) {
+        closing(db.fetchRoutes()) { cursor =>
+          while (cursor.moveToNext())
+            known.add((cursor.vehicleType, cursor.externalId))
+        }
+      }
+
+      val routes = fresh.values.flatten[Route].toSeq
+      routes.foreach { route =>
+        db.addOrUpdateRoute(route.vehicleType, route.id, route.name, route.begin, route.end)
+      }
+
+      val obsolete = known -- routes.map(r => (r.vehicleType, r.id)).toSet
+      obsolete.foreach { case (vehicleType, id) => db.deleteRoute(vehicleType, id) }
     }
   }
 
@@ -217,17 +217,6 @@ class DataManager(context: Context, db: Database) {
   import DataManager._
 
   private[this] final val TAG = "DataManager"
-
-  object AndroidLogger extends Logger {
-    def debug(msg: String) {
-      Log.d("gortrans", msg)
-    }
-
-    def verbose(msg: String) {
-      Log.v("gortrans", msg)
-    }
-  }
-
   val client = new Client(AndroidLogger)
 
   /**
@@ -239,24 +228,6 @@ class DataManager(context: Context, db: Database) {
 
   def requestStopsList(getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator)(f: => Unit) {
     requestDatabaseData(ScheduleStopsSource, getIndicator, updateIndicator, f)
-  }
-
-  def requestRoutePoints(
-                          vehicleType: VehicleType.Value, routeId: String, routeName: String,
-                          routeBegin: String, routeEnd: String,
-                          getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
-                        )(f: => Unit) {
-    requestDatabaseData(
-      RoutePointsListSource(vehicleType, routeId, routeName, routeBegin, routeEnd),
-      getIndicator, updateIndicator, f
-    )
-  }
-
-  def requestStopSchedules(
-                            vehicleType: VehicleType.Value, routeId: String, stopId: Int, direction: Direction.Value,
-                            getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
-                          )(f: => Unit) {
-    requestDatabaseData(RouteSchedulesSource(vehicleType, routeId, stopId, direction), getIndicator, updateIndicator, f)
   }
 
   /**
@@ -328,6 +299,34 @@ class DataManager(context: Context, db: Database) {
         }
 
       case None => fetchData(old = false, getIndicator)
+    }
+  }
+
+  def requestRoutePoints(
+                          vehicleType: VehicleType.Value, routeId: String, routeName: String,
+                          routeBegin: String, routeEnd: String,
+                          getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
+                        )(f: => Unit) {
+    requestDatabaseData(
+      RoutePointsListSource(vehicleType, routeId, routeName, routeBegin, routeEnd),
+      getIndicator, updateIndicator, f
+    )
+  }
+
+  def requestStopSchedules(
+                            vehicleType: VehicleType.Value, routeId: String, stopId: Int, direction: Direction.Value,
+                            getIndicator: ProcessIndicator, updateIndicator: ProcessIndicator
+                          )(f: => Unit) {
+    requestDatabaseData(RouteSchedulesSource(vehicleType, routeId, stopId, direction), getIndicator, updateIndicator, f)
+  }
+
+  object AndroidLogger extends Logger {
+    def debug(msg: String) {
+      Log.d("gortrans", msg)
+    }
+
+    def verbose(msg: String) {
+      Log.v("gortrans", msg)
     }
   }
 }

@@ -21,7 +21,7 @@ import scala.collection.mutable
 object RouteStopInfoActivity {
   private[this] val CLASS_NAME = classOf[RouteStopInfoActivity].getName
   final val TAG = CLASS_NAME
-
+  final val REFRESH_PERIOD = 60 * 1000 /* ms */
   private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
   private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
   private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
@@ -42,8 +42,6 @@ object RouteStopInfoActivity {
     intent.putExtra(EXTRA_FOLDED_STOP_INDEX, foldedStopIndex)
     intent
   }
-
-  final val REFRESH_PERIOD = 60 * 1000 /* ms */
 }
 
 /** List of closest vehicle arrivals for given route stop.
@@ -56,61 +54,19 @@ class RouteStopInfoActivity extends SherlockActivity
 
   import RouteStopInfoActivity._
 
-  class RefreshArrivalsTask extends AsyncTaskBridge[Unit, Either[String, Seq[Date]]]
-    with AsyncProcessIndicator[Unit, Either[String, Seq[Date]]] {
-    override def doInBackgroundBridge(): Either[String, Seq[Date]] = {
-      val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
-
-      val client = getApplication.asInstanceOf[CustomApplication].dataManager.client
-      try {
-        val (response, serverTime) = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
-        val now = new Date
-
-        val arrivals = try {
-          parsing.parseExpectedArrivals(response, fixedStopName, now).left.map { message =>
-            getResources.getString(R.string.cant_get_arrivals, message)
-          }
-        } catch {
-          case _: parsing.ParsingException => Left(getString(R.string.cant_parse_arrivals))
-        }
-
-        arrivals.right.map { times =>
-          // Correct time difference between device and server.
-          val diff = now.getTime - serverTime.getTime
-          if (diff > 30 * 1000) {
-            Log.w(TAG, "Time difference with server: %d ms" format diff)
-          }
-          times.map(t => new Date(t.getTime + diff))
-        }
-      } catch {
-        case DataManager.NetworkExceptionGroup(ex) =>
-          Log.v(TAG, "Network failure during arrivals fetching", ex)
-          Left(getString(R.string.cant_fetch_arrivals))
-      }
-    }
-
-    override def onPostExecute(arrivals: Either[String, Seq[Date]]) {
-      setArrivals(arrivals)
-      super.onPostExecute(arrivals)
-    }
-  }
-
   var routeId: String = _
   var routeName: String = _
   var vehicleType: VehicleType.Value = _
   var stopId: Int = -1
   var stopName: String = _
   var foldedStopIndex: Int = -1
-
   var forwardPoints, backwardPoints: Seq[Point] = _
   var availableDirections: DirectionsEx.Value = _
   var direction: Direction.Value = _
   var route: Route = _
   var foldedRoute: Seq[FoldedRouteStop[RoutePoint]] = _
   var pointPositions: Seq[Double] = _
-
   var vehiclesWatcher: VehiclesWatcher = _
-
   var periodicRefresh = new PeriodicTimer(REFRESH_PERIOD)(refreshArrivals())
 
   override def onPrepareOptionsMenu(menu: Menu): Boolean = {
@@ -168,6 +124,35 @@ class RouteStopInfoActivity extends SherlockActivity
     })
   }
 
+  def onVehiclesLocationUpdated(result: Either[String, Seq[VehicleInfo]]) {
+    val flatRoute = findViewById(R.id.flat_route).asInstanceOf[FlatRouteView]
+
+    result match {
+      case Right(vehicles) =>
+        // Snap vehicles moving in appropriate direction to route.
+        val snapped = vehicles flatMap { v =>
+          v.direction match {
+            case Some(d) =>
+              val (routePart, offset) = d match {
+                case Direction.Forward => (forwardPoints, 0)
+                case Direction.Backward => (backwardPoints, forwardPoints.length - 1)
+              }
+              snapVehicleToRouteInternal(v, routePart) map { case (segmentIndex, pointPos) =>
+                pointPositions(offset + segmentIndex) + pointPos * (pointPositions(offset + segmentIndex + 1) - pointPositions(offset + segmentIndex))
+              }
+            case None => None
+          }
+        }
+
+        flatRoute.setVehicles(snapped.map(_.toFloat))
+
+      case Left(message) =>
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+        flatRoute.setVehicles(Seq())
+    }
+  }
+
   override def onStart() {
     super.onStart()
     loadData()
@@ -199,44 +184,6 @@ class RouteStopInfoActivity extends SherlockActivity
     }
   }
 
-  def onVehiclesLocationUpdated(result: Either[String, Seq[VehicleInfo]]) {
-    val flatRoute = findViewById(R.id.flat_route).asInstanceOf[FlatRouteView]
-
-    result match {
-      case Right(vehicles) =>
-        // Snap vehicles moving in appropriate direction to route.
-        val snapped = vehicles flatMap { v =>
-          v.direction match {
-            case Some(d) =>
-              val (routePart, offset) = d match {
-                case Direction.Forward => (forwardPoints, 0)
-                case Direction.Backward => (backwardPoints, forwardPoints.length - 1)
-              }
-              snapVehicleToRouteInternal(v, routePart) map { case (segmentIndex, pointPos) =>
-                pointPositions(offset + segmentIndex) + pointPos * (pointPositions(offset + segmentIndex + 1) - pointPositions(offset + segmentIndex))
-              }
-            case None => None
-          }
-        }
-
-        flatRoute.setVehicles(snapped.map(_.toFloat))
-
-      case Left(message) =>
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-
-        flatRoute.setVehicles(Seq())
-    }
-  }
-
-  protected override def onPause() {
-    vehiclesWatcher.stopUpdatingVehiclesLocation()
-    if (stopId != -1) {
-      periodicRefresh.stop()
-    }
-
-    super.onPause()
-  }
-
   override def onResume() {
     super.onResume()
 
@@ -246,6 +193,11 @@ class RouteStopInfoActivity extends SherlockActivity
     }
 
     vehiclesWatcher.startUpdatingVehiclesLocation()
+  }
+
+  def refreshArrivals() {
+    val task = new RefreshArrivalsTask
+    task.execute()
   }
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
@@ -287,11 +239,6 @@ class RouteStopInfoActivity extends SherlockActivity
     })
     val name = getString(R.string.stop_arrivals_shortcut_format, vehicleShortName, routeName, stopName)
     (name, R.drawable.next_arrivals_shortcut)
-  }
-
-  def refreshArrivals() {
-    val task = new RefreshArrivalsTask
-    task.execute()
   }
 
   def setArrivals(arrivals: Either[String, Seq[Date]]) {
@@ -402,12 +349,58 @@ class RouteStopInfoActivity extends SherlockActivity
       toggleDirectionButton.setVisibility(View.VISIBLE)
     }
   }
+
+  protected override def onPause() {
+    vehiclesWatcher.stopUpdatingVehiclesLocation()
+    if (stopId != -1) {
+      periodicRefresh.stop()
+    }
+
+    super.onPause()
+  }
+
+  class RefreshArrivalsTask extends AsyncTaskBridge[Unit, Either[String, Seq[Date]]]
+    with AsyncProcessIndicator[Unit, Either[String, Seq[Date]]] {
+    override def doInBackgroundBridge(): Either[String, Seq[Date]] = {
+      val fixedStopName = core.fixStopName(vehicleType, routeName, stopName)
+
+      val client = getApplication.asInstanceOf[CustomApplication].dataManager.client
+      try {
+        val (response, serverTime) = client.getExpectedArrivals(routeId, vehicleType, stopId, direction)
+        val now = new Date
+
+        val arrivals = try {
+          parsing.parseExpectedArrivals(response, fixedStopName, now).left.map { message =>
+            getResources.getString(R.string.cant_get_arrivals, message)
+          }
+        } catch {
+          case _: parsing.ParsingException => Left(getString(R.string.cant_parse_arrivals))
+        }
+
+        arrivals.right.map { times =>
+          // Correct time difference between device and server.
+          val diff = now.getTime - serverTime.getTime
+          if (diff > 30 * 1000) {
+            Log.w(TAG, "Time difference with server: %d ms" format diff)
+          }
+          times.map(t => new Date(t.getTime + diff))
+        }
+      } catch {
+        case DataManager.NetworkExceptionGroup(ex) =>
+          Log.v(TAG, "Network failure during arrivals fetching", ex)
+          Left(getString(R.string.cant_fetch_arrivals))
+      }
+    }
+
+    override def onPostExecute(arrivals: Either[String, Seq[Date]]) {
+      setArrivals(arrivals)
+      super.onPostExecute(arrivals)
+    }
+  }
 }
 
 class ArrivalsListAdapter(val context: Context, val items: Seq[Date])
   extends SeqAdapter with ListAdapter with EasyAdapter {
-
-  case class SubViews(interval: TextView, time: TextView)
 
   val itemLayout: Int = android.R.layout.simple_list_item_2
 
@@ -426,5 +419,7 @@ class ArrivalsListAdapter(val context: Context, val items: Seq[Date])
     views.interval.setText(DateUtils.getRelativeTimeSpanString(when, now, DateUtils.MINUTE_IN_MILLIS))
     views.time.setText(DateFormat.getTimeFormat(context).format(item))
   }
+
+  case class SubViews(interval: TextView, time: TextView)
 }
 

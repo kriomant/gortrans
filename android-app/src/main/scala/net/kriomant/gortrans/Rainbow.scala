@@ -3,8 +3,7 @@ package net.kriomant.gortrans
 import android.graphics.Color
 
 object Rainbow {
-  def apply(startingHue: Float, saturation: Float, value: Float, alpha: Int): Rainbow
-  = new Rainbow(startingHue, saturation, value, alpha)
+  private val coeff = 360.0f / (Int.MaxValue.toFloat - Int.MinValue.toFloat)
 
   def apply(baseColor: Int): Rainbow = {
     val hsv = Array.ofDim[Float](3)
@@ -12,7 +11,8 @@ object Rainbow {
     apply(hsv(0), hsv(1), hsv(2), Color.alpha(baseColor))
   }
 
-  private val coeff = 360.0f / (Int.MaxValue.toFloat - Int.MinValue.toFloat)
+  def apply(startingHue: Float, saturation: Float, value: Float, alpha: Int): Rainbow
+  = new Rainbow(startingHue, saturation, value, alpha)
 }
 
 class Rainbow(startingHue: Float, saturation: Float, value: Float, alpha: Int) {

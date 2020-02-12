@@ -17,7 +17,6 @@ import net.kriomant.gortrans.core.{Direction, VehicleType}
 
 object StopScheduleActivity {
   private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
-
   private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
   private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
   private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
@@ -121,6 +120,25 @@ class StopScheduleActivity extends SherlockActivity with BaseActivity with Typed
     }
   }
 
+  override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
+    case android.R.id.home =>
+      val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
+      startActivity(intent)
+      true
+    case _ => super.onOptionsItemSelected(item)
+  }
+
+  def getShortcutNameAndIcon: (String, Int) = {
+    val vehicleShortName = getString(vehicleType match {
+      case VehicleType.Bus => R.string.bus_short
+      case VehicleType.TrolleyBus => R.string.trolleybus_short
+      case VehicleType.TramWay => R.string.tramway_short
+      case VehicleType.MiniBus => R.string.minibus_short
+    })
+    val name = getString(R.string.stop_schedule_shortcut_format, vehicleShortName, routeName, stopName)
+    (name, R.drawable.route_stop_schedule)
+  }
+
   class SchedulePagesAdapter(context: Context, schedules: Seq[(String, Seq[(Int, Seq[Int])])]) extends PagerAdapter {
     def getCount: Int = schedules.length
 
@@ -212,25 +230,6 @@ class StopScheduleActivity extends SherlockActivity with BaseActivity with Typed
     override def setPrimaryItem(container: ViewGroup, position: Int, `object`: AnyRef) {}
 
     def isViewFromObject(p1: View, p2: AnyRef): Boolean = p1 == p2.asInstanceOf[View]
-  }
-
-  override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
-    case android.R.id.home =>
-      val intent = RouteStopInfoActivity.createIntent(this, routeId, routeName, vehicleType, stopId, stopName)
-      startActivity(intent)
-      true
-    case _ => super.onOptionsItemSelected(item)
-  }
-
-  def getShortcutNameAndIcon: (String, Int) = {
-    val vehicleShortName = getString(vehicleType match {
-      case VehicleType.Bus => R.string.bus_short
-      case VehicleType.TrolleyBus => R.string.trolleybus_short
-      case VehicleType.TramWay => R.string.tramway_short
-      case VehicleType.MiniBus => R.string.minibus_short
-    })
-    val name = getString(R.string.stop_schedule_shortcut_format, vehicleShortName, routeName, stopName)
-    (name, R.drawable.route_stop_schedule)
   }
 }
 

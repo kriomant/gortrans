@@ -22,12 +22,12 @@ object Service {
   private final val NEWS_SOURCE_NAME = "news"
   private final val NEWS_UPDATE_PERIOD = AlarmManager.INTERVAL_DAY /* milliseconds */
 
-  private def createUpdateNewsIntent(context: Context): Intent = {
-    new Intent(ACTION_UPDATE_NEWS, null, context, classOf[Service])
-  }
-
   def updateNews(context: Context) {
     context.startService(createUpdateNewsIntent(context))
+  }
+
+  private def createUpdateNewsIntent(context: Context): Intent = {
+    new Intent(ACTION_UPDATE_NEWS, null, context, classOf[Service])
   }
 
   /** Notify service about user opened news activity. */
@@ -109,17 +109,6 @@ class Service extends IntentService("Service") {
     }
   }
 
-  def doAknowledgeNewsAreShown() {
-    Log.d(TAG, "Acknowledge news are shown")
-
-    val now = new util.Date
-
-    val prefs = new UserActivityPreferences(this)
-    prefs.lastNewsReadingTime = now
-
-    hideNewsNotification()
-  }
-
   def showNewsNotification(freshNews: Database.NewsTable.Cursor) {
     Log.d(TAG, "Show news notification")
 
@@ -143,6 +132,17 @@ class Service extends IntentService("Service") {
     val notification = builder.getNotification
     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager]
     notificationManager.notify(NOTIFICATION_ID_NEWS, notification)
+  }
+
+  def doAknowledgeNewsAreShown() {
+    Log.d(TAG, "Acknowledge news are shown")
+
+    val now = new util.Date
+
+    val prefs = new UserActivityPreferences(this)
+    prefs.lastNewsReadingTime = now
+
+    hideNewsNotification()
   }
 
   def hideNewsNotification() {

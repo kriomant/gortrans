@@ -13,7 +13,6 @@ import net.kriomant.gortrans.utils.closing
 
 object RouteInfoActivity {
   private[this] val CLASS_NAME = classOf[RouteInfoActivity].getName
-
   private final val EXTRA_ROUTE_ID = CLASS_NAME + ".ROUTE_ID"
   private final val EXTRA_ROUTE_NAME = CLASS_NAME + ".ROUTE_NAME"
   private final val EXTRA_VEHICLE_TYPE = CLASS_NAME + ".VEHICLE_TYPE"
@@ -187,8 +186,6 @@ class RouteStopsAdapter(val context: Context, cursor: Database.FoldedRouteStopsT
     with ListAdapter {
   val itemLayout: Int = R.layout.route_info_item
 
-  case class SubViews(icon: View, name: TextView)
-
   def findSubViews(view: View): SubViews = SubViews(
     icon = view.findViewById(R.id.route_stop_icon),
     name = view.findViewById(R.id.route_stop_name).asInstanceOf[TextView]
@@ -211,4 +208,6 @@ class RouteStopsAdapter(val context: Context, cursor: Database.FoldedRouteStopsT
     })
     views.name.setText(cursor.name)
   }
+
+  case class SubViews(icon: View, name: TextView)
 }

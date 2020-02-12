@@ -11,22 +11,22 @@ import com.actionbarsherlock.view.MenuItem
 import scala.collection.mutable
 
 object RouteChooseActivity {
+  val EXTRA_ROUTE_IDS = "route-ids"
+
   def createIntent(caller: Context, selectedRoutes: Set[Long] = Set.empty): Intent = {
     val intent = new Intent(caller, classOf[RouteChooseActivity])
     intent.putExtra(EXTRA_ROUTE_IDS, mutable.WrappedArray.make(selectedRoutes.toArray))
     intent
   }
 
-  val EXTRA_ROUTE_IDS = "route-ids"
+  def intentToResult(intent: Intent): Set[Long] = {
+    intent.getLongArrayExtra(EXTRA_ROUTE_IDS).toSet
+  }
 
   private def resultToIntent(routeIds: collection.Set[Long]) = {
     val intent = new Intent
     intent.putExtra(EXTRA_ROUTE_IDS, mutable.WrappedArray.make(routeIds.toArray))
     intent
-  }
-
-  def intentToResult(intent: Intent): Set[Long] = {
-    intent.getLongArrayExtra(EXTRA_ROUTE_IDS).toSet
   }
 }
 

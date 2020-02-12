@@ -10,30 +10,11 @@ trait TrackLocation extends Activity {
   private[this] final val MINIMUM_LOCATION_UPDATE_INTERVAL = 0
   /* ms */
   private[this] final val MINIMUM_LOCATION_DISTANCE_CHANGE = 0 /* m */
-
-  def onLocationUpdated(location: Location)
-
   var locationManager: LocationManager = _
   var gpsEnabled = false
   var currentLocation: Location = _
 
-  object locationListener extends LocationListener {
-    def onStatusChanged(provider: String, status: Int, extras: Bundle) {}
-
-    def onProviderEnabled(provider: String) {
-      val lastKnownLocation = locationManager.getLastKnownLocation(provider)
-      if (lastKnownLocation != null)
-        onLocationUpdated(lastKnownLocation)
-    }
-
-    def onProviderDisabled(provider: String) {
-      onLocationUpdated(null)
-    }
-
-    def onLocationChanged(location: Location) {
-      onLocationUpdated(location)
-    }
-  }
+  def onLocationUpdated(location: Location)
 
   def setGpsEnabled(enabled: Boolean) {
     if (enabled != gpsEnabled) {
@@ -92,5 +73,23 @@ trait TrackLocation extends Activity {
       disableGps()
 
     super.onPause()
+  }
+
+  object locationListener extends LocationListener {
+    def onStatusChanged(provider: String, status: Int, extras: Bundle) {}
+
+    def onProviderEnabled(provider: String) {
+      val lastKnownLocation = locationManager.getLastKnownLocation(provider)
+      if (lastKnownLocation != null)
+        onLocationUpdated(lastKnownLocation)
+    }
+
+    def onProviderDisabled(provider: String) {
+      onLocationUpdated(null)
+    }
+
+    def onLocationChanged(location: Location) {
+      onLocationUpdated(location)
+    }
   }
 }

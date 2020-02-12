@@ -10,6 +10,13 @@ import android.view.{MotionEvent, View}
 import android.widget.FrameLayout
 
 class SidebarContainer(context: Context, attrs: AttributeSet, defStyle: Int) extends FrameLayout(context, attrs, defStyle) {
+  var sidebarView: View = _
+  var contentView: View = _
+  // State of 'opened' is changed after animation is finished.
+  var opened: Boolean = false
+  var openAnimation: Animation = _
+  var closeAnimation: Animation = _
+
   def this(context: Context) = this(context, null, 0)
 
   def this(context: Context, attrs: AttributeSet) = this(context, attrs, 0)
@@ -50,6 +57,13 @@ class SidebarContainer(context: Context, attrs: AttributeSet, defStyle: Int) ext
       opened = false
       requestLayout()
     }
+  }
+
+  def animateToggle() {
+    if (opened)
+      animateClose()
+    else
+      animateOpen()
   }
 
   def animateOpen() {
@@ -104,13 +118,6 @@ class SidebarContainer(context: Context, attrs: AttributeSet, defStyle: Int) ext
     }
   }
 
-  def animateToggle() {
-    if (opened)
-      animateClose()
-    else
-      animateOpen()
-  }
-
   override def onFinishInflate() {
     super.onFinishInflate()
 
@@ -159,7 +166,6 @@ class SidebarContainer(context: Context, attrs: AttributeSet, defStyle: Int) ext
     )
   }
 
-
   override def onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     super.onSizeChanged(w, h, oldw, oldh)
 
@@ -179,14 +185,6 @@ class SidebarContainer(context: Context, attrs: AttributeSet, defStyle: Int) ext
       super.onInterceptTouchEvent(ev)
     }
   }
-
-  var sidebarView: View = _
-  var contentView: View = _
-
-  // State of 'opened' is changed after animation is finished.
-  var opened: Boolean = false
-  var openAnimation: Animation = _
-  var closeAnimation: Animation = _
 
   override def fitSystemWindows(insets: Rect): Boolean = {
     setPadding(insets.left, insets.top, insets.right, insets.bottom)

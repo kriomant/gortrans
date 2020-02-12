@@ -18,10 +18,6 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
   var drawer: View = _
   var drawerToggle: ActionBarDrawerToggle = _
 
-  protected def onDrawerOpened() {}
-
-  protected def onDrawerClosed() {}
-
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
 
@@ -78,6 +74,10 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
       }
     })
   }
+
+  protected def onDrawerOpened() {}
+
+  protected def onDrawerClosed() {}
 
   override def onPrepareOptionsMenu(menu: Menu): Boolean = {
     super.onPrepareOptionsMenu(menu)

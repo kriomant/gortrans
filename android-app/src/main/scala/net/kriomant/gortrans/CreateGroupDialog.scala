@@ -13,11 +13,11 @@ import android.widget.{EditText, TextView, Toast}
 
 object CreateGroupDialog {
 
+  private val ARG_ROUTE_IDS = "route-ids"
+
   trait Listener {
     def onCreateGroup(dialog: CreateGroupDialog, groupId: Long)
   }
-
-  private val ARG_ROUTE_IDS = "route-ids"
 }
 
 class CreateGroupDialog extends DialogFragment {
@@ -75,6 +75,13 @@ class CreateGroupDialog extends DialogFragment {
     dialog
   }
 
+  def doCreate(name: String) {
+    val groupId = createGroup(name)
+    val listener = getActivity.asInstanceOf[CreateGroupDialog.Listener]
+    dismiss()
+    listener.onCreateGroup(CreateGroupDialog.this, groupId)
+  }
+
   def createGroup(groupName: String): Long = {
     val db = getActivity.getApplication.asInstanceOf[CustomApplication].database
     val routeIds = getArguments.getLongArray(CreateGroupDialog.ARG_ROUTE_IDS)
@@ -87,12 +94,5 @@ class CreateGroupDialog extends DialogFragment {
 
     Toast.makeText(getActivity, getString(R.string.group_created, groupName), Toast.LENGTH_SHORT).show()
     groupId
-  }
-
-  def doCreate(name: String) {
-    val groupId = createGroup(name)
-    val listener = getActivity.asInstanceOf[CreateGroupDialog.Listener]
-    dismiss()
-    listener.onCreateGroup(CreateGroupDialog.this, groupId)
   }
 }

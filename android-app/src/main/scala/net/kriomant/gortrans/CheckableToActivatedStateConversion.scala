@@ -19,14 +19,14 @@ import android.widget.Checkable
 trait CheckableToActivatedStateConversion extends View with Checkable {
   private[this] var checked: Boolean = false
 
+  def isChecked: Boolean = checked
+
   def setChecked(value: Boolean) {
     if (checked != value) {
       checked = value
       refreshDrawableState()
     }
   }
-
-  def isChecked: Boolean = checked
 
   def toggle() {
     checked = !checked

@@ -10,16 +10,17 @@ import android.util.Log
 import com.google.analytics.tracking.android.EasyTracker
 
 class CustomApplication extends Application {
+  final val upgradeActions = Seq[(Int, () => Unit)](
+    20 -> clearCache _
+  )
   private[this] final val TAG = getClass.getName
-
   var database: Database = _
-  var dataManager: DataManager = _
 
   if (android.os.Build.VERSION.SDK_INT >= 9) {
     // Turn strict mode off.
     StrictMode.setThreadPolicy((new ThreadPolicy.Builder).build())
   }
-
+  var dataManager: DataManager = _
 
   override def onCreate() {
     upgrade()
@@ -34,10 +35,6 @@ class CustomApplication extends Application {
 
   private def initializeGoogleAnalytics() {
     EasyTracker.getInstance().setContext(this)
-  }
-
-  override def onTerminate() {
-    database.close()
   }
 
   /** Perform upgrade actions if needed. */
@@ -72,9 +69,9 @@ class CustomApplication extends Application {
     }
   }
 
-  final val upgradeActions = Seq[(Int, () => Unit)](
-    20 -> clearCache _
-  )
+  override def onTerminate() {
+    database.close()
+  }
 
   private[this] def clearCache() {
     Log.i(TAG, "Clear cache")

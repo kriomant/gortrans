@@ -21,9 +21,8 @@ import scala.util.matching.Regex.Match
 
 object parsing {
 
+  type RoutesInfo = Map[VehicleType.Value, Seq[Route]]
   val NSK_TIME_ZONE: TimeZone = util.TimeZone.getTimeZone("+07")
-
-  class ParsingException(msg: String) extends Exception(msg)
 
   implicit class JsonArrayUtils(val arr: JSONArray) {
     def ofObjects: IndexedSeq[JSONObject] = new scala.collection.IndexedSeq[JSONObject] {
@@ -39,19 +38,21 @@ object parsing {
     }
   }
 
-  def combineDateAndTime(date: Date, time: Date, timeZone: util.TimeZone): Date = {
-    val dateCalendar = Calendar.getInstance(timeZone)
-    val timeCalendar = Calendar.getInstance(timeZone)
+  def parseRoutesJson(json: String): RoutesInfo = {
+    val tokenizer = new JSONTokener(json)
+    val arr = new JSONArray(tokenizer)
+    parseRoutes(arr)
+  }
 
-    dateCalendar.setTime(date)
-    timeCalendar.setTime(time)
+  def parseRoutes(arr: JSONArray): RoutesInfo = {
+    arr.ofObjects map parseSection toMap
+  }
 
-    dateCalendar.set(Calendar.HOUR_OF_DAY, timeCalendar.get(Calendar.HOUR_OF_DAY))
-    dateCalendar.set(Calendar.MINUTE, timeCalendar.get(Calendar.MINUTE))
-    dateCalendar.set(Calendar.SECOND, timeCalendar.get(Calendar.SECOND))
-    dateCalendar.set(Calendar.MILLISECOND, timeCalendar.get(Calendar.MILLISECOND))
-
-    dateCalendar.getTime
+  def parseSection(obj: JSONObject): (VehicleType.Value, Seq[Route]) = {
+    val vtype = VehicleType(obj.getInt("type"))
+    (vtype, obj.getJSONArray("ways").ofObjects map {
+      j => parseRoute(vtype, j)
+    })
   }
 
   def parseRoute(vehicleType: VehicleType.Value, obj: JSONObject): Route = Route(
@@ -62,49 +63,11 @@ object parsing {
     end = obj.getString("stope")
   )
 
-  def parseSection(obj: JSONObject): (VehicleType.Value, Seq[Route]) = {
-    val vtype = VehicleType(obj.getInt("type"))
-    (vtype, obj.getJSONArray("ways").ofObjects map {
-      j => parseRoute(vtype, j)
-    })
-  }
-
-  type RoutesInfo = Map[VehicleType.Value, Seq[Route]]
-
-  def parseRoutes(arr: JSONArray): RoutesInfo = {
-    arr.ofObjects map parseSection toMap
-  }
-
-  def parseRoutesJson(json: String): RoutesInfo = {
+  def parseVehiclesLocation(json: String, serverTime: Date): Seq[VehicleInfo] = {
     val tokenizer = new JSONTokener(json)
-    val arr = new JSONArray(tokenizer)
-    parseRoutes(arr)
+    val obj = new JSONObject(tokenizer)
+    parseVehiclesLocation(obj, serverTime)
   }
-
-  abstract sealed class VehicleSchedule
-
-  object VehicleSchedule {
-
-    case object NotProvided extends VehicleSchedule
-
-    case class Status(status: String) extends VehicleSchedule
-
-    case class Schedule(schedule: Seq[(String, String)]) extends VehicleSchedule
-
-  }
-
-  case class VehicleInfo(
-                          vehicleType: VehicleType.Value,
-                          routeId: String,
-                          routeName: String,
-                          scheduleNr: Int,
-                          direction: Option[Direction.Value],
-                          latitude: Float, longitude: Float,
-                          time: Date,
-                          azimuth: Int,
-                          speed: Int,
-                          schedule: VehicleSchedule
-                        )
 
   def parseVehiclesLocation(obj: JSONObject, serverTime: Date): Seq[VehicleInfo] = {
     obj.getJSONArray("markers").ofObjects map {
@@ -157,10 +120,19 @@ object parsing {
     }
   }
 
-  def parseVehiclesLocation(json: String, serverTime: Date): Seq[VehicleInfo] = {
-    val tokenizer = new JSONTokener(json)
-    val obj = new JSONObject(tokenizer)
-    parseVehiclesLocation(obj, serverTime)
+  def combineDateAndTime(date: Date, time: Date, timeZone: util.TimeZone): Date = {
+    val dateCalendar = Calendar.getInstance(timeZone)
+    val timeCalendar = Calendar.getInstance(timeZone)
+
+    dateCalendar.setTime(date)
+    timeCalendar.setTime(time)
+
+    dateCalendar.set(Calendar.HOUR_OF_DAY, timeCalendar.get(Calendar.HOUR_OF_DAY))
+    dateCalendar.set(Calendar.MINUTE, timeCalendar.get(Calendar.MINUTE))
+    dateCalendar.set(Calendar.SECOND, timeCalendar.get(Calendar.SECOND))
+    dateCalendar.set(Calendar.MILLISECOND, timeCalendar.get(Calendar.MILLISECOND))
+
+    dateCalendar.getTime
   }
 
   def parseStopsList(content: String): Map[String, Int] = {
@@ -172,19 +144,9 @@ object parsing {
     }.toMap
   }
 
-  case class RouteStop(
-                        name: String
-
-                        // Meaning of `length` field is not fully clear and it is not used by this app,
-                        // so just ignore it. If you want to uncomment it back then take into account that
-                        // this module relies heavily on `RoutePoint` (and thus `RouteStop`) object equality
-                        // and very often points returned by nskgortrans site have the same stop name and
-                        // coordinates, but different `length` value. So it is needed to find all comparisons
-                        // of `RoutePoint`s and rewrite them to ignore `length` field.
-                        // length: Int
-                      )
-
-  case class RoutePoint(stop: Option[RouteStop], latitude: Double, longitude: Double)
+  def parseRoutesPoints(json: String): Map[String, Seq[RoutePoint]] = {
+    parseRoutesPoints(new JSONObject(new JSONTokener(json)))
+  }
 
   def parseRoutesPoints(obj: JSONObject): Map[String, Seq[RoutePoint]] = {
     obj.getJSONArray("trasses").ofObjects flatMap {
@@ -202,12 +164,6 @@ object parsing {
         }
     } toMap
   }
-
-  def parseRoutesPoints(json: String): Map[String, Seq[RoutePoint]] = {
-    parseRoutesPoints(new JSONObject(new JSONTokener(json)))
-  }
-
-  case class StopInfo(id: Int, name: String)
 
   def parseRouteStops(xml: String): Seq[StopInfo] = {
     val stops = new scala.collection.mutable.ArrayBuffer[StopInfo]
@@ -241,37 +197,6 @@ object parsing {
     schedules
   }
 
-  class NodeListAsTraversable(nodeList: NodeList) extends Traversable[Node] {
-    def foreach[U](f: Node => U) {
-      for (i <- 0 until nodeList.getLength)
-        f(nodeList.item(i))
-    }
-  }
-
-  implicit def nodeListAsTraversable(nodeList: NodeList): NodeListAsTraversable = new NodeListAsTraversable(nodeList)
-
-  class NodeUtils(node: Node) {
-    def getNextSiblingElement: Element = {
-      var sibling = node.getNextSibling
-      while (sibling != null && sibling.getNodeType != Node.ELEMENT_NODE)
-        sibling = sibling.getNextSibling
-      sibling.asInstanceOf[Element]
-    }
-
-    def \(tag: String): Traversable[Element] = {
-      node.getChildNodes collect { case e: Element if e.getTagName == tag => e }
-    }
-
-    def \\(tag: String): Traversable[Element] = node match {
-      case e: Element => e.getElementsByTagName(tag) map (_.asInstanceOf[Element])
-      case _ => Seq.empty
-    }
-
-    def single(tag: String): Option[Element] = \(tag).headOption
-  }
-
-  implicit def nodeUtils(node: Node): NodeUtils = new NodeUtils(node)
-
   def parseStopSchedule(html: String): Seq[(Int, Seq[Int])] = {
     val doc = parseHtml(html)
     doc.getElementsByTagName("td")
@@ -287,6 +212,17 @@ object parsing {
           }.toSeq
           (hour, minutes getOrElse Seq())
       }.toSeq
+  }
+
+  def parseHtml(html: String): Document = {
+    val reader = new StringReader(html)
+    val parser = new org.ccil.cowan.tagsoup.Parser()
+    //tagsoupParser.setFeature(org.ccil.cowan.tagsoup.Parser.namespacesFeature, false);
+    //tagsoupParser.setFeature(org.ccil.cowan.tagsoup.Parser.namespacePrefixesFeature, false);
+    val transformer = TransformerFactory.newInstance().newTransformer()
+    val domResult = new DOMResult
+    transformer.transform(new SAXSource(parser, new InputSource(reader)), domResult)
+    domResult.getNode.asInstanceOf[Document]
   }
 
   def parseExpectedArrivals(html: String, stopName: String, now: Date): Either[String, Seq[Date]] = {
@@ -393,21 +329,84 @@ object parsing {
     storyNodes.toSeq flatMap { n => parseStory(n) }
   }
 
-  def parseHtml(html: String): Document = {
-    val reader = new StringReader(html)
-    val parser = new org.ccil.cowan.tagsoup.Parser()
-    //tagsoupParser.setFeature(org.ccil.cowan.tagsoup.Parser.namespacesFeature, false);
-    //tagsoupParser.setFeature(org.ccil.cowan.tagsoup.Parser.namespacePrefixesFeature, false);
-    val transformer = TransformerFactory.newInstance().newTransformer()
-    val domResult = new DOMResult
-    transformer.transform(new SAXSource(parser, new InputSource(reader)), domResult)
-    domResult.getNode.asInstanceOf[Document]
-  }
-
   def decodeQueryString(query: String): Map[String, String] = {
     query.split("&").map(_.split("=")).collect {
       case Array(name, value) => (URLDecoder.decode(name, "UTF-8"), URLDecoder.decode(value, "UTF-8"))
     }.toMap
+  }
+
+  abstract sealed class VehicleSchedule
+
+  class ParsingException(msg: String) extends Exception(msg)
+
+  case class VehicleInfo(
+                          vehicleType: VehicleType.Value,
+                          routeId: String,
+                          routeName: String,
+                          scheduleNr: Int,
+                          direction: Option[Direction.Value],
+                          latitude: Float, longitude: Float,
+                          time: Date,
+                          azimuth: Int,
+                          speed: Int,
+                          schedule: VehicleSchedule
+                        )
+
+  implicit def nodeListAsTraversable(nodeList: NodeList): NodeListAsTraversable = new NodeListAsTraversable(nodeList)
+
+  case class RouteStop(
+                        name: String
+
+                        // Meaning of `length` field is not fully clear and it is not used by this app,
+                        // so just ignore it. If you want to uncomment it back then take into account that
+                        // this module relies heavily on `RoutePoint` (and thus `RouteStop`) object equality
+                        // and very often points returned by nskgortrans site have the same stop name and
+                        // coordinates, but different `length` value. So it is needed to find all comparisons
+                        // of `RoutePoint`s and rewrite them to ignore `length` field.
+                        // length: Int
+                      )
+
+  implicit def nodeUtils(node: Node): NodeUtils = new NodeUtils(node)
+
+  case class RoutePoint(stop: Option[RouteStop], latitude: Double, longitude: Double)
+
+  case class StopInfo(id: Int, name: String)
+
+  class NodeListAsTraversable(nodeList: NodeList) extends Traversable[Node] {
+    def foreach[U](f: Node => U) {
+      for (i <- 0 until nodeList.getLength)
+        f(nodeList.item(i))
+    }
+  }
+
+  class NodeUtils(node: Node) {
+    def getNextSiblingElement: Element = {
+      var sibling = node.getNextSibling
+      while (sibling != null && sibling.getNodeType != Node.ELEMENT_NODE)
+        sibling = sibling.getNextSibling
+      sibling.asInstanceOf[Element]
+    }
+
+    def \\(tag: String): Traversable[Element] = node match {
+      case e: Element => e.getElementsByTagName(tag) map (_.asInstanceOf[Element])
+      case _ => Seq.empty
+    }
+
+    def single(tag: String): Option[Element] = \(tag).headOption
+
+    def \(tag: String): Traversable[Element] = {
+      node.getChildNodes collect { case e: Element if e.getTagName == tag => e }
+    }
+  }
+
+  object VehicleSchedule {
+
+    case class Status(status: String) extends VehicleSchedule
+
+    case class Schedule(schedule: Seq[(String, String)]) extends VehicleSchedule
+
+    case object NotProvided extends VehicleSchedule
+
   }
 }
 

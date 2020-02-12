@@ -34,10 +34,6 @@ object plurals {
     res
   }
 
-  object QuantityCode extends Enumeration {
-    val ONE, TWO, FEW = Value
-  }
-
   def getQuantityCode(quantity: Int): QuantityCode.Value = {
     val lastDigit = quantity % 10
     val lastTwoDigits = quantity % 100
@@ -74,5 +70,9 @@ object plurals {
       //case NativePluralRules.MANY: return "many";
       case _ => "other"
     }
+  }
+
+  object QuantityCode extends Enumeration {
+    val ONE, TWO, FEW = Value
   }
 }

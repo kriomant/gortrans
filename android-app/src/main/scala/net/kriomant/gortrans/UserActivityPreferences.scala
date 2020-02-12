@@ -6,9 +6,8 @@ import android.content.Context
 
 
 object UserActivityPreferences {
-  val NAME = "user-activity"
-
   private final val PREF_LAST_NEWS_READING_TIME = "last-news-reading-time"
+  val NAME = "user-activity"
 }
 
 class UserActivityPreferences(context: Context) {

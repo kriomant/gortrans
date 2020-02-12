@@ -1,12 +1,12 @@
 package net.kriomant.gortrans
 
-import android.util.Log
+import android.content.Context
 import android.os.{Debug, SystemClock}
+import android.support.v4.content.{AsyncTaskLoader, Loader}
+import android.text.{SpannableStringBuilder, Spanned}
+import android.util.Log
 
 import scala.collection.mutable
-import android.text.{Spanned, SpannableStringBuilder}
-import android.support.v4.content.{AsyncTaskLoader, Loader}
-import android.content.Context
 
 object android_utils {
 
@@ -36,7 +36,28 @@ object android_utils {
     }
   }
 
+  def cachingLoader[T](context: Context)(load: => T): Loader[T] = new AsyncTaskLoader[T](context) {
+    var result: Option[T] = None
+
+    def loadInBackground(): T = {
+      val value = load
+      result = Some(value)
+      value
+    }
+
+    override def onStartLoading() {
+      result match {
+        case Some(value) => deliverResult(value)
+        case None => forceLoad()
+      }
+    }
+  }
+
   class Observable[T] {
+    private val getRequests = mutable.Queue[T => Unit]()
+    private val subscribers = mutable.Queue[T => Unit]()
+    private var value: Option[T] = None
+
     def get(f: T => Unit) {
       value match {
         case Some(v) => f(v)
@@ -56,28 +77,6 @@ object android_utils {
       getRequests.clear()
 
       subscribers.foreach(_ (v))
-    }
-
-    private var value: Option[T] = None
-
-    private val getRequests = mutable.Queue[T => Unit]()
-    private val subscribers = mutable.Queue[T => Unit]()
-  }
-
-  def cachingLoader[T](context: Context)(load: => T): Loader[T] = new AsyncTaskLoader[T](context) {
-    var result: Option[T] = None
-
-    def loadInBackground(): T = {
-      val value = load
-      result = Some(value)
-      value
-    }
-
-    override def onStartLoading() {
-      result match {
-        case Some(value) => deliverResult(value)
-        case None => forceLoad()
-      }
     }
   }
 }

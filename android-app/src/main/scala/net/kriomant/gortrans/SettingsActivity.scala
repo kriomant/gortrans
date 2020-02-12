@@ -9,11 +9,11 @@ import com.actionbarsherlock.view.MenuItem
 import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
 
 object SettingsActivity {
+  final val KEY_USE_NEW_MAP = "use_new_map"
+
   def createIntent(caller: Context): Intent = {
     new Intent(caller, classOf[SettingsActivity])
   }
-
-  final val KEY_USE_NEW_MAP = "use_new_map"
 
   def isOldGoogleMapAvailable(context: Context): Boolean = {
     context.getPackageManager.getSystemSharedLibraryNames contains "com.google.android.maps"

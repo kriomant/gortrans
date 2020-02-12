@@ -17,12 +17,41 @@ object Database {
   val NAME = "gortrans"
   val VERSION = 7
 
+  def getWritable(context: Context) = new Database(new Helper(context).getWritableDatabase)
+
+  def escapeLikeArgument(arg: String, escapeChar: Char): String = {
+    arg
+      .replace(escapeChar.toString, escapeChar.toString + escapeChar.toString)
+      .replace("%", escapeChar.toString + "%")
+      .replace("_", escapeChar.toString + "_")
+  }
+
   class Helper(context: Context) extends SQLiteOpenHelper(context, NAME, null, VERSION) {
     def onCreate(db: SQLiteDatabase) {
       Log.i(TAG, "Create database")
 
       transaction(db) {
         executeScript(db, "create")
+      }
+    }
+
+    private def executeScript(db: SQLiteDatabase, name: String) {
+      val statements = closing(context.getAssets.open("db/%s.sql" format name)) { stream =>
+        scala.io.Source.fromInputStream(stream).mkString.split("---x")
+      }
+
+      for (sql <- statements)
+        db.execSQL(sql)
+    }
+
+    private def transaction[T](db: SQLiteDatabase)(f: => T): T = {
+      db.beginTransaction()
+      try {
+        val result = f
+        db.setTransactionSuccessful()
+        result
+      } finally {
+        db.endTransaction()
       }
     }
 
@@ -47,29 +76,9 @@ object Database {
         }*/
       }
     }
-
-    private def executeScript(db: SQLiteDatabase, name: String) {
-      val statements = closing(context.getAssets.open("db/%s.sql" format name)) { stream =>
-        scala.io.Source.fromInputStream(stream).mkString.split("---x")
-      }
-
-      for (sql <- statements)
-        db.execSQL(sql)
-    }
-
-    private def transaction[T](db: SQLiteDatabase)(f: => T): T = {
-      db.beginTransaction()
-      try {
-        val result = f
-        db.setTransactionSuccessful()
-        result
-      } finally {
-        db.endTransaction()
-      }
-    }
   }
 
-  def getWritable(context: Context) = new Database(new Helper(context).getWritableDatabase)
+  case class GroupInfo(id: Long, name: String, routes: Set[(VehicleType.Value, String)])
 
   object RoutesTable {
     val NAME = "routes"
@@ -168,16 +177,16 @@ object Database {
 
       def index: Int = cursor.getInt(INDEX_COLUMN_INDEX)
 
-      def forwardPointIndex: Option[Int] = !cursor.isNull(FORWARD_POINT_INDEX_COLUMN_INDEX) ? cursor.getInt(FORWARD_POINT_INDEX_COLUMN_INDEX)
-
-      def backwardPointIndex: Option[Int] = !cursor.isNull(BACKWARD_POINT_INDEX_COLUMN_INDEX) ? cursor.getInt(BACKWARD_POINT_INDEX_COLUMN_INDEX)
-
       def directions: core.DirectionsEx.Value = (forwardPointIndex, backwardPointIndex) match {
         case (Some(_), Some(_)) => DirectionsEx.Both
         case (Some(_), None) => DirectionsEx.Forward
         case (None, Some(_)) => DirectionsEx.Backward
         case (None, None) => throw new AssertionError
       }
+
+      def forwardPointIndex: Option[Int] = !cursor.isNull(FORWARD_POINT_INDEX_COLUMN_INDEX) ? cursor.getInt(FORWARD_POINT_INDEX_COLUMN_INDEX)
+
+      def backwardPointIndex: Option[Int] = !cursor.isNull(BACKWARD_POINT_INDEX_COLUMN_INDEX) ? cursor.getInt(BACKWARD_POINT_INDEX_COLUMN_INDEX)
     }
 
   }
@@ -359,15 +368,6 @@ object Database {
 
   }
 
-  def escapeLikeArgument(arg: String, escapeChar: Char): String = {
-    arg
-      .replace(escapeChar.toString, escapeChar.toString + escapeChar.toString)
-      .replace("%", escapeChar.toString + "%")
-      .replace("_", escapeChar.toString + "_")
-  }
-
-  case class GroupInfo(id: Long, name: String, routes: Set[(VehicleType.Value, String)])
-
 }
 
 class Database(db: SQLiteDatabase) {
@@ -462,24 +462,6 @@ class Database(db: SQLiteDatabase) {
     db.replaceOrThrow("updateTimes", null, values)
   }
 
-  def findRoute(vehicleType: VehicleType.Value, externalRouteId: String): Long = {
-    val cursor = db.query(
-      RoutesTable.NAME, Array(RoutesTable.ID_COLUMN),
-
-      "%s=? AND %s=?" format(RoutesTable.VEHICLE_TYPE_COLUMN, RoutesTable.EXTERNAL_ID_COLUMN),
-      Array(vehicleType.id.toString, externalRouteId.toString),
-
-      null, null, null
-    )
-
-    closing(cursor) { _ =>
-      if (cursor.moveToNext())
-        cursor.getLong(RoutesTable.ID_COLUMN_INDEX)
-      else
-        throw new Exception("Unknown route")
-    }
-  }
-
   def clearStopsAndPoints(routeId: Long) {
     db.delete(FoldedRouteStopsTable.NAME, "%s=?" format FoldedRouteStopsTable.ROUTE_ID_COLUMN, Array(routeId.toString))
     db.delete(RoutePointsTable.NAME, "%s=?" format RoutePointsTable.ROUTE_ID_COLUMN, Array(routeId.toString))
@@ -512,6 +494,27 @@ class Database(db: SQLiteDatabase) {
     db.insertOrThrow(FoldedRouteStopsTable.NAME, null, values)
   }
 
+  def fetchRouteStops(vehicleType: VehicleType.Value, externalRouteId: String): FoldedRouteStopsTable.Cursor =
+    fetchRouteStops(findRoute(vehicleType, externalRouteId))
+
+  def findRoute(vehicleType: VehicleType.Value, externalRouteId: String): Long = {
+    val cursor = db.query(
+      RoutesTable.NAME, Array(RoutesTable.ID_COLUMN),
+
+      "%s=? AND %s=?" format(RoutesTable.VEHICLE_TYPE_COLUMN, RoutesTable.EXTERNAL_ID_COLUMN),
+      Array(vehicleType.id.toString, externalRouteId.toString),
+
+      null, null, null
+    )
+
+    closing(cursor) { _ =>
+      if (cursor.moveToNext())
+        cursor.getLong(RoutesTable.ID_COLUMN_INDEX)
+      else
+        throw new Exception("Unknown route")
+    }
+  }
+
   def fetchRouteStops(routeId: Long): FoldedRouteStopsTable.Cursor = {
     new FoldedRouteStopsTable.Cursor(db.query(
       FoldedRouteStopsTable.NAME, FoldedRouteStopsTable.ALL_COLUMNS,
@@ -520,8 +523,8 @@ class Database(db: SQLiteDatabase) {
     ))
   }
 
-  def fetchRouteStops(vehicleType: VehicleType.Value, externalRouteId: String): FoldedRouteStopsTable.Cursor =
-    fetchRouteStops(findRoute(vehicleType, externalRouteId))
+  def fetchRoutePoints(vehicleType: VehicleType.Value, externalRouteId: String): RoutePointsTable.Cursor =
+    fetchRoutePoints(findRoute(vehicleType, externalRouteId))
 
   def fetchRoutePoints(routeId: Long): RoutePointsTable.Cursor = {
     new RoutePointsTable.Cursor(db.query(
@@ -530,9 +533,6 @@ class Database(db: SQLiteDatabase) {
       null, null, RoutePointsTable.INDEX_COLUMN
     ))
   }
-
-  def fetchRoutePoints(vehicleType: VehicleType.Value, externalRouteId: String): RoutePointsTable.Cursor =
-    fetchRoutePoints(findRoute(vehicleType, externalRouteId))
 
   def fetchSchedules(dbRouteId: Long, stopId: Int, direction: Direction.Value): SchedulesTable.Cursor = {
     new SchedulesTable.Cursor(db.query(
@@ -580,6 +580,12 @@ class Database(db: SQLiteDatabase) {
     findOne(cursor) { _ => cursor.stopId }
   }
 
+  def findOne[C <: Cursor, T](cursor: C)(f: C => T): Option[T] = {
+    closing(cursor) { _ =>
+      cursor.moveToNext() ? f(cursor)
+    }
+  }
+
   def loadGroups(): Seq[GroupInfo] = {
     val cursor = new RouteGroupList.Cursor(db.query(
       RouteGroupList.NAME, RouteGroupList.ALL_COLUMNS,
@@ -618,13 +624,6 @@ class Database(db: SQLiteDatabase) {
     db.insertOrThrow(RouteGroupsTable.NAME, null, values)
   }
 
-  def addRouteToGroup(groupId: Long, routeId: Long): Long = {
-    val values = new ContentValues
-    values.put(RouteGroupItemsTable.GROUP_ID_COLUMN, groupId.asInstanceOf[java.lang.Long])
-    values.put(RouteGroupItemsTable.ROUTE_ID_COLUMN, routeId.asInstanceOf[java.lang.Long])
-    db.insertOrThrow(RouteGroupItemsTable.NAME, null, values)
-  }
-
   def deleteGroup(groupId: Long) {
     db.delete(RouteGroupsTable.NAME, "%s=?" format RouteGroupsTable.ID_COLUMN, Array(groupId.toString))
   }
@@ -643,6 +642,13 @@ class Database(db: SQLiteDatabase) {
     routes foreach { r => addRouteToGroup(groupId, r) }
   }
 
+  def addRouteToGroup(groupId: Long, routeId: Long): Long = {
+    val values = new ContentValues
+    values.put(RouteGroupItemsTable.GROUP_ID_COLUMN, groupId.asInstanceOf[java.lang.Long])
+    values.put(RouteGroupItemsTable.ROUTE_ID_COLUMN, routeId.asInstanceOf[java.lang.Long])
+    db.insertOrThrow(RouteGroupItemsTable.NAME, null, values)
+  }
+
   def saveGroupMapPosition(groupId: Long, serializedPosition: String) {
     val values = new ContentValues
     values.put(RouteGroupsTable.CAMERA_POSITION_COLUMN, serializedPosition)
@@ -654,6 +660,15 @@ class Database(db: SQLiteDatabase) {
       RouteGroupsTable.NAME, Array(RouteGroupsTable.CAMERA_POSITION_COLUMN),
       "%s=?" format RouteGroupsTable.ID_COLUMN, Array(groupId.toString), null, null, null
     )) { c => !c.isNull(0) ? c.getString(0) }
+  }
+
+  def fetchOne[C <: Cursor, T](cursor: C)(f: C => T): T = {
+    closing(cursor) { _ =>
+      if (cursor.moveToNext())
+        f(cursor)
+      else
+        throw new Exception("Row not found")
+    }
   }
 
   def loadNews(): NewsTable.Cursor = {
@@ -694,21 +709,6 @@ class Database(db: SQLiteDatabase) {
       NewsTable.LOADED_AT_COLUMN formatted "%s>?", Array(time.getTime.toString),
       null, null, NewsTable.ID_COLUMN formatted "%s DESC"
     ))
-  }
-
-  def fetchOne[C <: Cursor, T](cursor: C)(f: C => T): T = {
-    closing(cursor) { _ =>
-      if (cursor.moveToNext())
-        f(cursor)
-      else
-        throw new Exception("Row not found")
-    }
-  }
-
-  def findOne[C <: Cursor, T](cursor: C)(f: C => T): Option[T] = {
-    closing(cursor) { _ =>
-      cursor.moveToNext() ? f(cursor)
-    }
   }
 
   def close() {

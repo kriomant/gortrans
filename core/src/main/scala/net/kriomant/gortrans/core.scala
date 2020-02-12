@@ -11,48 +11,69 @@ import scala.collection.mutable
 
 object core {
 
-  object VehicleType extends Enumeration {
-    val Bus: VehicleType.Value = Value(0)
-    val TrolleyBus: VehicleType.Value = Value(1)
-    val TramWay: VehicleType.Value = Value(2)
-    val MiniBus: VehicleType.Value = Value(7)
-  }
-
-  case class Route(vehicleType: VehicleType.Value, id: String, name: String, begin: String, end: String)
-
   type RoutesInfo = Map[VehicleType.Value, Seq[Route]]
+  // ATTENTION: Distances below are specific to Novosibirsk:
+  // One degree of latitude contains ~111 km, one degree of longitude - ~67 km.
+  // We use approximation 100 km per degree for both directions.
+  val MAX_DISTANCE_FROM_ROUTE = 30
+  /* meters */
+  val MAX_DISTANCE_IN_DEGREES: Double = MAX_DISTANCE_FROM_ROUTE / 100000.0
+  // Seems like stop names in route points and stop names in stop list
+  // are taken from different sources, so stop names may differ. This
+  // leads to "Stop not found" errors when user tries to view stop
+  // arrivals.
+  // This maps are used to find correct stop name (as in stop list) by route name and stop name
+  // from route points.
+  val commonStopNameFixes: Map[String, String] = Map(
+    "Магазин №18" -> "Магазин № 18",
+    "сады Украина" -> "Сады \"Украина\"",
+    "Храм Михаила Архангела" -> "Храм Архангела Михаила",
+    "Механизаторов ул." -> "Механизаторов",
+    "Вещевой рынок (Гусинобродское шоссе)" -> "Вещевой рынок \"Гусинобродский\"",
+    "Семьи Шамшиных" -> "Семьи Шамшиных ул.",
+    "Крылова ул." -> "Крылова",
+    "Торговый центр (Верх-Тула)" -> "Торговый центр (пос. Верх-Тула)",
+    "Магазин №24" -> "Магазин № 24",
+    "Магазин(Каменка)" -> "Магазин (Каменка)",
+    "Центр (с. Барышево)" -> "Центрт(пос.Барышево)",
+    "пос. Верх-Тула" -> "с. Верх-Тула",
+    "Индустриальная ул." -> "Индустриальная",
+    "Поселковый совет (Каменка)" -> "Поселковый Совет(Каменка)",
+    "Строительная ул." -> "Строительная",
+    "Стрелочная ул" -> "Стрелочная ул.",
+    "c.Кудряши" -> "с. Кудряши",
+    "Поликлиника" -> "Поликлиника (Авиастр)",
+    "Троллейный ж/м (Пархоменко ул.)" -> "Троллейный ж/м",
+    "Вокзал (Бердск)" -> "Вокзал г Бердска",
+    "Автовокзал (Каменская магистраль)" -> "Автовокзал",
+    "Клуб Калейдоскоп" -> "Клюб Калейдоскоп",
+    "Ипподромская ул." -> "Ипподромская ул. (ул. Писарева)",
+    "с.Каменка" -> "с. Каменка",
+    "Диагностический центр (Гор. больница)" -> "Диагностический центр (Городская больница)",
+    "Управление механизации (ул.Тайгинская)" -> "Управление механизации",
+    "Немировича-Данченко" -> "Немировича-Данченко ул.",
+    "Питомник" -> "Микрорайон \"Весенний\"",
+    "Сады" -> "Сады (Петухова ул.)",
+    "Родники ж/м (ул. Земнухова)" -> "Земнухова ул.",
+    "пос. Кирова (Бердское шоссе)" -> "пос. Кирова",
+    "Поликлиника (Софийская)" -> "Поликлиника (Гидромонтажная)",
+    "Поселок (Каменское шоссе)" -> "Поселок"
+  )
+  val routeSpecificStopNameFixes: Map[(VehicleType.Value, String, String), String] = Map(
+    (VehicleType.Bus, "45", "Поликлиника (Софийская)") -> "Поликлиника (Демакова)",
+    (VehicleType.Bus, "1064", "Вертковская ул.") -> "Вертковская ул. (ул. Станиславского)",
+    (VehicleType.MiniBus, "327", "Горького ул.") -> "Горького(Бердск)",
+    (VehicleType.MiniBus, "347", "Больница (Мочищенское шоссе)") -> "Больница (Софийская ул.)",
+    (VehicleType.MiniBus, "347", "Институт (Мочищенское шоссе)") -> "Институт",
+    (VehicleType.MiniBus, "1130", "Сады (пр. Дзержинского)") -> "Сады",
+    (VehicleType.MiniBus, "1148", "Поликлиника (Софийская)") -> "Больница (Софийская ул.)",
+    (VehicleType.MiniBus, "1255", "Гвардейская") -> "Вертковская ул. (ул. Сибиряков Гвардейцев)"
+  )
 
-  object Direction extends Enumeration {
-    val Forward, Backward = Value
-
-    def inverse(dir: Direction.Value): Direction.Value = dir match {
-      case Forward => Backward
-      case Backward => Forward
-    }
-  }
-
-  object DirectionsEx extends Enumeration {
-    val Forward, Backward, Both = Value
-  }
-
-  object ScheduleType extends Enumeration {
-    val Holidays: ScheduleType.Value = Value(5)
-    val Workdays: ScheduleType.Value = Value(11)
-    val Daily: ScheduleType.Value = Value(23)
-  }
-
-  case class NewsStory(id: String, title: String, content: String, readMoreLink: Option[URI])
-
-  class RouteFoldingException(msg: String) extends Exception(msg)
-
-  case class FoldedRouteStop[Stop](name: String, forward: Option[Stop], backward: Option[Stop]) {
-    require(forward.isDefined || backward.isDefined)
-
-    val directions: DirectionsEx.Value = (forward, backward) match {
-      case (Some(_), Some(_)) => DirectionsEx.Both
-      case (Some(_), None) => DirectionsEx.Forward
-      case (None, Some(_)) => DirectionsEx.Backward
-      case (None, None) => throw new AssertionError
+  def foldRoute[Stop](forward: Seq[Stop], backward: Seq[Stop], getName: Stop => String): Seq[FoldedRouteStop[Stop]] = {
+    foldRouteInternal(forward.map(getName), backward.map(getName)).map {
+      case (name, findex, bindex) =>
+        FoldedRouteStop(name, findex.map(forward.apply), bindex.map(backward.apply))
     }
   }
 
@@ -81,13 +102,6 @@ object core {
     foldedRoute ++= (0 to bpos).reverse.map(s => (backward(s), None, Some(s)))
 
     foldedRoute
-  }
-
-  def foldRoute[Stop](forward: Seq[Stop], backward: Seq[Stop], getName: Stop => String): Seq[FoldedRouteStop[Stop]] = {
-    foldRouteInternal(forward.map(getName), backward.map(getName)).map {
-      case (name, findex, bindex) =>
-        FoldedRouteStop(name, findex.map(forward.apply), bindex.map(backward.apply))
-    }
   }
 
   def splitRoute(points: Seq[RoutePoint], begin: String, end: String): (Seq[RoutePoint], Seq[RoutePoint]) = {
@@ -123,16 +137,6 @@ object core {
     }
   }
 
-  /** Splits route into forward and backward parts and returns index of first route point belonging
-   * to backward part.
-   */
-  def splitRoutePosition(foldedRoute: Seq[FoldedRouteStop[RoutePoint]], routePoints: Seq[parsing.RoutePoint]): Int = {
-    // Split route into forward and backward parts for proper snapping of vehicle locations.
-    // Find last route stop.
-    val borderStop = (foldedRoute.last.forward orElse foldedRoute.last.backward).get
-    routePoints.indexOf(borderStop) + 1
-  }
-
   def splitRoute(foldedRoute: Seq[FoldedRouteStop[RoutePoint]], routePoints: Seq[parsing.RoutePoint]): (scala.Seq[RoutePoint], scala.Seq[RoutePoint]) = {
     val borderStopIndex = splitRoutePosition(foldedRoute, routePoints)
     // Last point is included into both forward route (as last point) and into
@@ -142,13 +146,14 @@ object core {
     (forwardRoutePoints, backwardRoutePoints)
   }
 
-  sealed class CircularStraightenRoute(val positions: Seq[Double], val totalLength: Double) {
-    @inline def stopPosition(i: Int): Double = positions(i)
-
-    @inline def distanceToPrevious(i: Int): Double = i match {
-      case 0 => totalLength - positions.last
-      case _ => positions(i)
-    }
+  /** Splits route into forward and backward parts and returns index of first route point belonging
+   * to backward part.
+   */
+  def splitRoutePosition(foldedRoute: Seq[FoldedRouteStop[RoutePoint]], routePoints: Seq[parsing.RoutePoint]): Int = {
+    // Split route into forward and backward parts for proper snapping of vehicle locations.
+    // Find last route stop.
+    val borderStop = (foldedRoute.last.forward orElse foldedRoute.last.backward).get
+    routePoints.indexOf(borderStop) + 1
   }
 
   /** Returns distance from route start to each route point.
@@ -164,12 +169,16 @@ object core {
     (length, positions.ensuring(_.length == route.length))
   }
 
-  // ATTENTION: Distances below are specific to Novosibirsk:
-  // One degree of latitude contains ~111 km, one degree of longitude - ~67 km.
-  // We use approximation 100 km per degree for both directions.
-  val MAX_DISTANCE_FROM_ROUTE = 30
-  /* meters */
-  val MAX_DISTANCE_IN_DEGREES: Double = MAX_DISTANCE_FROM_ROUTE / 100000.0
+  def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[Pt]): (Pt, Option[(Pt, Pt)]) = {
+    snapVehicleToRouteInternal(vehicle, route) match {
+      case Some((segmentIndex, pointPos)) =>
+        val start = route(segmentIndex)
+        val end = route(segmentIndex + 1)
+        val point = start + (end - start) * pointPos
+        (point, Some((start, end)))
+      case None => (Pt(vehicle.longitude.toDouble, vehicle.latitude.toDouble), None)
+    }
+  }
 
   /**
    * Snap vehicle to route.
@@ -215,74 +224,62 @@ object core {
     (closestSegmentIndex != -1) ? ((closestSegmentIndex, closestSegmentPointPos))
   }
 
-  def snapVehicleToRoute(vehicle: VehicleInfo, route: Seq[Pt]): (Pt, Option[(Pt, Pt)]) = {
-    snapVehicleToRouteInternal(vehicle, route) match {
-      case Some((segmentIndex, pointPos)) =>
-        val start = route(segmentIndex)
-        val end = route(segmentIndex + 1)
-        val point = start + (end - start) * pointPos
-        (point, Some((start, end)))
-      case None => (Pt(vehicle.longitude.toDouble, vehicle.latitude.toDouble), None)
-    }
-  }
-
-  // Seems like stop names in route points and stop names in stop list
-  // are taken from different sources, so stop names may differ. This
-  // leads to "Stop not found" errors when user tries to view stop
-  // arrivals.
-  // This maps are used to find correct stop name (as in stop list) by route name and stop name
-  // from route points.
-  val commonStopNameFixes: Map[String, String] = Map(
-    "Магазин №18" -> "Магазин № 18",
-    "сады Украина" -> "Сады \"Украина\"",
-    "Храм Михаила Архангела" -> "Храм Архангела Михаила",
-    "Механизаторов ул." -> "Механизаторов",
-    "Вещевой рынок (Гусинобродское шоссе)" -> "Вещевой рынок \"Гусинобродский\"",
-    "Семьи Шамшиных" -> "Семьи Шамшиных ул.",
-    "Крылова ул." -> "Крылова",
-    "Торговый центр (Верх-Тула)" -> "Торговый центр (пос. Верх-Тула)",
-    "Магазин №24" -> "Магазин № 24",
-    "Магазин(Каменка)" -> "Магазин (Каменка)",
-    "Центр (с. Барышево)" -> "Центрт(пос.Барышево)",
-    "пос. Верх-Тула" -> "с. Верх-Тула",
-    "Индустриальная ул." -> "Индустриальная",
-    "Поселковый совет (Каменка)" -> "Поселковый Совет(Каменка)",
-    "Строительная ул." -> "Строительная",
-    "Стрелочная ул" -> "Стрелочная ул.",
-    "c.Кудряши" -> "с. Кудряши",
-    "Поликлиника" -> "Поликлиника (Авиастр)",
-    "Троллейный ж/м (Пархоменко ул.)" -> "Троллейный ж/м",
-    "Вокзал (Бердск)" -> "Вокзал г Бердска",
-    "Автовокзал (Каменская магистраль)" -> "Автовокзал",
-    "Клуб Калейдоскоп" -> "Клюб Калейдоскоп",
-    "Ипподромская ул." -> "Ипподромская ул. (ул. Писарева)",
-    "с.Каменка" -> "с. Каменка",
-    "Диагностический центр (Гор. больница)" -> "Диагностический центр (Городская больница)",
-    "Управление механизации (ул.Тайгинская)" -> "Управление механизации",
-    "Немировича-Данченко" -> "Немировича-Данченко ул.",
-    "Питомник" -> "Микрорайон \"Весенний\"",
-    "Сады" -> "Сады (Петухова ул.)",
-    "Родники ж/м (ул. Земнухова)" -> "Земнухова ул.",
-    "пос. Кирова (Бердское шоссе)" -> "пос. Кирова",
-    "Поликлиника (Софийская)" -> "Поликлиника (Гидромонтажная)",
-    "Поселок (Каменское шоссе)" -> "Поселок"
-  )
-
-  val routeSpecificStopNameFixes: Map[(VehicleType.Value, String, String), String] = Map(
-    (VehicleType.Bus, "45", "Поликлиника (Софийская)") -> "Поликлиника (Демакова)",
-    (VehicleType.Bus, "1064", "Вертковская ул.") -> "Вертковская ул. (ул. Станиславского)",
-    (VehicleType.MiniBus, "327", "Горького ул.") -> "Горького(Бердск)",
-    (VehicleType.MiniBus, "347", "Больница (Мочищенское шоссе)") -> "Больница (Софийская ул.)",
-    (VehicleType.MiniBus, "347", "Институт (Мочищенское шоссе)") -> "Институт",
-    (VehicleType.MiniBus, "1130", "Сады (пр. Дзержинского)") -> "Сады",
-    (VehicleType.MiniBus, "1148", "Поликлиника (Софийская)") -> "Больница (Софийская ул.)",
-    (VehicleType.MiniBus, "1255", "Гвардейская") -> "Вертковская ул. (ул. Сибиряков Гвардейцев)"
-  )
-
   def fixStopName(vehicleType: VehicleType.Value, routeName: String, stopName: String): String = {
     routeSpecificStopNameFixes.getOrElse(
       (vehicleType, routeName, stopName),
       commonStopNameFixes.getOrElse(stopName, stopName)
     )
+  }
+
+  sealed class CircularStraightenRoute(val positions: Seq[Double], val totalLength: Double) {
+    @inline def stopPosition(i: Int): Double = positions(i)
+
+    @inline def distanceToPrevious(i: Int): Double = i match {
+      case 0 => totalLength - positions.last
+      case _ => positions(i)
+    }
+  }
+
+  case class Route(vehicleType: VehicleType.Value, id: String, name: String, begin: String, end: String)
+
+  case class NewsStory(id: String, title: String, content: String, readMoreLink: Option[URI])
+
+  class RouteFoldingException(msg: String) extends Exception(msg)
+
+  case class FoldedRouteStop[Stop](name: String, forward: Option[Stop], backward: Option[Stop]) {
+    require(forward.isDefined || backward.isDefined)
+
+    val directions: DirectionsEx.Value = (forward, backward) match {
+      case (Some(_), Some(_)) => DirectionsEx.Both
+      case (Some(_), None) => DirectionsEx.Forward
+      case (None, Some(_)) => DirectionsEx.Backward
+      case (None, None) => throw new AssertionError
+    }
+  }
+
+  object VehicleType extends Enumeration {
+    val Bus: VehicleType.Value = Value(0)
+    val TrolleyBus: VehicleType.Value = Value(1)
+    val TramWay: VehicleType.Value = Value(2)
+    val MiniBus: VehicleType.Value = Value(7)
+  }
+
+  object Direction extends Enumeration {
+    val Forward, Backward = Value
+
+    def inverse(dir: Direction.Value): Direction.Value = dir match {
+      case Forward => Backward
+      case Backward => Forward
+    }
+  }
+
+  object DirectionsEx extends Enumeration {
+    val Forward, Backward, Both = Value
+  }
+
+  object ScheduleType extends Enumeration {
+    val Holidays: ScheduleType.Value = Value(5)
+    val Workdays: ScheduleType.Value = Value(11)
+    val Daily: ScheduleType.Value = Value(23)
   }
 }

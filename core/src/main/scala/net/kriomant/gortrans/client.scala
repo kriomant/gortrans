@@ -20,21 +20,21 @@ class ClientException(message: String, cause: Throwable = null) extends Exceptio
 
 object Client {
 
-  case class RouteInfoRequest(
-                               vehicleType: VehicleType.Value,
-                               routeId: String,
-                               routeName: String,
-                               direction: DirectionsEx.Value
-                             )
+  final val HOST = new URL("http://nskgortrans.ru")
+  final val MAPS_HOST = new URL("http://maps.nskgortrans.ru")
+  final val MOBILE_HOST = new URL("http://m.nskgortrans.ru")
 
   def readWholeStream(stream: InputStream): String = {
     val buffered = new BufferedInputStream(stream)
     new InputStreamReader(buffered).readAll()
   }
 
-  final val HOST = new URL("http://nskgortrans.ru")
-  final val MAPS_HOST = new URL("http://maps.nskgortrans.ru")
-  final val MOBILE_HOST = new URL("http://m.nskgortrans.ru")
+  case class RouteInfoRequest(
+                               vehicleType: VehicleType.Value,
+                               routeId: String,
+                               routeName: String,
+                               direction: DirectionsEx.Value
+                             )
 }
 
 /** Client for maps.nskgortrans.ru site.
@@ -53,23 +53,14 @@ class Client(logger: Logger) {
     fetch(new URL(MAPS_HOST, "listmarsh.php?r"))
   }
 
-  def directionCodes = Map(
-    Direction.Forward -> "A",
-    Direction.Backward -> "B"
-  )
-
-  def directionsExCodes = Map(
-    DirectionsEx.Forward -> "A",
-    DirectionsEx.Backward -> "B",
-    DirectionsEx.Both -> "W"
-  )
-
   def getRoutesInfo(requests: Traversable[Client.RouteInfoRequest]): String = {
     val params = requests map { r =>
       "%d-%s-%s-%s" format(r.vehicleType.id + 1, r.routeId, directionsExCodes(r.direction), r.routeName)
     } mkString "|"
     fetch(new URL(MAPS_HOST, "trasses.php?r=" + URLEncoder.encode(params, "UTF-8")))
   }
+
+  private def fetch(url: URL): String = fetchWithConn(url) { (content, _) => content }
 
   def getStopsList(query: String = ""): String = {
     fetch(new URL(MAPS_HOST, "components/com_planrasp/helpers/grasp.php?q=%s&typeview=stops" format URLEncoder.encode(query, "UTF-8")))
@@ -136,6 +127,12 @@ class Client(logger: Logger) {
     }
   }
 
+  def directionsExCodes = Map(
+    DirectionsEx.Forward -> "A",
+    DirectionsEx.Backward -> "B",
+    DirectionsEx.Both -> "W"
+  )
+
   /** Returns expected arrivals and current server time. */
   def getExpectedArrivals(
                            routeId: String, vehicleType: VehicleType.Value, stopId: Int, direction: Direction.Value
@@ -150,6 +147,23 @@ class Client(logger: Logger) {
     fetchWithConn(url) { (content, conn) =>
       val date = new util.Date(conn.getHeaderFieldDate("Date", new util.Date().getTime))
       (content, date)
+    }
+  }
+
+  def directionCodes = Map(
+    Direction.Forward -> "A",
+    Direction.Backward -> "B"
+  )
+
+  private def fetchWithConn[T](url: URL)(f: (String, HttpURLConnection) => T): T = {
+    val conn = url.openConnection().asInstanceOf[HttpURLConnection]
+    try {
+      // TODO: Use more effective android.util.JsonReader on API level 11.
+      val content = readWholeStream(conn.getInputStream)
+      logger.verbose("Response from %s: %s" format(url, content))
+      f(content, conn)
+    } finally {
+      conn.disconnect()
     }
   }
 
@@ -189,20 +203,6 @@ class Client(logger: Logger) {
         mapsSessionId = sessionId
 
       case None => throw new ClientException("Session cookie not found")
-    }
-  }
-
-  private def fetch(url: URL): String = fetchWithConn(url) { (content, _) => content }
-
-  private def fetchWithConn[T](url: URL)(f: (String, HttpURLConnection) => T): T = {
-    val conn = url.openConnection().asInstanceOf[HttpURLConnection]
-    try {
-      // TODO: Use more effective android.util.JsonReader on API level 11.
-      val content = readWholeStream(conn.getInputStream)
-      logger.verbose("Response from %s: %s" format(url, content))
-      f(content, conn)
-    } finally {
-      conn.disconnect()
     }
   }
 }

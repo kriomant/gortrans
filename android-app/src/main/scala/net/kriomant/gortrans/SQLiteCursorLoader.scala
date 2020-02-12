@@ -28,6 +28,22 @@ class SQLiteCursorLoader[CustomCursor >: Null <: Cursor](context: Context, fetch
     cursor.registerContentObserver(mObserver)
   }
 
+  /**
+   * Starts an asynchronous load of the contacts list data. When the result is ready the callbacks
+   * will be called on the UI thread. If a previous load has been completed and is still valid
+   * the result may be passed to the callbacks immediately.
+   *
+   * Must be called from the UI thread
+   */
+  override def onStartLoading() {
+    if (mCursor != null) {
+      deliverResult(mCursor)
+    }
+    if (takeContentChanged() || mCursor == null) {
+      forceLoad()
+    }
+  }
+
   /* Runs on the UI thread */
   override def deliverResult(cursor: CustomCursor) {
     if (isReset) {
@@ -49,30 +65,6 @@ class SQLiteCursorLoader[CustomCursor >: Null <: Cursor](context: Context, fetch
     }
   }
 
-  /**
-   * Starts an asynchronous load of the contacts list data. When the result is ready the callbacks
-   * will be called on the UI thread. If a previous load has been completed and is still valid
-   * the result may be passed to the callbacks immediately.
-   *
-   * Must be called from the UI thread
-   */
-  override def onStartLoading() {
-    if (mCursor != null) {
-      deliverResult(mCursor)
-    }
-    if (takeContentChanged() || mCursor == null) {
-      forceLoad()
-    }
-  }
-
-  /**
-   * Must be called from the UI thread
-   */
-  override protected def onStopLoading() {
-    // Attempt to cancel the current load task if possible.
-    cancelLoad()
-  }
-
   override def onCanceled(cursor: CustomCursor) {
     if (cursor != null && !cursor.isClosed) {
       cursor.close()
@@ -89,5 +81,13 @@ class SQLiteCursorLoader[CustomCursor >: Null <: Cursor](context: Context, fetch
       mCursor.close()
     }
     mCursor = null
+  }
+
+  /**
+   * Must be called from the UI thread
+   */
+  override protected def onStopLoading() {
+    // Attempt to cancel the current load task if possible.
+    cancelLoad()
   }
 }

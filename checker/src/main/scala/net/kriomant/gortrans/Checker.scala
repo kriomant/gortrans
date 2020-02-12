@@ -10,6 +10,28 @@ import org.slf4j.LoggerFactory
 
 object Checker {
   val logger: slf4j.Logger = LoggerFactory.getLogger(getClass)
+  // Set of stop names (from route points) which are known to be missing in stop list.
+  val missingStops: Set[(VehicleType.Value, String, String)] = Set(
+    (VehicleType.Bus, "103", "Таймырская ул."),
+    (VehicleType.Bus, "103", "Пищекомбинат (Красный Восток)"),
+    (VehicleType.Bus, "103", "Строительная ул. (Верх-Тула)"),
+    (VehicleType.Bus, "233", "Сельхоз техникум Новосибирский (Раздольное)"),
+    (VehicleType.Bus, "1004", "Клубная ул."),
+    (VehicleType.Bus, "1004", "Гвардейская"),
+    (VehicleType.Bus, "1042", "Управление механизации (ул.Тайгинская)"),
+    (VehicleType.Bus, "1060", "Гвардейская"),
+    (VehicleType.Bus, "1096", "Клуб Калейдоскоп"),
+    (VehicleType.Bus, "1131", "Добролюбова ул."),
+    (VehicleType.Bus, "1204", "Гвардейская"),
+    (VehicleType.Bus, "1221", "Гвардейская"),
+    (VehicleType.Bus, "1243", "Гвардейская"),
+    (VehicleType.TrolleyBus, "8", "Гвардейская"),
+    (VehicleType.MiniBus, "1045", "Мебельная фабрика"),
+    (VehicleType.MiniBus, "1104", "Школа (Кочубея ул.)"),
+    (VehicleType.MiniBus, "1104", "ТК Лента"),
+    (VehicleType.MiniBus, "1130", "Добролюбова ул."),
+    (VehicleType.MiniBus, "1257", "Театр \"Драмы\"")
+  )
 
   def main(args: Array[String]) {
     logger.debug("Initialize client")
@@ -138,27 +160,4 @@ object Checker {
       }
     }
   }
-
-  // Set of stop names (from route points) which are known to be missing in stop list.
-  val missingStops: Set[(VehicleType.Value, String, String)] = Set(
-    (VehicleType.Bus, "103", "Таймырская ул."),
-    (VehicleType.Bus, "103", "Пищекомбинат (Красный Восток)"),
-    (VehicleType.Bus, "103", "Строительная ул. (Верх-Тула)"),
-    (VehicleType.Bus, "233", "Сельхоз техникум Новосибирский (Раздольное)"),
-    (VehicleType.Bus, "1004", "Клубная ул."),
-    (VehicleType.Bus, "1004", "Гвардейская"),
-    (VehicleType.Bus, "1042", "Управление механизации (ул.Тайгинская)"),
-    (VehicleType.Bus, "1060", "Гвардейская"),
-    (VehicleType.Bus, "1096", "Клуб Калейдоскоп"),
-    (VehicleType.Bus, "1131", "Добролюбова ул."),
-    (VehicleType.Bus, "1204", "Гвардейская"),
-    (VehicleType.Bus, "1221", "Гвардейская"),
-    (VehicleType.Bus, "1243", "Гвардейская"),
-    (VehicleType.TrolleyBus, "8", "Гвардейская"),
-    (VehicleType.MiniBus, "1045", "Мебельная фабрика"),
-    (VehicleType.MiniBus, "1104", "Школа (Кочубея ул.)"),
-    (VehicleType.MiniBus, "1104", "ТК Лента"),
-    (VehicleType.MiniBus, "1130", "Добролюбова ул."),
-    (VehicleType.MiniBus, "1257", "Театр \"Драмы\"")
-  )
 }

@@ -85,8 +85,6 @@ class NewsAdapter(val context: Context, cursor: Database.NewsTable.Cursor)
   extends CursorAdapter(context, cursor)
     with EasyCursorAdapter[Database.NewsTable.Cursor] {
 
-  case class SubViews(title: TextView, content: TextView, readMore: TextView)
-
   val itemLayout: Int = R.layout.news_item
 
   def findSubViews(view: View): SubViews = SubViews(
@@ -116,4 +114,6 @@ class NewsAdapter(val context: Context, cursor: Database.NewsTable.Cursor)
     text.setSpan(new URLSpan(href), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     text
   }
+
+  case class SubViews(title: TextView, content: TextView, readMore: TextView)
 }

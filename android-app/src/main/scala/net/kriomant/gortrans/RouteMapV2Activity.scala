@@ -24,12 +24,11 @@ import scala.collection.mutable
 
 object RouteMapV2Activity {
   final val TAG = getClass.getName
+  private final val DIRECTION_SECTORS_NUMBER = 16
 
   object StopMarkersState extends Enumeration {
     val Hidden, Small, Large = Value
   }
-
-  private final val DIRECTION_SECTORS_NUMBER = 16
 }
 
 class RouteMapV2Activity extends SherlockFragmentActivity
@@ -40,15 +39,12 @@ class RouteMapV2Activity extends SherlockFragmentActivity
 
   // Padding between route markers and map edge in pixels.
   final val ROUTE_PADDING = 10
-
+  val vehicleMarkers = mutable.Map.empty[Marker, (VehicleInfo, Option[Double])]
   var map: GoogleMap = _
   var previousStopMarkersState: StopMarkersState.Value = StopMarkersState.Hidden
-
   var routeMarkers: mutable.Buffer[Polyline] = mutable.Buffer[Polyline]()
   var stopMarkers: mutable.Buffer[Marker] = mutable.Buffer[Marker]()
   var smallStopMarkers: mutable.Buffer[Marker] = mutable.Buffer[Marker]()
-  val vehicleMarkers = mutable.Map.empty[Marker, (VehicleInfo, Option[Double])]
-
   /** Vehicle marker for which info windows was shown last time. */
   var infoWindowMarker: Option[Marker] = None
 
@@ -345,17 +341,6 @@ class RouteMapV2Activity extends SherlockFragmentActivity
     vehicleMarkers.clear()
   }
 
-  def getVehicleIcon(info: VehicleInfo, angle: Option[Double], cameraBearing: Float): BitmapDescriptor = {
-    val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
-    val angleSector = angle map { a =>
-      ((a + cameraBearing + 360 + sectorAngle / 2) % 360 / sectorAngle).toInt
-    }
-    info.direction match {
-      case Some(_) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, angleSector))
-      case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
-    }
-  }
-
   def setVehicles(vehicles: Seq[(VehicleInfo, Point, Option[Double], Int)]) {
     val cameraPosition = map.getCameraPosition
 
@@ -391,6 +376,17 @@ class RouteMapV2Activity extends SherlockFragmentActivity
           infoWindowMarker = Some(marker)
           marker.showInfoWindow()
         }
+    }
+  }
+
+  def getVehicleIcon(info: VehicleInfo, angle: Option[Double], cameraBearing: Float): BitmapDescriptor = {
+    val sectorAngle = 360.0 / DIRECTION_SECTORS_NUMBER
+    val angleSector = angle map { a =>
+      ((a + cameraBearing + 360 + sectorAngle / 2) % 360 / sectorAngle).toInt
+    }
+    info.direction match {
+      case Some(_) => BitmapDescriptorFactory.fromBitmap(vehicleBitmaps(info.vehicleType, info.routeName, angleSector))
+      case None => BitmapDescriptorFactory.fromResource(R.drawable.vehicle_stopped_marker)
     }
   }
 

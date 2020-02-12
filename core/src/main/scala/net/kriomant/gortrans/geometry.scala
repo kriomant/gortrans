@@ -2,16 +2,8 @@ package net.kriomant.gortrans
 
 object geometry {
 
-  case class Point(x: Double, y: Double) {
-    def *(other: Point): Double = x * other.x + y * other.y
-
-    def *(scale: Double): Point = Point(scale * x, scale * y)
-
-    def -(other: Point): Point = Point(x - other.x, y - other.y)
-
-    def +(other: Point): Point = Point(x + other.x, y + other.y)
-
-    def distanceTo(other: Point): Double = math.sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y))
+  def projectToLine(point: Point, start: Point, end: Point): Point = {
+    start + (end - start) * projectToLinePortion(point, start, end)
   }
 
   def projectToLinePortion(point: Point, start: Point, end: Point): Double = {
@@ -28,8 +20,8 @@ object geometry {
     (start - point) * (end - start) / -((end - start) * (end - start))
   }
 
-  def projectToLine(point: Point, start: Point, end: Point): Point = {
-    start + (end - start) * projectToLinePortion(point, start, end)
+  def closestSegmentPoint(point: Point, start: Point, end: Point): Point = {
+    start + (end - start) * closestSegmentPointPortion(point, start, end)
   }
 
   def closestSegmentPointPortion(point: Point, start: Point, end: Point): Double = {
@@ -50,7 +42,15 @@ object geometry {
     }
   }
 
-  def closestSegmentPoint(point: Point, start: Point, end: Point): Point = {
-    start + (end - start) * closestSegmentPointPortion(point, start, end)
+  case class Point(x: Double, y: Double) {
+    def *(other: Point): Double = x * other.x + y * other.y
+
+    def *(scale: Double): Point = Point(scale * x, scale * y)
+
+    def -(other: Point): Point = Point(x - other.x, y - other.y)
+
+    def +(other: Point): Point = Point(x + other.x, y + other.y)
+
+    def distanceTo(other: Point): Double = math.sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y))
   }
 }

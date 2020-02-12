@@ -24,11 +24,24 @@ import scala.collection.mutable
 object RouteMapLike {
   private[this] val CLASS_NAME = classOf[RouteMapLike].getName
   final val TAG = CLASS_NAME
-
   final val EXTRA_ROUTE_ID = "ROUTE_ID"
   final val EXTRA_ROUTE_NAME = "ROUTE_NAME"
   final val EXTRA_VEHICLE_TYPE = "VEHICLE_TYPE"
   final val EXTRA_GROUP_ID = "VEHICLE_TYPE"
+  final val PHYSICAL_ROUTE_STROKE_WIDTH: Float = 3 // meters
+  final val MIN_ROUTE_STROKE_WIDTH: Float = 2 // pixels
+  // MapView's zoom level at which whole or significant part of route
+  // is visible.
+  val ZOOM_WHOLE_ROUTE = 14
+  val ZOOM_SHOW_STOP_NAMES = 17
+
+  def createIntent(caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value): Intent = {
+    val intent = new Intent(caller, getMapActivityClass(caller))
+    intent.putExtra(EXTRA_ROUTE_ID, routeId)
+    intent.putExtra(EXTRA_ROUTE_NAME, routeName)
+    intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
+    intent
+  }
 
   private def getMapActivityClass(context: Context): Class[_] = {
     val prefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -41,27 +54,11 @@ object RouteMapLike {
       classOf[RouteMapOSMActivity]
   }
 
-  def createIntent(caller: Context, routeId: String, routeName: String, vehicleType: VehicleType.Value): Intent = {
-    val intent = new Intent(caller, getMapActivityClass(caller))
-    intent.putExtra(EXTRA_ROUTE_ID, routeId)
-    intent.putExtra(EXTRA_ROUTE_NAME, routeName)
-    intent.putExtra(EXTRA_VEHICLE_TYPE, vehicleType.id)
-    intent
-  }
-
   def createShowGroupIntent(context: Context, groupId: Long): Intent = {
     val intent = new Intent(context, getMapActivityClass(context))
     intent.putExtra(EXTRA_GROUP_ID, groupId)
     intent
   }
-
-  // MapView's zoom level at which whole or significant part of route
-  // is visible.
-  val ZOOM_WHOLE_ROUTE = 14
-  val ZOOM_SHOW_STOP_NAMES = 17
-
-  final val PHYSICAL_ROUTE_STROKE_WIDTH: Float = 3 // meters
-  final val MIN_ROUTE_STROKE_WIDTH: Float = 2 // pixels
 
   case class RouteInfo(
                         forwardRoutePoints: Seq[Pt],
@@ -115,22 +112,18 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 
   import RouteMapLike._
 
-  var groupId: Long = -1
-
-  var rainbow: Rainbow = _
-
-  private[this] var dataManager: DataManager = _
-  var routesInfo: Set[core.Route] = _
   val routes: mutable.Map[(VehicleType.Value, String), RouteInfo] = mutable.Map()
+  var groupId: Long = -1
+  var rainbow: Rainbow = _
+  var routesInfo: Set[core.Route] = _
   var vehiclesData: Seq[(VehicleInfo, Pt, Option[Double], Int)] = Seq()
-
   var vehiclesWatcher: VehiclesWatcher = _
-  private[this] var trackVehiclesToggle: ToggleButton = _
   var updatingVehiclesLocationIsOn: Boolean = true
-
   // Hack to avoid repositioning map when activity is recreated due to
   // configuration change. TODO: normal solution.
   var hasOldState: Boolean = false
+  private[this] var dataManager: DataManager = _
+  private[this] var trackVehiclesToggle: ToggleButton = _
 
   def isInitialized: Boolean = true
 

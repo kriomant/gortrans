@@ -9,6 +9,20 @@ import android.view.View.MeasureSpec
 import android.view.{MotionEvent, View}
 
 class FlatRouteView(context: Context, attributes: AttributeSet) extends View(context, attributes) {
+  private[this] val stopImage = context.getResources.getDrawable(R.drawable.route_stop_marker)
+  private[this] val selectedStopImage = context.getResources.getDrawable(R.drawable.route_stop_marker_selected)
+  private[this] val vehicleIcon = new VehicleMarker(getResources, None, getResources.getColor(R.color.forward_vehicle))
+  private[this] val _padding = stopImage.getIntrinsicWidth / 2
+  var currentTouchHandler: TouchHandler = _
+  private[this] var _totalLength: Float = 0
+  private[this] var _stops: Seq[(Float, String)] = Seq()
+  private[this] var _fixedStopIndex: Int = 0
+  private[this] var _vehicles: Seq[Float] = Seq()
+  private[this] var _minScale: Float = 0
+  private[this] var _maxScale: Float = 0
+  private[this] var scale = 1000.0
+  private[this] var _fixedStopX: Int = _
+
   def setStops(totalLength: Float, stops: Seq[(Float, String)], fixedStop: Int) {
     require(stops.isEmpty || (fixedStop >= 0 && fixedStop < stops.length))
 
@@ -21,6 +35,27 @@ class FlatRouteView(context: Context, attributes: AttributeSet) extends View(con
 
     invalidate()
   }
+
+  def calculateScaleBounds() {
+    val effectiveWidth = getWidth - 2 * _padding
+
+    if (_stops.nonEmpty) {
+      // At least one previous stop must be shown.
+      _maxScale = effectiveWidth / distanceToPreviousStop(_fixedStopIndex)
+      // Whole route to the left of fixed stop may be shown.
+      _minScale = effectiveWidth / _totalLength
+    } else {
+      _maxScale = 0
+      _minScale = 0
+    }
+  }
+
+  def distanceToPreviousStop(stopIndex: Int): Float = stopIndex match {
+    case 0 => _totalLength - _stops.last._1
+    case _ => _stops(stopIndex)._1 - _stops(stopIndex - 1)._1
+  }
+
+  def clampScale(value: Double): Double = math.max(math.min(value, _maxScale), _minScale)
 
   def setVehicles(positions: Seq[Float]) {
     _vehicles = positions
@@ -98,47 +133,6 @@ class FlatRouteView(context: Context, attributes: AttributeSet) extends View(con
     }
   }
 
-  trait TouchHandler {
-    def apply(event: MotionEvent): Boolean
-
-    def cancel()
-
-    def finish(event: MotionEvent) {}
-  }
-
-  class ScalingEventHandler(downEvent: MotionEvent) extends TouchHandler {
-    var pointerId: Int = downEvent.getPointerId(0)
-    val initialX: Float = downEvent.getX
-    val initialScale: Double = FlatRouteView.this.scale
-
-    def apply(event: MotionEvent): Boolean = event.getAction match {
-      case MotionEvent.ACTION_MOVE =>
-        if (pointerId != -1) {
-          val idx = event.findPointerIndex(pointerId)
-          val x = event.getX(idx)
-          FlatRouteView.this.scale = clampScale(initialScale / (_fixedStopX - initialX) * (_fixedStopX - x))
-          FlatRouteView.this.invalidate()
-        }
-        true
-
-      case MotionEvent.ACTION_POINTER_UP =>
-        if (pointerId != -1 && event.getPointerId(event.getActionIndex) == pointerId) {
-          // Pointer which initiated action is up.
-          pointerId = -1
-        }
-        true
-
-      case _ => false
-    }
-
-    def cancel() {
-      FlatRouteView.this.scale = initialScale
-      FlatRouteView.this.invalidate()
-    }
-  }
-
-  var currentTouchHandler: TouchHandler = _
-
   override def onTouchEvent(event: MotionEvent): Boolean = event.getAction match {
     case MotionEvent.ACTION_DOWN =>
       assert(currentTouchHandler == null)
@@ -174,41 +168,42 @@ class FlatRouteView(context: Context, attributes: AttributeSet) extends View(con
 
   override def onSaveInstanceState(): Parcelable = super.onSaveInstanceState()
 
-  def calculateScaleBounds() {
-    val effectiveWidth = getWidth - 2 * _padding
+  trait TouchHandler {
+    def apply(event: MotionEvent): Boolean
 
-    if (_stops.nonEmpty) {
-      // At least one previous stop must be shown.
-      _maxScale = effectiveWidth / distanceToPreviousStop(_fixedStopIndex)
-      // Whole route to the left of fixed stop may be shown.
-      _minScale = effectiveWidth / _totalLength
-    } else {
-      _maxScale = 0
-      _minScale = 0
+    def cancel()
+
+    def finish(event: MotionEvent) {}
+  }
+
+  class ScalingEventHandler(downEvent: MotionEvent) extends TouchHandler {
+    val initialX: Float = downEvent.getX
+    val initialScale: Double = FlatRouteView.this.scale
+    var pointerId: Int = downEvent.getPointerId(0)
+
+    def apply(event: MotionEvent): Boolean = event.getAction match {
+      case MotionEvent.ACTION_MOVE =>
+        if (pointerId != -1) {
+          val idx = event.findPointerIndex(pointerId)
+          val x = event.getX(idx)
+          FlatRouteView.this.scale = clampScale(initialScale / (_fixedStopX - initialX) * (_fixedStopX - x))
+          FlatRouteView.this.invalidate()
+        }
+        true
+
+      case MotionEvent.ACTION_POINTER_UP =>
+        if (pointerId != -1 && event.getPointerId(event.getActionIndex) == pointerId) {
+          // Pointer which initiated action is up.
+          pointerId = -1
+        }
+        true
+
+      case _ => false
+    }
+
+    def cancel() {
+      FlatRouteView.this.scale = initialScale
+      FlatRouteView.this.invalidate()
     }
   }
-
-  def distanceToPreviousStop(stopIndex: Int): Float = stopIndex match {
-    case 0 => _totalLength - _stops.last._1
-    case _ => _stops(stopIndex)._1 - _stops(stopIndex - 1)._1
-  }
-
-  def clampScale(value: Double): Double = math.max(math.min(value, _maxScale), _minScale)
-
-  private[this] var _totalLength: Float = 0
-  private[this] var _stops: Seq[(Float, String)] = Seq()
-  private[this] var _fixedStopIndex: Int = 0
-  private[this] var _vehicles: Seq[Float] = Seq()
-
-  private[this] var _minScale: Float = 0
-  private[this] var _maxScale: Float = 0
-  private[this] var scale = 1000.0
-
-  private[this] var _fixedStopX: Int = _
-
-  private[this] val stopImage = context.getResources.getDrawable(R.drawable.route_stop_marker)
-  private[this] val selectedStopImage = context.getResources.getDrawable(R.drawable.route_stop_marker_selected)
-  private[this] val vehicleIcon = new VehicleMarker(getResources, None, getResources.getColor(R.color.forward_vehicle))
-
-  private[this] val _padding = stopImage.getIntrinsicWidth / 2
 }

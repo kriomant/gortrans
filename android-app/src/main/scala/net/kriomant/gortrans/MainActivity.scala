@@ -33,10 +33,8 @@ class MainActivityBase extends RouteListBaseActivity with CreateGroupDialog.List
   import MainActivity._
 
   private[this] final val TAG = classOf[MainActivityBase].getSimpleName
-
-  var actionModeHelper: MultiListActionModeHelper = _
-
   override val layoutResource: Int = R.layout.main_activity
+  var actionModeHelper: MultiListActionModeHelper = _
 
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
@@ -94,6 +92,10 @@ class MainActivityBase extends RouteListBaseActivity with CreateGroupDialog.List
     actionModeHelper.attach(listView)
   }
 
+  def onCreateGroup(dialog: CreateGroupDialog, groupId: Long) {
+    actionModeHelper.finish()
+  }
+
   object ContextActions extends ActionMode.Callback with ListSelectionActionModeCallback {
     def onCreateActionMode(mode: ActionMode, menu: Menu): Boolean = {
       val inflater = mode.getMenuInflater
@@ -120,10 +122,6 @@ class MainActivityBase extends RouteListBaseActivity with CreateGroupDialog.List
       val count = actionModeHelper.getListViews.map(Compatibility.getCheckedItemCount).sum
       mode.setTitle(compatibility.plurals.getQuantityString(MainActivityBase.this, R.plurals.routes, count, count))
     }
-  }
-
-  def onCreateGroup(dialog: CreateGroupDialog, groupId: Long) {
-    actionModeHelper.finish()
   }
 }
 

@@ -29,19 +29,16 @@ class VehiclesWatcher(
                        listener: VehiclesWatcher.Listener
                      ) extends Observable[Either[String, Seq[VehicleInfo]]] {
   private final val TAG = classOf[VehiclesWatcher].getName
-
-  val handler = new Handler
-
-  def client: Client = context.getApplication.asInstanceOf[CustomApplication].dataManager.client
-
   private[this] final val VEHICLES_LOCATION_UPDATE_PERIOD = 20000 /* ms */
-
   private final val updateVehiclesLocationRunnable = new Runnable {
     def run() {
       updateVehiclesLocation()
       handler.postDelayed(this, VEHICLES_LOCATION_UPDATE_PERIOD)
     }
   }
+  val handler = new Handler
+
+  def client: Client = context.getApplication.asInstanceOf[CustomApplication].dataManager.client
 
   def updateVehiclesLocation() {
     val task = new TrackVehiclesTask

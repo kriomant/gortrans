@@ -76,8 +76,6 @@ class SearchResultAdapter(val context: Context, cursor: Database.RoutesTable.Cur
     with EasyCursorAdapter[Database.RoutesTable.Cursor] {
   val itemLayout: Int = R.layout.search_list_item
 
-  case class SubViews(vehicleType: ImageView, number: TextView, begin: TextView, end: TextView)
-
   def findSubViews(view: View): SubViews = SubViews(
     view.findViewById(R.id.vehicle_type_icon).asInstanceOf[ImageView],
     view.findViewById(R.id.route_name).asInstanceOf[TextView],
@@ -103,4 +101,6 @@ class SearchResultAdapter(val context: Context, cursor: Database.RoutesTable.Cur
     views.begin.setText(cursor.firstStopName)
     views.end.setText(cursor.lastStopName)
   }
+
+  case class SubViews(vehicleType: ImageView, number: TextView, begin: TextView, end: TextView)
 }

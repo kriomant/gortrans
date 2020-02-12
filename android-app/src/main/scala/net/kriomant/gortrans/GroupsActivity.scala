@@ -53,6 +53,23 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 
   import GroupsActivityBase._
 
+  val loaderCallbacks: LoaderCallbacks[Seq[GroupInfo]] = new LoaderCallbacks[Seq[GroupInfo]] {
+    def onCreateLoader(p1: Int, p2: Bundle): Loader[Seq[GroupInfo]] = android_utils.cachingLoader(GroupsActivityBase.this) {
+      getApplication.asInstanceOf[CustomApplication].database.loadGroups()
+    }
+
+    def onLoadFinished(loader: Loader[Seq[GroupInfo]], groups: Seq[GroupInfo]) {
+      groupList.setAdapter(new RouteGroupsAdapter(GroupsActivityBase.this, groups))
+      groupList.setEmptyView(findViewById(R.id.group_list_empty))
+      loadingProgress.setVisibility(View.INVISIBLE)
+    }
+
+    def onLoaderReset(p1: Loader[Seq[GroupInfo]]) {
+      groupList.setAdapter(null)
+    }
+  }
+  val TAG_CREATE_GROUP = "tag-create-group"
+  var createGroupData: Intent = _
   private[this] var groupList: ListView = _
   private[this] var loadingProgress: ProgressBar = _
 
@@ -123,34 +140,18 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
     loadGroups()
   }
 
-  override def onCreateOptionsMenu(menu: Menu): Boolean = {
-    super.onCreateOptionsMenu(menu)
-    getSupportMenuInflater.inflate(R.menu.route_groups_menu, menu)
-    true
-  }
-
-  val loaderCallbacks: LoaderCallbacks[Seq[GroupInfo]] = new LoaderCallbacks[Seq[GroupInfo]] {
-    def onCreateLoader(p1: Int, p2: Bundle): Loader[Seq[GroupInfo]] = android_utils.cachingLoader(GroupsActivityBase.this) {
-      getApplication.asInstanceOf[CustomApplication].database.loadGroups()
-    }
-
-    def onLoadFinished(loader: Loader[Seq[GroupInfo]], groups: Seq[GroupInfo]) {
-      groupList.setAdapter(new RouteGroupsAdapter(GroupsActivityBase.this, groups))
-      groupList.setEmptyView(findViewById(R.id.group_list_empty))
-      loadingProgress.setVisibility(View.INVISIBLE)
-    }
-
-    def onLoaderReset(p1: Loader[Seq[GroupInfo]]) {
-      groupList.setAdapter(null)
-    }
-  }
-
   private def loadGroups() {
     getSupportLoaderManager.initLoader(GROUPS_LOADER, null, loaderCallbacks)
   }
 
   private def reloadGroups() {
     getSupportLoaderManager.restartLoader(GROUPS_LOADER, null, loaderCallbacks)
+  }
+
+  override def onCreateOptionsMenu(menu: Menu): Boolean = {
+    super.onCreateOptionsMenu(menu)
+    getSupportMenuInflater.inflate(R.menu.route_groups_menu, menu)
+    true
   }
 
   override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
@@ -160,8 +161,6 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 
     case _ => super.onOptionsItemSelected(item)
   }
-
-  var createGroupData: Intent = _
 
   override def onActivityResult(requestCode: Int, resultCode: Int, data: Intent): Unit = requestCode match {
     case GroupsActivity.REQUEST_CREATE_GROUP =>
@@ -178,7 +177,6 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
     case _ => super.onActivityResult(requestCode, resultCode, data)
   }
 
-
   override def onResume() {
     super.onResume()
 
@@ -189,6 +187,11 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
     }
   }
 
+  def createGroup(data: Intent) {
+    val routeIds = RouteChooseActivity.intentToResult(data)
+    val dialog = new CreateGroupDialog(routeIds)
+    dialog.show(getSupportFragmentManager, TAG_CREATE_GROUP)
+  }
 
   override def onWindowFocusChanged(hasFocus: Boolean) {
     super.onWindowFocusChanged(hasFocus)
@@ -205,14 +208,6 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
         //sidebarContainer.animateOpen()
       }
     }
-  }
-
-  val TAG_CREATE_GROUP = "tag-create-group"
-
-  def createGroup(data: Intent) {
-    val routeIds = RouteChooseActivity.intentToResult(data)
-    val dialog = new CreateGroupDialog(routeIds)
-    dialog.show(getSupportFragmentManager, TAG_CREATE_GROUP)
   }
 
   def onCreateGroup(dialog: CreateGroupDialog, groupId: Long) {
@@ -232,8 +227,6 @@ object RouteGroupsAdapter {
 class RouteGroupsAdapter(val context: Context, val items: Seq[Database.GroupInfo]) extends SeqAdapter with EasyAdapter {
 
   import android_utils.SpannableStringBuilderUtils
-
-  case class SubViews(name: TextView, routes: TextView)
 
   val itemLayout: Int = R.layout.group_list_item_layout
 
@@ -259,8 +252,9 @@ class RouteGroupsAdapter(val context: Context, val items: Seq[Database.GroupInfo
     views.routes.setText(builder)
   }
 
-
   override def hasStableIds: Boolean = true
 
   override def getItemId(position: Int): Long = items(position).id
+
+  case class SubViews(name: TextView, routes: TextView)
 }

@@ -3,8 +3,8 @@ package net.kriomant.gortrans
 import android.app.{AlertDialog, Dialog}
 import android.content.res.Resources
 import android.content.{Context, DialogInterface, Intent}
-import android.graphics.{Point, _}
 import android.graphics.drawable.{Drawable, NinePatchDrawable}
+import android.graphics.{Point, _}
 import android.location.Location
 import android.os.Bundle
 import android.preference.PreferenceManager
@@ -30,7 +30,6 @@ import scala.collection.mutable
 object RouteMapOSMActivity {
   private[this] val CLASS_NAME = classOf[RouteMapOSMActivity].getName
   final val TAG = CLASS_NAME
-
   private val DIALOG_NEW_MAP_NOTICE = 1
 }
 
@@ -42,9 +41,10 @@ class RouteMapOSMActivity extends SherlockActivity
   import RouteMapLike._
   import RouteMapOSMActivity._
 
-  private[this] var mapView: MapView = _
-  private[this] var newMapNotice: View = _
-
+  /** Same zoom level in Google Maps v1 and v2 leads to different actual
+   * scale. Since MapCameraPosition is based on Google Maps v2 CameraPosition,
+   * we must correct zoom here. */
+  final val ZOOM_OFFSET = 1
   // Overlays are splitted into constant ones which are
   // updated on new intent or updated route data only and
   // volatile which are frequently updated, like vehicles.
@@ -55,8 +55,9 @@ class RouteMapOSMActivity extends SherlockActivity
   var vehiclesOverlay: VehiclesOverlayOSM = _
   ///var locationOverlay: Overlay = _
   var realVehicleLocationOverlays: Seq[Overlay] = Seq()
-
   var balloonController: MapBalloonControllerOSM = _
+  private[this] var mapView: MapView = _
+  private[this] var newMapNotice: View = _
 
   def isRouteDisplayed = false
 
@@ -92,7 +93,6 @@ class RouteMapOSMActivity extends SherlockActivity
       })
     }
   }
-
 
   override def onPostCreate(savedInstanceState: Bundle) {
     super.onPostCreate(savedInstanceState)
@@ -148,25 +148,7 @@ class RouteMapOSMActivity extends SherlockActivity
     updateOverlays()
   }
 
-  def updateOverlays() {
-    Log.d("RouteMapOSMActivity", "updateOverlays")
-
-    val overlays = mapView.getOverlays
-    overlays.clear()
-
-    overlays.addAll(constantOverlays.asJavaCollection)
-
-    vehiclesOverlay.setVehicles(vehiclesData)
-    overlays.add(vehiclesOverlay)
-    for (o <- realVehicleLocationOverlays)
-      overlays.add(o)
-    /*if (locationOverlay != null)
-      overlays.add(locationOverlay)*/
-
-    overlays.add(balloonController.closeBalloonOverlay)
-
-    mapView.postInvalidate()
-  }
+  def routePointToGeoPoint(p: Pt): GeoPoint = new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
 
   override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
     case android.R.id.home =>
@@ -207,11 +189,6 @@ class RouteMapOSMActivity extends SherlockActivity
     }
     (name, R.drawable.route_map)
   }
-
-  /** Same zoom level in Google Maps v1 and v2 leads to different actual
-   * scale. Since MapCameraPosition is based on Google Maps v2 CameraPosition,
-   * we must correct zoom here. */
-  final val ZOOM_OFFSET = 1
 
   def getMapCameraPosition: RouteMapLike.MapCameraPosition = {
     val pos = mapView.getMapCenter
@@ -277,6 +254,26 @@ class RouteMapOSMActivity extends SherlockActivity
     updateOverlays()
   }
 
+  def updateOverlays() {
+    Log.d("RouteMapOSMActivity", "updateOverlays")
+
+    val overlays = mapView.getOverlays
+    overlays.clear()
+
+    overlays.addAll(constantOverlays.asJavaCollection)
+
+    vehiclesOverlay.setVehicles(vehiclesData)
+    overlays.add(vehiclesOverlay)
+    for (o <- realVehicleLocationOverlays)
+      overlays.add(o)
+    /*if (locationOverlay != null)
+      overlays.add(locationOverlay)*/
+
+    overlays.add(balloonController.closeBalloonOverlay)
+
+    mapView.postInvalidate()
+  }
+
   def setLocationMarker(location: Location) {
     /*
         if (location != null) {
@@ -305,8 +302,6 @@ class RouteMapOSMActivity extends SherlockActivity
       case _ => super.onCreateDialog(id)
     }
   }
-
-  def routePointToGeoPoint(p: Pt): GeoPoint = new GeoPoint((p.y * 1e6).toInt, (p.x * 1e6).toInt)
 }
 
 class MarkerOverlayOSM(context: Context, drawable: Drawable, location: GeoPoint, anchorPosition: PointF) extends Overlay(context) {
@@ -465,6 +460,7 @@ class MapBalloonControllerOSM(context: Context, mapView: MapView) {
 
     def draw(p1: Canvas, p2: MapView, p3: Boolean) {}
   }
+  private[this] var balloon: View = _
 
   def inflateView(layoutResourceId: Int): View = {
     val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
@@ -542,8 +538,6 @@ class MapBalloonControllerOSM(context: Context, mapView: MapView) {
     // Animate map scroll.
     mapView.getController.animateTo(mapView.getProjection.fromPixels(pt.x, pt.y))
   }
-
-  private[this] var balloon: View = _
 }
 
 class VehiclesOverlayOSM(
@@ -552,15 +546,15 @@ class VehiclesOverlayOSM(
   resources.getDrawable(R.drawable.vehicle_stopped_marker),
   new DefaultResourceProxyImpl(context)
 ) {
-  def boundCenterBottom(marker: Drawable): Drawable = boundToHotspot(marker, HotspotPlace.BOTTOM_CENTER)
-
   val vehicleUnknown: Drawable = resources.getDrawable(R.drawable.vehicle_stopped_marker)
-
+  val balloon: View = balloonController.inflateView(R.layout.map_vehicle_popup)
   // Information to identify vehicle for which balloon is shown.
   var balloonVehicle: (VehicleType.Value, String, Int) = _
-  val balloon: View = balloonController.inflateView(R.layout.map_vehicle_popup)
-
   var infos: Seq[(VehicleInfo, Pt, Option[Double], Int)] = Seq()
+
+  def clear() {
+    setVehicles(Seq())
+  }
 
   /**
    * @note This method manages balloon view, so it must be called from UI thread.
@@ -576,68 +570,6 @@ class VehiclesOverlayOSM(
         case pos => showBalloon(infos(pos)._1, getItem(pos))
       }
     }
-  }
-
-  def clear() {
-    setVehicles(Seq())
-  }
-
-  def size: Int = infos.length
-
-  def createItem(pos: Int): OverlayItem = {
-    val (info, point, angle, baseColor) = infos(pos)
-
-    val marker = info.direction match {
-      case Some(dir) =>
-        val color = dir match {
-          case Direction.Forward => baseColor
-          case Direction.Backward => baseColor
-        }
-        new VehicleMarker(resources, angle.map(_.toFloat), color)
-
-      case None => vehicleUnknown
-    }
-    val geoPoint = new GeoPoint((point.y * 1e6).toInt, (point.x * 1e6).toInt)
-    val item = new OverlayItem(null, null, geoPoint)
-    item.setMarker(boundCenterBottom(marker))
-    item
-  }
-
-  populate()
-
-  private def findItem(event: MotionEvent, mapView: MapView): Int = {
-    val pj = mapView.getProjection
-    val eventX = event.getX.toInt
-    val eventY = event.getY.toInt
-    val point = new Point
-    val itemPoint = new Point
-
-    /* These objects are created to avoid construct new ones every cycle. */
-    pj.fromMapPixels(eventX, eventY, point)
-
-    for (i <- 0 until size) {
-      val item = getItem(i)
-      val marker = item.getMarker(0)
-      pj.toPixels(item.getPoint, itemPoint)
-
-      if (hitTest(item, marker, point.x - itemPoint.x, point.y - itemPoint.y)) {
-        return i
-      }
-    }
-
-    -1
-  }
-
-  override def onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean = {
-    val idx = findItem(e, mapView)
-    if (idx != -1)
-      onTap(idx)
-    idx != -1
-  }
-
-  /*override*/ def onTap(index: Int): Boolean = {
-    showBalloon(infos(index)._1, getItem(index))
-    true
   }
 
   private def showBalloon(vehicleInfo: VehicleInfo, item: OverlayItem) {
@@ -663,7 +595,28 @@ class VehiclesOverlayOSM(
     balloonController.showBalloon(balloon, item.getPoint)
   }
 
-  def onSnapToItem(p1: Int, p2: Int, p3: Point, p4: IMapView): Boolean = false
+  def createItem(pos: Int): OverlayItem = {
+    val (info, point, angle, baseColor) = infos(pos)
+
+    val marker = info.direction match {
+      case Some(dir) =>
+        val color = dir match {
+          case Direction.Forward => baseColor
+          case Direction.Backward => baseColor
+        }
+        new VehicleMarker(resources, angle.map(_.toFloat), color)
+
+      case None => vehicleUnknown
+    }
+    val geoPoint = new GeoPoint((point.y * 1e6).toInt, (point.x * 1e6).toInt)
+    val item = new OverlayItem(null, null, geoPoint)
+    item.setMarker(boundCenterBottom(marker))
+    item
+  }
+
+  def boundCenterBottom(marker: Drawable): Drawable = boundToHotspot(marker, HotspotPlace.BOTTOM_CENTER)
+
+  populate()
 
   // Markers on map are too big and poorly scaled due to bug http://code.google.com/p/osmdroid/issues/detail?id=331
   // Bug is fixed, but after 3.0.8, so I override boundToHotspot to work around.
@@ -691,4 +644,43 @@ class VehiclesOverlayOSM(
 
     marker
   }
+
+  override def onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean = {
+    val idx = findItem(e, mapView)
+    if (idx != -1)
+      onTap(idx)
+    idx != -1
+  }
+
+  private def findItem(event: MotionEvent, mapView: MapView): Int = {
+    val pj = mapView.getProjection
+    val eventX = event.getX.toInt
+    val eventY = event.getY.toInt
+    val point = new Point
+    val itemPoint = new Point
+
+    /* These objects are created to avoid construct new ones every cycle. */
+    pj.fromMapPixels(eventX, eventY, point)
+
+    for (i <- 0 until size) {
+      val item = getItem(i)
+      val marker = item.getMarker(0)
+      pj.toPixels(item.getPoint, itemPoint)
+
+      if (hitTest(item, marker, point.x - itemPoint.x, point.y - itemPoint.y)) {
+        return i
+      }
+    }
+
+    -1
+  }
+
+  def size: Int = infos.length
+
+  /*override*/ def onTap(index: Int): Boolean = {
+    showBalloon(infos(index)._1, getItem(index))
+    true
+  }
+
+  def onSnapToItem(p1: Int, p2: Int, p3: Point, p4: IMapView): Boolean = false
 }
