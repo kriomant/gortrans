@@ -33,8 +33,8 @@ class NewsActivityBase extends SherlockFragmentActivity with BaseActivity with T
 
 		setContentView(R.layout.news)
 
-		listView = findView(TR.news_list)
-		val noNewsText = findView(TR.no_news)
+		listView = findViewById(R.id.news_list).asInstanceOf[ListView]
+		val noNewsText = findViewById(R.id.no_news)
 
 		val adapter = new NewsAdapter(this, null)
 		listView.setAdapter(adapter)

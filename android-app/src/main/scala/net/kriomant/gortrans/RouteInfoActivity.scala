@@ -114,10 +114,10 @@ class RouteInfoActivity extends SherlockActivity with BaseActivity with TypedAct
 			}
 
 			if (stopsCursor.getCount != 0) {
-				findView(TR.error_message).setVisibility(View.GONE)
+				findViewById(R.id.error_message).setVisibility(View.GONE)
 				listView.setVisibility(View.VISIBLE)
 			} else {
-				val view = findView(TR.error_message)
+				val view = findViewById(R.id.error_message).asInstanceOf[TextView]
 				view.setText(R.string.no_route_points)
 				view.setVisibility(View.VISIBLE)
 				listView.setVisibility(View.GONE)

@@ -5,14 +5,13 @@ import android.os.Bundle
 import android.content.{Context, Intent}
 import android.support.v4.widget.CursorAdapter
 import android.view.View
-import android.widget.{AdapterView, ImageView, TextView}
+import android.widget.{AdapterView, ImageView, ListView, TextView}
 import net.kriomant.gortrans.core.VehicleType
-import android.text.{Spanned, SpannableString}
+import android.text.{SpannableString, Spanned}
 import android.text.style.UnderlineSpan
 import android.widget.AdapterView.OnItemClickListener
 import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.MenuItem
-
 import utils.closing
 
 class SearchActivity extends SherlockActivity with TypedActivity with BaseActivity {
@@ -24,7 +23,7 @@ class SearchActivity extends SherlockActivity with TypedActivity with BaseActivi
 
 		setContentView(R.layout.search_activity)
 
-		val list = findView(TR.search_result_list)
+		val list = findViewById(R.id.search_result_list).asInstanceOf[ListView]
 		list.setOnItemClickListener(new OnItemClickListener {
 			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
 				val cursor = list.getItemAtPosition(position).asInstanceOf[Database.RoutesTable.Cursor]
@@ -57,7 +56,7 @@ class SearchActivity extends SherlockActivity with TypedActivity with BaseActivi
 		val cursor = database.searchRoutes(query)
 		startManagingCursor(cursor)
 
-		val list = findView(TR.search_result_list)
+		val list = findViewById(R.id.search_result_list).asInstanceOf[ListView]
 		list.setAdapter(new SearchResultAdapter(this, cursor, query))
 	}
 

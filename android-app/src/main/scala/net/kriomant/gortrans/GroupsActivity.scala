@@ -61,7 +61,7 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 
 		setContentView(R.layout.groups_activity)
 
-		groupList = findView(TR.group_list)
+		groupList = findViewById(R.id.group_list).asInstanceOf[ListView]
 		groupList.setOnItemClickListener(new OnItemClickListener {
 			def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) {
 				val intent = RouteMapLike.createShowGroupIntent(GroupsActivityBase.this, id)
@@ -69,7 +69,7 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 			}
 		})
 
-		loadingProgress = findView(TR.loading)
+		loadingProgress = findViewById(R.id.loading).asInstanceOf[ProgressBar]
 
 		val actionModeHelper = new MultiListActionModeHelper(this, new ActionMode.Callback with ListSelectionActionModeCallback {
 			var menu_ : Menu = null
@@ -136,7 +136,7 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 
 		def onLoadFinished(loader: Loader[Seq[GroupInfo]], groups: Seq[GroupInfo]) {
 			groupList.setAdapter(new RouteGroupsAdapter(GroupsActivityBase.this, groups))
-			groupList.setEmptyView(findView(TR.group_list_empty))
+			groupList.setEmptyView(findViewById(R.id.group_list_empty))
 			loadingProgress.setVisibility(View.INVISIBLE)
 		}
 

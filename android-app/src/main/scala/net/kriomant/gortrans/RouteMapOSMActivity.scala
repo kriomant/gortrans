@@ -70,7 +70,7 @@ class RouteMapOSMActivity extends SherlockActivity
 		setSupportProgressBarIndeterminateVisibility(false)
 
 		setContentView(R.layout.route_map_osm)
-		mapView = findView(TR.route_map_osm_view)
+		mapView = findViewById(R.id.route_map_osm_view).asInstanceOf[MapView]
 		mapView.setBuiltInZoomControls(true)
 		mapView.setMultiTouchControls(true)
 
@@ -82,7 +82,7 @@ class RouteMapOSMActivity extends SherlockActivity
 		vehiclesOverlay = new VehiclesOverlayOSM(this, getResources, balloonController)
 		routeStopNameOverlayManager = new RouteStopNameOverlayManagerOSM(getResources)
 
-		newMapNotice = findView(TR.new_map_notice)
+		newMapNotice = findViewById(R.id.new_map_notice)
 
 		val prefs = PreferenceManager.getDefaultSharedPreferences(this)
 		if (!prefs.contains(SettingsActivity.KEY_USE_NEW_MAP) && SettingsActivity.isNewMapAvailable(this)) {

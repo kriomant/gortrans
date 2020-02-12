@@ -34,7 +34,7 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
 		actionBar.setDisplayHomeAsUpEnabled(true)
 		actionBar.setHomeButtonEnabled(true)
 
-		drawerLayout = findView(TR.drawer_layout)
+		drawerLayout = findViewById(R.id.drawer_layout).asInstanceOf[DrawerLayout]
 		drawerLayout.setDrawerShadow(R.drawable.drawer_shadow, GravityCompat.START)
 
 		val drawerIndicatorV = new TypedValue
@@ -54,7 +54,7 @@ trait HavingSidebar extends SherlockFragmentActivity with TypedActivity {
 		}
 		drawerLayout.setDrawerListener(drawerToggle)
 
-		drawer = findView(TR.navigation_drawer)
+		drawer = findViewById(R.id.navigation_drawer)
 		val sidebar = new Sidebar(this, drawer, new SidebarListener {
 			def onItemSelected(intent: Intent) {
 				drawerLayout.setDrawerListener(new DrawerListener {

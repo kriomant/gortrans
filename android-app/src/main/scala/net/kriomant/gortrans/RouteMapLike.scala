@@ -6,14 +6,15 @@ import net.kriomant.gortrans.core.{Direction, FoldedRouteStop, VehicleType}
 import utils.closing
 import net.kriomant.gortrans.geometry.{Point => Pt}
 import android.graphics.{PointF, RectF}
-import com.google.android.maps.{Overlay, GeoPoint}
+import com.google.android.maps.{GeoPoint, Overlay}
+
 import scala.collection.mutable
 import net.kriomant.gortrans.CursorIterator.cursorUtils
 import android.content.{Context, Intent}
 import android.util.Log
-import net.kriomant.gortrans.parsing.{VehicleSchedule, VehicleInfo}
+import net.kriomant.gortrans.parsing.{VehicleInfo, VehicleSchedule}
 import net.kriomant.gortrans.VehiclesWatcher.Listener
-import android.widget.{CompoundButton, ToggleButton, Toast}
+import android.widget.{CompoundButton, ImageButton, Toast, ToggleButton}
 import utils.functionAsRunnable
 import android.widget.CompoundButton.OnCheckedChangeListener
 import android.view.View.OnClickListener
@@ -166,7 +167,7 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 		if (! isInitialized)
 			return
 
-		trackVehiclesToggle = findView(TR.track_vehicles)
+		trackVehiclesToggle = findViewById(R.id.track_vehicles).asInstanceOf[ToggleButton]
 		trackVehiclesToggle.setOnCheckedChangeListener(new OnCheckedChangeListener {
 			def onCheckedChanged(button: CompoundButton, checked: Boolean) {
 				if (checked) {
@@ -180,14 +181,14 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 		})
 		trackVehiclesToggle.setChecked(updatingVehiclesLocationIsOn)
 
-		val gpsToggle = findView(TR.toggle_gps)
+		val gpsToggle = findViewById(R.id.toggle_gps).asInstanceOf[ToggleButton]
 		gpsToggle.setOnCheckedChangeListener(new OnCheckedChangeListener {
 			def onCheckedChanged(button: CompoundButton, checked: Boolean) {
 				setGpsEnabled(checked)
 			}
 		})
 
-		val showMyLocationButton = findView(TR.show_my_location)
+		val showMyLocationButton = findViewById(R.id.show_my_location).asInstanceOf[ImageButton]
 		showMyLocationButton.setOnClickListener(new OnClickListener {
 			def onClick(view: View) {
 				val location = currentLocation
@@ -427,7 +428,7 @@ trait RouteMapLike extends BaseActivity with TypedActivity with TrackLocation {
 		Log.d("RouteMapActivity", "Location updated: %s" format location)
 		setLocationMarker(location)
 
-		findView(TR.show_my_location).setVisibility(if (location != null) View.VISIBLE else View.INVISIBLE)
+		findViewById(R.id.show_my_location).setVisibility(if (location != null) View.VISIBLE else View.INVISIBLE)
 	}
 
 	def updateVehiclesLocation(result: Either[String, Seq[VehicleInfo]]) {

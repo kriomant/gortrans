@@ -1,22 +1,23 @@
 package net.kriomant.gortrans
 
 import _root_.android.os.Bundle
-
 import net.kriomant.gortrans.core.VehicleType
 import android.support.v4.widget.CursorAdapter
 import android.widget._
 import android.support.v4.app.{FragmentPagerAdapter, ListFragment}
-import android.view.{ViewGroup, LayoutInflater, View}
-import com.actionbarsherlock.app.{SherlockFragmentActivity}
+import android.view.{LayoutInflater, View, ViewGroup}
+import com.actionbarsherlock.app.SherlockFragmentActivity
 import net.kriomant.gortrans.DataManager.ProcessIndicator
 import android.support.v4.view.ViewPager.OnPageChangeListener
 import android.widget.AdapterView.OnItemLongClickListener
 import android.app.Activity
+
 import scala.collection.mutable
 import com.actionbarsherlock.internal.widget.ScrollingTabContainerView
 import android.util.TypedValue
 import android.view.View.OnClickListener
 import android.content.Context
+import android.support.v4.view.ViewPager
 
 object RouteListBaseActivity {
 	val routeRenames = Map(
@@ -162,7 +163,7 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 		} else {
 			// Insert at the very top.
 			val layoutParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-			findView(TR.routes_content).addView(tabsView, 0, layoutParams)
+			findViewById(R.id.routes_content).asInstanceOf[LinearLayout].addView(tabsView, 0, layoutParams)
 			tabsView.setAllowCollapse(false) // Prevent collapsing to dropdown list.
 		}
 
@@ -173,7 +174,7 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 			VehicleType.MiniBus -> R.drawable.tab_minibus
 		).mapValues(getResources.getDrawable(_))
 
-		val tabPager = findView(TR.tab_pager)
+		val tabPager = findViewById(R.id.tab_pager).asInstanceOf[ViewPager]
 
 		// Fix tabs order.
 		tabsOrder = Seq(VehicleType.Bus, VehicleType.TrolleyBus, VehicleType.TramWay, VehicleType.MiniBus)
@@ -229,7 +230,7 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity w
 
 	def loadRoutes() {
 		val dataManager = getApplication.asInstanceOf[CustomApplication].dataManager
-		val progressBar = findView(TR.progress_bar)
+		val progressBar = findViewById(R.id.progress_bar).asInstanceOf[ProgressBar]
 
 		val foregroundProcessIndicator = new ForegroundProcessIndicator(this, loadRoutes)
 		val backgroundProcessIndicator = new ProcessIndicator {

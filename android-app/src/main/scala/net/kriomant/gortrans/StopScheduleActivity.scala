@@ -1,19 +1,20 @@
 package net.kriomant.gortrans
 
 import _root_.android.os.Bundle
-
 import net.kriomant.gortrans.core.{Direction, VehicleType}
-import android.support.v4.view.PagerAdapter
+import android.support.v4.view.{PagerAdapter, ViewPager}
+
 import scala.collection.JavaConverters._
 import android.util.Log
 import android.view._
-import android.widget.{TextView, SimpleAdapter, ListView}
+import android.widget.{ListView, SimpleAdapter, TextView}
 import com.actionbarsherlock.app.SherlockActivity
 import com.actionbarsherlock.view.MenuItem
-import android.content.{Intent, Context}
+import android.content.{Context, Intent}
 import java.util.Calendar
+
 import CursorIterator.cursorUtils
-import android.text.{SpannableString, Spanned, SpannableStringBuilder}
+import android.text.{SpannableString, SpannableStringBuilder, Spanned}
 import android.text.style.{CharacterStyle, ForegroundColorSpan}
 
 object StopScheduleActivity {
@@ -101,7 +102,7 @@ class StopScheduleActivity extends SherlockActivity with BaseActivity with Typed
 				val typeToIndex = schedulesMap.keys.zipWithIndex.toMap
 
 				// Display schedule.
-				val viewPager = findView(TR.schedule_tabs)
+				val viewPager = findViewById(R.id.schedule_tabs).asInstanceOf[ViewPager]
 				viewPager.setAdapter(new SchedulePagesAdapter(StopScheduleActivity.this, schedules))
 
 				// Select page corresponding to current day of week.
@@ -116,7 +117,7 @@ class StopScheduleActivity extends SherlockActivity with BaseActivity with Typed
 				viewPager.setVisibility(View.VISIBLE)
 
 			} else {
-				findView(TR.no_schedules).setVisibility(View.VISIBLE)
+				findViewById(R.id.no_schedules).setVisibility(View.VISIBLE)
 			}
 		}
 	}

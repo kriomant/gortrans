@@ -154,7 +154,7 @@ class RouteStopInfoActivity extends SherlockActivity
 
 		if (stopId == -1) {
 			val list = findViewById(android.R.id.list).asInstanceOf[ListView]
-			val no_arrivals_view = findView(TR.no_arrivals)
+			val no_arrivals_view = findViewById(R.id.no_arrivals).asInstanceOf[TextView]
 
 			list.setAdapter(null)
 			no_arrivals_view.setVisibility(View.VISIBLE)
@@ -204,7 +204,7 @@ class RouteStopInfoActivity extends SherlockActivity
 	}
 
 	def onVehiclesLocationUpdated(result: Either[String, Seq[VehicleInfo]]) {
-		val flatRoute = findView(TR.flat_route)
+		val flatRoute = findViewById(R.id.flat_route).asInstanceOf[FlatRouteView]
 
 		result match {
 			case Right(vehicles) => {
@@ -283,7 +283,7 @@ class RouteStopInfoActivity extends SherlockActivity
 				case Direction.Forward => "%1$s ⇒ %2$s"
 				case Direction.Backward => "%2$s ⇒ %1$s"
 			}
-			findView(TR.direction_text).setText(fmt format (route.begin, route.end))
+			findViewById(R.id.direction_text).asInstanceOf[TextView].setText(fmt format (route.begin, route.end))
 		}
 	}
 
@@ -305,7 +305,7 @@ class RouteStopInfoActivity extends SherlockActivity
 
 	def setArrivals(arrivals: Either[String, Seq[Date]]) {
 		val list = findViewById(android.R.id.list).asInstanceOf[ListView]
-		val no_arrivals_view = findView(TR.no_arrivals)
+		val no_arrivals_view = findViewById(R.id.no_arrivals).asInstanceOf[TextView]
 		arrivals match {
 			case Right(Seq()) =>
 				list.setAdapter(null)
@@ -392,11 +392,11 @@ class RouteStopInfoActivity extends SherlockActivity
 		}
 		setDirectionText()
 
-		val flatRoute = findView(TR.flat_route)
+		val flatRoute = findViewById(R.id.flat_route).asInstanceOf[FlatRouteView]
 		flatRoute.setStops(totalLength.toFloat, unfoldedStops, stopIndexByDirection(direction))
 
 		if (availableDirections == DirectionsEx.Both) {
-			val toggleDirectionButton = findView(TR.toggle_direction)
+			val toggleDirectionButton = findViewById(R.id.toggle_direction)
 			toggleDirectionButton.setOnClickListener(new OnClickListener {
 				def onClick(p1: View) {
 					direction = Direction.inverse(direction)
