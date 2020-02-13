@@ -1,11 +1,11 @@
 package net.kriomant.gortrans
 
-import org.eclipse.swt.widgets._
-import org.eclipse.swt.{widgets, SWT}
-import org.eclipse.swt.layout.{GridData, GridLayout}
-import org.eclipse.swt.events.{SelectionEvent, SelectionAdapter}
 import net.kriomant.gortrans.Client.RouteInfoRequest
 import net.kriomant.gortrans.core.DirectionsEx
+import org.eclipse.swt.SWT
+import org.eclipse.swt.events.{SelectionAdapter, SelectionEvent}
+import org.eclipse.swt.layout.{GridData, GridLayout}
+import org.eclipse.swt.widgets._
 
 class MainWindow(display: Display) {
   val shell = new Shell(display)
@@ -65,7 +65,7 @@ class MainWindow(display: Display) {
     val client = new Client(LoggerStub)
 
     // Load routes.
-    val rawRoutesByType = client.getRoutesList()
+    val rawRoutesByType = client.getRoutesList
     val routesByType = parsing.parseRoutesJson(rawRoutesByType)
     val routes = routesByType.values.flatten
     withGui {
@@ -75,7 +75,7 @@ class MainWindow(display: Display) {
     }
 
     // Load stops.
-    val rawStops = client.getStopsList("")
+    val rawStops = client.getStopsList()
     val stops = parsing.parseStopsList(rawStops)
     withGui {
       stops.toSeq.sortBy(_._2) foreach { case (stopName, stopId) =>
@@ -85,7 +85,7 @@ class MainWindow(display: Display) {
 
     // Load route points.
     val requests = routes map { r =>
-      new RouteInfoRequest(r.vehicleType, r.id, r.name, DirectionsEx.Both)
+      RouteInfoRequest(r.vehicleType, r.id, r.name, DirectionsEx.Both)
     }
     val rawRoutesInfo = client.getRoutesInfo(requests)
     val routesInfo = parsing.parseRoutesPoints(rawRoutesInfo)

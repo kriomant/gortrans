@@ -1,7 +1,6 @@
 package net.kriomant.gortrans
 
 import org.eclipse.swt.widgets.Display
-import org.eclipse.swt.events.{ShellEvent, ShellAdapter}
 
 object Application {
   def main(args: Array[String]) {

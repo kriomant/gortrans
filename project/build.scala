@@ -199,16 +199,25 @@ object AndroidBuild extends Build {
     "explorer",
     file("explorer"),
     settings = Defaults.defaultSettings ++ General.scalaSettings ++ Seq(
+      resolvers += "swt-repo" at "http://maven-eclipse.github.io/maven",
+      libraryDependencies += {
+        val os = (sys.props("os.name"), sys.props("os.arch")) match {
+          case ("Linux", _) => "gtk.linux.x86"
+          case ("Mac OS X", "amd64" | "x86_64") => "cocoa.macosx.x86_64"
+          case ("Mac OS X", _) => "cocoa.macosx.x86"
+          case (os, "amd64") if os.startsWith("Windows") => "win32.win32.x86_64"
+          case (os, _) if os.startsWith("Windows") => "win32.win32.x86"
+          case (os, arch) => sys.error("Cannot obtain lib for OS '" + os + "' and architecture '" + arch + "'")
+        }
+        val artifact = "org.eclipse.swt." + os
+        "org.eclipse.swt" % artifact % "4.6.1"
+      },
+
       libraryDependencies ++= Seq(
         "org.json" % "json" % "20090211"
       ),
 
-      unmanagedJars in Compile ++= Seq(
-        Attributed.blank(file("/usr/share/java/swt.jar"))
-      ),
-
-      fork in run := true,
-      javaOptions in run += "-Djava.library.path=/usr/lib/jni"
+      fork in run := true
     )
   ) dependsOn core
 
