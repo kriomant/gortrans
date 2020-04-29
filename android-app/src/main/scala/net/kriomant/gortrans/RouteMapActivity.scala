@@ -77,7 +77,7 @@ class RouteMapActivity extends SherlockMapActivity
     newMapNotice = findViewById(R.id.new_map_notice)
 
     val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-    if (!prefs.contains(SettingsActivity.KEY_USE_NEW_MAP) && SettingsActivity.isNewMapAvailable(this)) {
+    if (!prefs.contains(SettingsActivity.KEY_USE_NEW_MAP) && SettingsActivity.isNewGMapsAvailable(this)) {
       newMapNotice.setVisibility(View.VISIBLE)
       newMapNotice.setOnClickListener(new OnClickListener {
         def onClick(v: View) {
