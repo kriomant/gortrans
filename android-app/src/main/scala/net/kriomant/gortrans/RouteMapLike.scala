@@ -4,7 +4,6 @@ import android.content.{Context, Intent}
 import android.graphics.RectF
 import android.location.Location
 import android.os.Bundle
-import android.preference.PreferenceManager
 import android.util.Log
 import android.view.View
 import android.view.View.OnClickListener
@@ -44,11 +43,9 @@ object RouteMapLike {
   }
 
   private def getMapActivityClass(context: Context): Class[_] = {
-    val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-    val use_new_map = prefs.getBoolean(SettingsActivity.KEY_USE_NEW_MAP, false)
-    if (use_new_map)
+    if (SettingsActivity.isNewGMapsAvailable(context))
       classOf[RouteMapV2Activity]
-    else if (SettingsActivity.isOldGoogleMapAvailable(context))
+    else if (SettingsActivity.isOldGMapsAvailable(context))
       classOf[RouteMapActivity]
     else
       classOf[RouteMapOSMActivity]

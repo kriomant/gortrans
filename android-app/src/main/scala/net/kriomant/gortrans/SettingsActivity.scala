@@ -15,11 +15,11 @@ object SettingsActivity {
     new Intent(caller, classOf[SettingsActivity])
   }
 
-  def isOldGoogleMapAvailable(context: Context): Boolean = {
+  def isOldGMapsAvailable(context: Context): Boolean = {
     context.getPackageManager.getSystemSharedLibraryNames contains "com.google.android.maps"
   }
 
-  def isNewMapAvailable(context: Context): Boolean = {
+  def isNewGMapsAvailable(context: Context): Boolean = {
     val openGlEs2Available = {
       val manager = context.getSystemService(Context.ACTIVITY_SERVICE).asInstanceOf[ActivityManager]
       manager.getDeviceConfigurationInfo.reqGlEsVersion >= 0x20000
@@ -44,7 +44,7 @@ class SettingsActivity extends SherlockPreferenceActivity with BaseActivity {
     addPreferencesFromResource(R.xml.preferences)
 
     val useNewMapPref = findPreference(KEY_USE_NEW_MAP).asInstanceOf[CheckBoxPreference]
-    useNewMapPref.setEnabled(isNewMapAvailable(this))
+    useNewMapPref.setEnabled(isNewGMapsAvailable(this))
 
     val actionBar = getSupportActionBar
     actionBar.setDisplayShowHomeEnabled(true)
