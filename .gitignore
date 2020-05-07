@@ -1,8 +1,6 @@
-gen/
-out/
-target/
-*/target/
-android-app/gen/
-android-app/src/main/res/values/generated.xml
-android-app/user.sbt
+.gradle/
+build/
+local.properties
+
 .idea/
+*.iml

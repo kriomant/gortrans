@@ -1,0 +1,14 @@
+apply plugin: 'scala'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	compile project(':core')
+
+	compile "org.scala-lang:scala-library:2.11.12"
+
+	compile "org.json:json:20090211"
+	compile "ch.qos.logback:logback-classic:1.0.5"
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <CheckBoxPreference
+            android:key="use_new_map"
+            android:title="@string/use_new_map"
+            android:summary="@string/use_new_map_summary"
+            android:defaultValue="false"
+    />
+</PreferenceScreen>
