@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+    <fragment
+            android:id="@+id/route_map_v2_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            class="com.google.android.gms.maps.SupportMapFragment"
+    />
+
+    <ToggleButton
+            android:id="@+id/track_vehicles"
+            android:layout_width="36sp"
+            android:layout_height="52sp"
+            android:layout_alignParentRight="true"
+            android:background="@drawable/track_vehicles_bg"
+            android:textOn=""
+            android:textOff=""
+    />
+    <ToggleButton
+            android:id="@+id/toggle_gps"
+            android:layout_width="36sp"
+            android:layout_height="36sp"
+            android:layout_alignParentRight="true"
+            android:layout_below="@id/track_vehicles"
+            android:background="@drawable/toggle_gps_bg"
+            android:textOn=""
+            android:textOff=""
+    />
+    <ImageButton
+            android:id="@+id/show_my_location"
+            android:layout_width="36sp"
+            android:layout_height="36sp"
+            android:layout_alignParentRight="true"
+            android:layout_below="@id/toggle_gps"
+            android:visibility="invisible"
+            android:src="@drawable/show_my_location"
+            android:background="@drawable/map_button_bg"
+    />
+</RelativeLayout>

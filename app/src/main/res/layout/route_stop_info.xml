@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+>
+    <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+    >
+        <TextView
+                android:id="@+id/direction_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+        />
+
+        <Button
+                android:id="@+id/toggle_direction"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⇅"
+                android:layout_weight="0"
+                android:visibility="gone"
+        />
+    </LinearLayout>
+
+    <net.kriomant.gortrans.FlatRouteView
+            android:id="@+id/flat_route"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+    />
+
+    <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/next_arrivals"
+            android:layout_marginTop="15dp"
+            style="?android:attr/listSeparatorTextViewStyle"
+    />
+
+    <TextView
+            android:id="@+id/no_arrivals"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:textAppearance="@android:style/TextAppearance.Large"
+    />
+
+    <ListView
+            android:id="@android:id/list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="false"
+            android:visibility="gone"
+    />
+</LinearLayout>
