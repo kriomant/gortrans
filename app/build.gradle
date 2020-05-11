@@ -2,8 +2,8 @@ apply plugin: "com.android.application"
 apply plugin: "jp.leafytree.android-scala"
 
 android {
-	compileSdkVersion 19
-	buildToolsVersion '19.1.0'
+    compileSdkVersion 19
+    buildToolsVersion '19.1.0'
 
     defaultConfig {
         minSdkVersion 14
@@ -27,20 +27,24 @@ android {
     lintOptions {
         abortOnError false
     }
+
+    // todo: update to 1.8 after android plugin updating to 3.0.0 or higher
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
 }
 
 repositories {
-    maven { url "https://maven.google.com/"}
+    maven { url "https://maven.google.com/" }
     mavenCentral()
 }
 
 dependencies {
     compile "org.scala-lang:scala-library:2.11.5"
 
-    compile 'com.actionbarsherlock:actionbarsherlock:4.4.0@aar'
-    compile files('../libs/actionbarsherlock-plugin-maps-4.2.0.jar')
-
-    compile 'com.android.support:support-v4:19.0.1'
+    compile 'com.android.support:support-v4:19.0.+'
+    compile 'com.android.support:appcompat-v7:19.0.+'
 
     compile project(':core')
 
@@ -49,12 +53,6 @@ dependencies {
     compile "org.osmdroid:osmdroid-android:3.0.8"
     compile "org.slf4j:slf4j-android:1.6.1-RC1"
     compile "org.ccil.cowan.tagsoup:tagsoup:1.2"
-
-    // maps v1
-//    def sdkPath = System.getenv('ANDROID_HOME')
-//    def compileSdkVersion = android.getCompileSdkVersion()
-//    compile files("${sdkPath}/add-ons/addon-google_apis-google-${compileSdkVersion}/libs/maps.jar")
-    compile files('../libs/maps.jar')
 
     // maps v2
     compile "com.google.android.gms:play-services-maps:7.0.0"

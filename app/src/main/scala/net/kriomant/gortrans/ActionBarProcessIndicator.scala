@@ -1,9 +1,9 @@
 package net.kriomant.gortrans
 
+import android.support.v7.app.ActionBarActivity
 import android.widget.Toast
-import com.actionbarsherlock.app.{SherlockActivity, SherlockFragmentActivity, SherlockMapActivity}
 
-class ActionBarProcessIndicator(activity: SherlockActivity) extends DataManager.ProcessIndicator {
+class ActionBarProcessIndicator(activity: ActionBarActivity) extends DataManager.ProcessIndicator {
   def startFetch() {
     Toast.makeText(activity, R.string.background_update_started, Toast.LENGTH_SHORT).show()
     activity.setSupportProgressBarIndeterminateVisibility(true)
@@ -24,7 +24,7 @@ class ActionBarProcessIndicator(activity: SherlockActivity) extends DataManager.
   }
 }
 
-class FragmentActionBarProcessIndicator(activity: SherlockFragmentActivity) extends DataManager.ProcessIndicator {
+class FragmentActionBarProcessIndicator(activity: ActionBarActivity) extends DataManager.ProcessIndicator {
   def startFetch() {
     Toast.makeText(activity, R.string.background_update_started, Toast.LENGTH_SHORT).show()
     activity.setSupportProgressBarIndeterminateVisibility(true)
@@ -44,25 +44,3 @@ class FragmentActionBarProcessIndicator(activity: SherlockFragmentActivity) exte
     Toast.makeText(activity, R.string.background_update_error, Toast.LENGTH_SHORT).show()
   }
 }
-
-class MapActionBarProcessIndicator(activity: SherlockMapActivity) extends DataManager.ProcessIndicator {
-  def startFetch() {
-    Toast.makeText(activity, R.string.background_update_started, Toast.LENGTH_SHORT).show()
-    activity.setSupportProgressBarIndeterminateVisibility(true)
-    activity.setProgressBarIndeterminateVisibility(true)
-  }
-
-  def stopFetch() {
-    activity.setSupportProgressBarIndeterminateVisibility(true)
-    activity.setProgressBarIndeterminateVisibility(true)
-  }
-
-  def onSuccess() {
-    Toast.makeText(activity, R.string.background_update_stopped, Toast.LENGTH_SHORT).show()
-  }
-
-  def onError() {
-    Toast.makeText(activity, R.string.background_update_error, Toast.LENGTH_SHORT).show()
-  }
-}
-

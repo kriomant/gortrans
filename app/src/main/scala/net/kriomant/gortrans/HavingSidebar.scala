@@ -7,13 +7,12 @@ import android.support.v4.app.ActionBarDrawerToggle
 import android.support.v4.view.GravityCompat
 import android.support.v4.widget.DrawerLayout
 import android.support.v4.widget.DrawerLayout.DrawerListener
+import android.support.v7.app.ActionBarActivity
 import android.util.TypedValue
-import android.view.View
-import com.actionbarsherlock.app.SherlockFragmentActivity
-import com.actionbarsherlock.view.{Menu, MenuItem}
+import android.view.{Menu, MenuItem, View}
 import net.kriomant.gortrans.Sidebar.SidebarListener
 
-trait HavingSidebar extends SherlockFragmentActivity {
+trait HavingSidebar extends ActionBarActivity {
   var drawerLayout: DrawerLayout = _
   var drawer: View = _
   var drawerToggle: ActionBarDrawerToggle = _

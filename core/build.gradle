@@ -1,14 +1,14 @@
 apply plugin: 'scala'
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
-	compile "org.scala-lang:scala-library:2.11.12"
+    compile "org.scala-lang:scala-library:2.11.12"
 
-	compile "org.json:json:20090211"
-	compile "org.ccil.cowan.tagsoup:tagsoup:1.2"
+    compile "org.json:json:20090211"
+    compile "org.ccil.cowan.tagsoup:tagsoup:1.2"
 
-	testCompile "org.scalatest:scalatest_2.11:2.2.6"
+    testCompile "org.scalatest:scalatest_2.11:2.2.6"
 }

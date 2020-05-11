@@ -2,10 +2,9 @@ package net.kriomant.gortrans
 
 import android.content.{Context, Intent}
 import android.os.Bundle
-import android.view.View
+import android.view.{ActionMode, Menu, MenuItem, View}
 import android.widget.AdapterView.OnItemClickListener
 import android.widget._
-import com.actionbarsherlock.view.{ActionMode, Menu, MenuItem}
 import net.kriomant.gortrans.core.VehicleType
 
 object MainActivity {
@@ -55,7 +54,7 @@ class MainActivityBase extends RouteListBaseActivity with CreateGroupDialog.List
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
     super.onCreateOptionsMenu(menu)
-    getSupportMenuInflater.inflate(R.menu.route_list_menu, menu)
+    getMenuInflater.inflate(R.menu.route_list_menu, menu)
     true
   }
 

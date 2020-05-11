@@ -9,13 +9,13 @@ import android.support.v4.app.{FragmentPagerAdapter, ListFragment}
 import android.support.v4.view.ViewPager
 import android.support.v4.view.ViewPager.OnPageChangeListener
 import android.support.v4.widget.CursorAdapter
+import android.support.v7.app.ActionBarActivity
+import android.support.v7.internal.widget.ScrollingTabContainerView
 import android.util.TypedValue
 import android.view.View.OnClickListener
 import android.view.{LayoutInflater, View, ViewGroup}
 import android.widget.AdapterView.OnItemLongClickListener
 import android.widget._
-import com.actionbarsherlock.app.SherlockFragmentActivity
-import com.actionbarsherlock.internal.widget.ScrollingTabContainerView
 import net.kriomant.gortrans.DataManager.ProcessIndicator
 import net.kriomant.gortrans.Database.RoutesTable
 import net.kriomant.gortrans.core.VehicleType
@@ -130,7 +130,7 @@ object RouteListBaseActivity {
   }
 }
 
-class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity {
+class RouteListBaseActivity extends ActionBarActivity with BaseActivity {
   private[this] final val TAG = classOf[RouteListBaseActivity].getSimpleName
   protected val layoutResource: Int = R.layout.route_list_base_activity
   var tabsOrder: Seq[core.VehicleType.Value] = _
@@ -151,9 +151,9 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity {
     // action bar.
     tabsView = new ScrollingTabContainerView(actionBar.getThemedContext)
 
-    // Set tabs height the same as action bar's height. This is what ActionBarSherlock does.
+    // Set tabs height the same as action bar's height.
     val tv = new TypedValue
-    getTheme.resolveAttribute(com.actionbarsherlock.R.attr.actionBarSize, tv, true)
+    getTheme.resolveAttribute(R.attr.actionBarSize, tv, true)
     val actionBarHeight = TypedValue.complexToDimensionPixelSize(tv.data, getResources.getDisplayMetrics)
     tabsView.setContentHeight(actionBarHeight)
 
@@ -213,7 +213,7 @@ class RouteListBaseActivity extends SherlockFragmentActivity with BaseActivity {
     })
   }
 
-  protected def tabsAreEmbedded: Boolean = getResources.getBoolean(R.bool.abs__action_bar_embed_tabs)
+  protected def tabsAreEmbedded: Boolean = getResources.getBoolean(R.bool.abc_action_bar_embed_tabs_pre_jb)
 
   override def onStart() {
     super.onStart()

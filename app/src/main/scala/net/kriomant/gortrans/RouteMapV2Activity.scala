@@ -4,13 +4,9 @@ import android.content.Intent
 import android.graphics.{Bitmap, Canvas}
 import android.location.Location
 import android.os.Bundle
-import android.preference.PreferenceManager
-import android.util.Log
-import android.view.View
-import android.widget.{TextView, Toast}
-import com.actionbarsherlock.app.SherlockFragmentActivity
-import com.actionbarsherlock.view.{MenuItem, Window}
-import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
+import android.support.v7.app.ActionBarActivity
+import android.view.{MenuItem, View, Window}
+import android.widget.TextView
 import com.google.android.gms.maps.GoogleMap.{InfoWindowAdapter, OnCameraChangeListener}
 import com.google.android.gms.maps.model._
 import com.google.android.gms.maps.{CameraUpdateFactory, GoogleMap, SupportMapFragment}
@@ -32,7 +28,7 @@ object RouteMapV2Activity {
 
 }
 
-class RouteMapV2Activity extends SherlockFragmentActivity
+class RouteMapV2Activity extends ActionBarActivity
   with RouteMapLike {
 
   import RouteMapV2Activity._
@@ -54,42 +50,13 @@ class RouteMapV2Activity extends SherlockFragmentActivity
     super.onCreate(savedInstanceState)
 
     // Enable to show indeterminate progress indicator in activity header.
-    requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
+    supportRequestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
     setSupportProgressBarIndeterminateVisibility(false)
 
     setContentView(R.layout.route_map_v2)
 
     getSupportActionBar.setDisplayShowHomeEnabled(true)
     getSupportActionBar.setDisplayHomeAsUpEnabled(true)
-
-    val googlePlayServicesStatus = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this)
-    Log.d(TAG, "Google Play Services status: %d" format googlePlayServicesStatus)
-
-    if (googlePlayServicesStatus != ConnectionResult.SUCCESS) {
-      if (!GooglePlayServicesUtil.isUserRecoverableError(googlePlayServicesStatus)) {
-        Log.e(TAG, "Non-recoverable Google Play Services error, disable new map")
-
-        // Show error message.
-        Toast.makeText(this, R.string.new_map_not_supported, Toast.LENGTH_LONG).show()
-
-        // Turn off new maps.
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        prefs.edit().putBoolean(SettingsActivity.KEY_USE_NEW_MAP, false).commit()
-
-        // Redirect to old maps.
-        val intent = getIntent
-        intent.setClass(this, classOf[RouteMapActivity])
-        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        startActivity(intent)
-
-        finish()
-      }
-
-      // If error is recoverable, do nothing. Corresponding message with action button
-      // will be shown instead of map by Google Play Services library.
-
-      return
-    }
 
     val mapFragment = getSupportFragmentManager.findFragmentById(R.id.route_map_v2_view).asInstanceOf[SupportMapFragment]
     map = mapFragment.getMap

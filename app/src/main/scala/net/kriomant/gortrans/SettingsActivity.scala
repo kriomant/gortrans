@@ -3,9 +3,8 @@ package net.kriomant.gortrans
 import android.app.ActivityManager
 import android.content.{Context, Intent}
 import android.os.Bundle
-import android.preference.CheckBoxPreference
-import com.actionbarsherlock.app.SherlockPreferenceActivity
-import com.actionbarsherlock.view.MenuItem
+import android.preference.{CheckBoxPreference, PreferenceActivity}
+import android.view.MenuItem
 import com.google.android.gms.common.{ConnectionResult, GooglePlayServicesUtil}
 
 object SettingsActivity {
@@ -13,10 +12,6 @@ object SettingsActivity {
 
   def createIntent(caller: Context): Intent = {
     new Intent(caller, classOf[SettingsActivity])
-  }
-
-  def isOldGMapsAvailable(context: Context): Boolean = {
-    context.getPackageManager.getSystemSharedLibraryNames contains "com.google.android.maps"
   }
 
   def isNewGMapsAvailable(context: Context): Boolean = {
@@ -34,7 +29,8 @@ object SettingsActivity {
   }
 }
 
-class SettingsActivity extends SherlockPreferenceActivity with BaseActivity {
+// todo: https://stackoverflow.com/q/17849193
+class SettingsActivity extends PreferenceActivity with BaseActivity {
 
   import SettingsActivity._
 
@@ -46,9 +42,9 @@ class SettingsActivity extends SherlockPreferenceActivity with BaseActivity {
     val useNewMapPref = findPreference(KEY_USE_NEW_MAP).asInstanceOf[CheckBoxPreference]
     useNewMapPref.setEnabled(isNewGMapsAvailable(this))
 
-    val actionBar = getSupportActionBar
-    actionBar.setDisplayShowHomeEnabled(true)
-    actionBar.setDisplayHomeAsUpEnabled(true)
+    //    val actionBar = getSupportActionBar
+    //    actionBar.setDisplayShowHomeEnabled(true)
+    //    actionBar.setDisplayHomeAsUpEnabled(true)
   }
 
   override def onOptionsItemSelected(item: MenuItem): Boolean = item.getItemId match {
