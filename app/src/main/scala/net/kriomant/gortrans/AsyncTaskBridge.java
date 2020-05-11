@@ -21,6 +21,6 @@ public abstract class AsyncTaskBridge<Progress, Result> extends AsyncTask<Void, 
 
     protected abstract Result doInBackgroundBridge();
 
-    protected void onProgressUpdateBridge(Progress progress) {
+    private void onProgressUpdateBridge(@SuppressWarnings("unused") Progress progress) {
     }
 }

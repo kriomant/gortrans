@@ -45,8 +45,6 @@ object RouteMapLike {
   private def getMapActivityClass(context: Context): Class[_] = {
     if (SettingsActivity.isNewGMapsAvailable(context))
       classOf[RouteMapV2Activity]
-    else if (SettingsActivity.isOldGMapsAvailable(context))
-      classOf[RouteMapActivity]
     else
       classOf[RouteMapOSMActivity]
   }

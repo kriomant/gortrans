@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Dark" parent="Theme.Sherlock">
-        <item name="actionBarStyle">@style/Widget.Styled.ActionBar</item>
+    <style name="Dark" parent="@style/Theme.AppCompat">
         <item name="android:actionBarStyle">@style/Widget.Styled.ActionBar</item>
+        <item name="actionBarStyle">@style/Widget.Styled.ActionBar</item>
     </style>
 
-    <style name="Widget.Styled.ActionBar" parent="Widget.Sherlock.Light.ActionBar">
+    <style name="Widget.Styled.ActionBar" parent="@style/Widget.AppCompat.ActionBar">
         <item name="android:indeterminateProgressStyle">@style/IndeterminateProgress</item>
         <item name="indeterminateProgressStyle">@style/IndeterminateProgress</item>
     </style>
@@ -16,13 +16,13 @@
 
 
     <style name="DarkWithNavigationDrawer" parent="Dark">
-        <item name="homeAsUpIndicator">@drawable/ic_drawer_dark_theme</item>
         <item name="android:homeAsUpIndicator">@drawable/ic_drawer_dark_theme</item>
+        <item name="homeAsUpIndicator">@drawable/ic_drawer_dark_theme</item>
     </style>
 
-    <style name="LightWithNavigationDrawer" parent="Theme.Sherlock.Light">
-        <item name="homeAsUpIndicator">@drawable/ic_drawer_light_theme</item>
+    <style name="LightWithNavigationDrawer" parent="@style/Theme.AppCompat.Light">
         <item name="android:homeAsUpIndicator">@drawable/ic_drawer_light_theme</item>
+        <item name="homeAsUpIndicator">@drawable/ic_drawer_light_theme</item>
     </style>
 
 

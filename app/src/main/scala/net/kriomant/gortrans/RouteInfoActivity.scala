@@ -3,11 +3,10 @@ package net.kriomant.gortrans
 import android.content.{Context, Intent}
 import android.os.Bundle
 import android.support.v4.widget.CursorAdapter
-import android.view.View
+import android.support.v7.app.ActionBarActivity
+import android.view.{Menu, MenuItem, View}
 import android.widget.AdapterView.OnItemClickListener
 import android.widget.{AdapterView, ListAdapter, ListView, TextView}
-import com.actionbarsherlock.app.SherlockActivity
-import com.actionbarsherlock.view.{Menu, MenuItem}
 import net.kriomant.gortrans.core._
 import net.kriomant.gortrans.utils.closing
 
@@ -26,7 +25,7 @@ object RouteInfoActivity {
   }
 }
 
-class RouteInfoActivity extends SherlockActivity with BaseActivity {
+class RouteInfoActivity extends ActionBarActivity with BaseActivity {
 
   import RouteInfoActivity._
 
@@ -134,7 +133,7 @@ class RouteInfoActivity extends SherlockActivity with BaseActivity {
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
     super.onCreateOptionsMenu(menu)
-    getSupportMenuInflater.inflate(R.menu.route_info_menu, menu)
+    getMenuInflater.inflate(R.menu.route_info_menu, menu)
     optionsMenu = menu
     true
   }

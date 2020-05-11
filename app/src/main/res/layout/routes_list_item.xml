@@ -5,7 +5,7 @@
                                                              android:layout_height="match_parent"
                                                              android:paddingBottom="2dp"
                                                              android:paddingTop="2dp"
-                                                             android:background="@drawable/abs__activated_background_holo_dark"
+                                                             android:background="@drawable/abc_ab_stacked_solid_dark_holo"
 >
     <TextView
             android:id="@+id/route_name"

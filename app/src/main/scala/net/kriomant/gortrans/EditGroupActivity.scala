@@ -3,12 +3,12 @@ package net.kriomant.gortrans
 import android.app.Activity
 import android.content.{Context, Intent}
 import android.os.Bundle
+import android.support.v7.app.ActionBarActivity
 import android.text.SpannableStringBuilder
 import android.text.style.ImageSpan
 import android.view.View
 import android.view.View.OnClickListener
 import android.widget.{EditText, TextView}
-import com.actionbarsherlock.app.SherlockActivity
 import net.kriomant.gortrans.android_utils.SpannableStringBuilderUtils
 
 object EditGroupActivity {
@@ -23,7 +23,7 @@ object EditGroupActivity {
   }
 }
 
-class EditGroupActivity extends SherlockActivity with BaseActivity {
+class EditGroupActivity extends ActionBarActivity with BaseActivity {
   self =>
 
   import EditGroupActivity._

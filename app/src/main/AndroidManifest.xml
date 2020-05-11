@@ -62,12 +62,6 @@
         "Only one MapActivity is supported per process. Multiple MapActivities running
         simultaneously are likely to interfere in unexpected and undesired ways."
         Thus set launch mode to "singleTask". -->
-        <activity android:name=".RouteMapActivity" android:launchMode="singleTask">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-            </intent-filter>
-        </activity>
-
         <activity android:name=".RouteMapV2Activity">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>

@@ -1,10 +1,9 @@
 package net.kriomant.gortrans
 
-import android.view.View
+import android.support.v7.app.ActionBarActivity
+import android.view.{ActionMode, View}
 import android.widget.AdapterView.{OnItemClickListener, OnItemLongClickListener}
 import android.widget.{AbsListView, AdapterView, ListView}
-import com.actionbarsherlock.app.SherlockFragmentActivity
-import com.actionbarsherlock.view.ActionMode
 
 import scala.collection.mutable
 
@@ -13,7 +12,7 @@ trait ListSelectionActionModeCallback {
 }
 
 class MultiListActionModeHelper(
-                                 activity: SherlockFragmentActivity,
+                                 activity: ActionBarActivity,
                                  actionModeCallback: ActionMode.Callback with ListSelectionActionModeCallback
                                ) {
   private[this] val listViews = new mutable.ArrayBuffer[ListView]

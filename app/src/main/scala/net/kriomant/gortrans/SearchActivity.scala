@@ -4,17 +4,16 @@ import android.app.SearchManager
 import android.content.{Context, Intent}
 import android.os.Bundle
 import android.support.v4.widget.CursorAdapter
+import android.support.v7.app.ActionBarActivity
 import android.text.style.UnderlineSpan
 import android.text.{SpannableString, Spanned}
-import android.view.View
+import android.view.{MenuItem, View}
 import android.widget.AdapterView.OnItemClickListener
 import android.widget.{AdapterView, ImageView, ListView, TextView}
-import com.actionbarsherlock.app.SherlockActivity
-import com.actionbarsherlock.view.MenuItem
 import net.kriomant.gortrans.core.VehicleType
 import net.kriomant.gortrans.utils.closing
 
-class SearchActivity extends SherlockActivity with BaseActivity {
+class SearchActivity extends ActionBarActivity with BaseActivity {
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
 

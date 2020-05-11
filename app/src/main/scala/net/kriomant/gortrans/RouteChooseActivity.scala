@@ -3,10 +3,9 @@ package net.kriomant.gortrans
 import android.app.Activity
 import android.content.{Context, Intent}
 import android.os.Bundle
-import android.view.View
+import android.view.{MenuItem, View}
 import android.widget.AdapterView.OnItemClickListener
 import android.widget.{AbsListView, AdapterView, ListView}
-import com.actionbarsherlock.view.MenuItem
 
 import scala.collection.mutable
 

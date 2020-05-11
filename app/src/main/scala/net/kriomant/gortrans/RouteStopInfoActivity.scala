@@ -4,13 +4,12 @@ import java.util.{Calendar, Date}
 
 import android.content.{Context, Intent}
 import android.os.Bundle
+import android.support.v7.app.ActionBarActivity
 import android.text.format.{DateFormat, DateUtils}
 import android.util.Log
-import android.view.View
 import android.view.View.OnClickListener
+import android.view.{Menu, MenuItem, View, Window}
 import android.widget.{ListAdapter, ListView, TextView, Toast}
-import com.actionbarsherlock.app.SherlockActivity
-import com.actionbarsherlock.view.{Menu, MenuItem, Window}
 import net.kriomant.gortrans.core.{Route, _}
 import net.kriomant.gortrans.geometry.Point
 import net.kriomant.gortrans.parsing.{RoutePoint, VehicleInfo}
@@ -47,11 +46,11 @@ object RouteStopInfoActivity {
 
 /** List of closest vehicle arrivals for given route stop.
   */
-class RouteStopInfoActivity extends SherlockActivity
+class RouteStopInfoActivity extends ActionBarActivity
   with BaseActivity
 
   with ShortcutTarget
-  with SherlockAsyncTaskIndicator {
+  with ActionBarAsyncTaskIndicator {
 
   import RouteStopInfoActivity._
 
@@ -81,7 +80,7 @@ class RouteStopInfoActivity extends SherlockActivity
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
 
-    requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
+    supportRequestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
     setSupportProgressBarIndeterminateVisibility(false)
     setProgressBarIndeterminateVisibility(false)
 
@@ -203,7 +202,7 @@ class RouteStopInfoActivity extends SherlockActivity
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
     super.onCreateOptionsMenu(menu)
-    getSupportMenuInflater.inflate(R.menu.route_stop_info_menu, menu)
+    getMenuInflater.inflate(R.menu.route_stop_info_menu, menu)
     true
   }
 

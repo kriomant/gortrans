@@ -8,12 +8,11 @@ import android.graphics.{Point, _}
 import android.location.Location
 import android.os.Bundle
 import android.preference.PreferenceManager
+import android.support.v7.app.ActionBarActivity
 import android.util.Log
 import android.view.View.{MeasureSpec, OnClickListener}
-import android.view.{LayoutInflater, MotionEvent, View, ViewGroup}
+import android.view._
 import android.widget._
-import com.actionbarsherlock.app.SherlockActivity
-import com.actionbarsherlock.view.{MenuItem, Window}
 import net.kriomant.gortrans.core.{Direction, VehicleType}
 import net.kriomant.gortrans.geometry.{Point => Pt}
 import net.kriomant.gortrans.parsing.VehicleInfo
@@ -33,7 +32,7 @@ object RouteMapOSMActivity {
   private val DIALOG_NEW_MAP_NOTICE = 1
 }
 
-class RouteMapOSMActivity extends SherlockActivity
+class RouteMapOSMActivity extends ActionBarActivity
   with RouteMapLike
 
   with ShortcutTarget {
@@ -45,7 +44,7 @@ class RouteMapOSMActivity extends SherlockActivity
     * scale. Since MapCameraPosition is based on Google Maps v2 CameraPosition,
     * we must correct zoom here. */
   final val ZOOM_OFFSET = 1
-  // Overlays are splitted into constant ones which are
+  // Overlays are split into constant ones which are
   // updated on new intent or updated route data only and
   // volatile which are frequently updated, like vehicles.
   // At first constant:
@@ -65,7 +64,7 @@ class RouteMapOSMActivity extends SherlockActivity
     super.onCreate(bundle)
 
     // Enable to show indeterminate progress indicator in activity header.
-    requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
+    supportRequestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
     setSupportProgressBarIndeterminateVisibility(false)
 
     setContentView(R.layout.route_map_osm)

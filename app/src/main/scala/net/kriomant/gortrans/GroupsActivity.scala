@@ -5,14 +5,13 @@ import android.content.{Context, Intent}
 import android.os.Bundle
 import android.support.v4.app.LoaderManager.LoaderCallbacks
 import android.support.v4.content.Loader
+import android.support.v7.app.ActionBarActivity
 import android.text.SpannableStringBuilder
 import android.text.style.ImageSpan
-import android.view.View
+import android.view
+import android.view.{ActionMode, Menu, MenuItem, View}
 import android.widget.AdapterView.OnItemClickListener
 import android.widget._
-import com.actionbarsherlock.app.SherlockFragmentActivity
-import com.actionbarsherlock.view
-import com.actionbarsherlock.view.{ActionMode, Menu, MenuItem}
 import net.kriomant.gortrans.Database.GroupInfo
 import net.kriomant.gortrans.core.VehicleType
 
@@ -49,7 +48,7 @@ object GroupsActivityBase {
   private final val GROUPS_LOADER = 0
 }
 
-class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with CreateGroupDialog.Listener {
+class GroupsActivityBase extends ActionBarActivity with BaseActivity with CreateGroupDialog.Listener {
 
   import GroupsActivityBase._
 
@@ -150,7 +149,7 @@ class GroupsActivityBase extends SherlockFragmentActivity with BaseActivity with
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
     super.onCreateOptionsMenu(menu)
-    getSupportMenuInflater.inflate(R.menu.route_groups_menu, menu)
+    getMenuInflater.inflate(R.menu.route_groups_menu, menu)
     true
   }
 

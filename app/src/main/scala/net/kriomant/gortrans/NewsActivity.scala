@@ -5,13 +5,12 @@ import android.os.Bundle
 import android.support.v4.app.LoaderManager.LoaderCallbacks
 import android.support.v4.content.Loader
 import android.support.v4.widget.CursorAdapter
+import android.support.v7.app.ActionBarActivity
 import android.text._
 import android.text.method.LinkMovementMethod
 import android.text.style.URLSpan
-import android.view.View
+import android.view.{Menu, MenuItem, View}
 import android.widget.{ListView, TextView}
-import com.actionbarsherlock.app.SherlockFragmentActivity
-import com.actionbarsherlock.view.{Menu, MenuItem}
 
 object NewsActivity {
   final val LOADER_NEWS = 0
@@ -21,7 +20,7 @@ object NewsActivity {
 
 class NewsActivity extends NewsActivityBase with HavingSidebar
 
-class NewsActivityBase extends SherlockFragmentActivity with BaseActivity {
+class NewsActivityBase extends ActionBarActivity with BaseActivity {
 
   import NewsActivity._
 
@@ -67,7 +66,7 @@ class NewsActivityBase extends SherlockFragmentActivity with BaseActivity {
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
     super.onCreateOptionsMenu(menu)
-    getSupportMenuInflater.inflate(R.menu.news_menu, menu)
+    getMenuInflater.inflate(R.menu.news_menu, menu)
     true
   }
 

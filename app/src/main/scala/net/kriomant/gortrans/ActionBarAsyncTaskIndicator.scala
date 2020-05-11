@@ -1,25 +1,22 @@
 package net.kriomant.gortrans
 
 import android.os.Bundle
-import com.actionbarsherlock.app.SherlockActivity
-import com.actionbarsherlock.view.Window
+import android.support.v7.app.ActionBarActivity
+import android.view.Window
 
-trait SherlockAsyncTaskIndicator extends SherlockActivity {
-  activity: SherlockActivity =>
+trait ActionBarAsyncTaskIndicator extends ActionBarActivity {
+  activity: ActionBarActivity =>
   override def onCreate(savedInstanceState: Bundle) {
-    requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
-
     super.onCreate(savedInstanceState)
+    supportRequestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS)
   }
 
   trait AsyncProcessIndicator[Progress, Result] extends AsyncTaskBridge[Progress, Result] {
     override def onPreExecute() {
       activity.setSupportProgressBarIndeterminateVisibility(true)
-      super.onPreExecute()
     }
 
     override def onPostExecute(result: Result) {
-      super.onPostExecute(result)
       activity.setSupportProgressBarIndeterminateVisibility(false)
     }
 
