@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Dark" parent="@style/Theme.AppCompat">
+        <item name="android:actionBarStyle">@style/Widget.Styled.ActionBar</item>
+        <item name="actionBarStyle">@style/Widget.Styled.ActionBar</item>
+    </style>
+
+    <style name="Widget.Styled.ActionBar" parent="@style/Widget.AppCompat.ActionBar">
+        <item name="android:indeterminateProgressStyle">@style/IndeterminateProgress</item>
+        <item name="indeterminateProgressStyle">@style/IndeterminateProgress</item>
+    </style>
+
+    <style name="IndeterminateProgress" parent="@android:style/Widget.ProgressBar.Small">
+        <item name="android:indeterminateDrawable">@drawable/progress_small_holo</item>
+    </style>
+
+
+    <style name="DarkWithNavigationDrawer" parent="Dark">
+        <item name="android:homeAsUpIndicator">@drawable/ic_drawer_dark_theme</item>
+        <item name="homeAsUpIndicator">@drawable/ic_drawer_dark_theme</item>
+    </style>
+
+    <style name="LightWithNavigationDrawer" parent="@style/Theme.AppCompat.Light">
+        <item name="android:homeAsUpIndicator">@drawable/ic_drawer_light_theme</item>
+        <item name="homeAsUpIndicator">@drawable/ic_drawer_light_theme</item>
+    </style>
+
+
+    <style name="ErrorMessage" parent="@android:style/TextAppearance.Medium">
+        <item name="android:background">#ffbd00</item>
+        <item name="android:textColor">#000000</item>
+        <item name="android:padding">4dip</item>
+    </style>
+
+    <style name="InfoMessage" parent="@android:style/TextAppearance.Small">
+        <item name="android:background">#ffbd00</item>
+        <item name="android:textColor">#000000</item>
+        <item name="android:padding">4dip</item>
+        <item name="android:gravity">start</item>
+    </style>
+
+    <dimen name="stop_name_font_size">15sp</dimen>
+
+    <style name="SidebarItemTextAppearance" parent="@android:style/TextAppearance.Large">
+        <item name="android:textColor">#ffffffff</item>
+    </style>
+</resources>
+

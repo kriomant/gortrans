@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- todo: move to 'google_maps_api.xml' -->
+    <string name="google_maps_key">API_KEY</string>
+
+    <string name="app_name">Транспорт Новосибирска</string>
+    <string name="route_points">Маршрут</string>
+    <string name="routes">Маршруты</string>
+
+    <string name="search_route">Поиск</string>
+    <string name="search_hint">Поиск маршрута</string>
+
+    <string name="create_group">Объединить в группу</string>
+    <string name="create">Создать</string>
+    <string name="cancel">Отменить</string>
+    <string name="group_created">Создана группа «%1$s»</string>
+    <string name="route_list">Список маршрутов</string>
+    <string name="group_list_empty">
+        <b>Ваш список групп маршрутов пока пуст.</b>\n\n
+        Создайте группу маршрутов или откройте полный список для просмотра индивидуальных маршрутов.
+    </string>
+    <string name="choose_routes">Выберите маршруты</string>
+    <string name="groups">Группы</string>
+
+    <string name="bus">Автобус</string>
+    <string name="trolleybus">Троллейбус</string>
+    <string name="tramway">Трамвай</string>
+    <string name="minibus">Маршрутное такси</string>
+
+    <string name="bus_short">Авт.</string>
+    <string name="trolleybus_short">Трол.</string>
+    <string name="tramway_short">Трам.</string>
+    <string name="minibus_short">Марш.</string>
+
+    <string name="bus_n">Автобус №%1$s</string>
+    <string name="trolleybus_n">Троллейбус №%1$s</string>
+    <string name="tramway_n">Трамвай №%1$s</string>
+    <string name="minibus_n">Маршрутное такси №%1$s</string>
+
+    <string name="route">Маршрут</string>
+
+    <string name="bus_stop_schedule">Расписание автобуса №%1$s для остановки «%2$s»</string>
+    <string name="trolleybus_stop_schedule">Расписание троллейбуса №%1$s для остановки «%2$s»</string>
+    <string name="tramway_stop_schedule">Расписание трамвая №%1$s для остановки «%2$s»</string>
+    <string name="minibus_stop_schedule">Расписание маршр. такси №%1$s для остановки «%2$s»</string>
+
+    <string name="routes_list">Список маршрутов</string>
+    <string name="show_route_map">Показать маршрут на карте</string>
+    <string name="stop_schedule">Расписание для остановки</string>
+    <string name="no_schedules">Сервер не предоставляет расписание</string>
+
+    <string name="vehicles_tracking_turned_on">Включено отслеживание положения транспорта</string>
+    <string name="vehicles_tracking_turned_off">Выключено отслеживание положения транспорта</string>
+
+    <!-- New map notice -->
+    <string name="new_map_notice">Попробуйте новые карты</string>
+    <string name="new_map_dialog_title">Попробуйте новые карты</string>
+    <string name="new_map_dialog_message">Google выпустила новые карты. Они потребляют меньше трафика, плавно
+        масштабируются,
+        их можно вращать и наклонять.\n\nПохоже, что Ваш телефон их поддерживает, хотя, возможно, потребуется обновление
+        некоторых
+        компонент.\n\nОпция для включения новых карт также доступна в настройках. Вы можете включить её самостоятельно
+        позже или же
+        вернуть старые карты, если с новыми возникнет какая-нибудь проблема.\n\nХотите попробовать новые карты сейчас?
+    </string>
+    <string name="new_map_try_button">Попробовать</string>
+    <string name="new_map_reject_button">Не нужно</string>
+
+    <string name="osm_map_notice">Это экспериментальная карта OpenStreetMap</string>
+    <string name="osm_map_dialog_title">Карта OpenStreetMap</string>
+    <string name="osm_map_dialog_message">На вашем устройстве не обнаружены библиотеки карт Google, поэтому используются
+        карты OpenStreetMap.\n\nВНИМАНИЕ! Это экспериментальная функция, она может работать неверно или приводить к
+        сбоям,
+        просьба не выставлять оценки, основываясь на работоспособности этих карт, пока работа над ними не будет
+        закончена.
+        \n\nВсе замечания и предложения принимаются в комментариях и в группе Google.
+    </string>
+
+    <string name="create_shortcut">Создать ярлык</string>
+    <string name="shortcut_is_created">На домашнем экране создан ярлык «%1$s»</string>
+
+    <string name="stop_schedule_shortcut_format">%1$s №%2$s, ост. «%3$s»</string>
+    <string name="route_map_shortcut_format">%1$s №%2$s на карте</string>
+    <string name="stop_arrivals_shortcut_format">%1$s №%2$s, ост. «%3$s»</string>
+
+    <string name="next_arrivals">Ближайшие прибытия</string>
+    <string name="no_arrivals">Транспорт уже не ходит. Время ловить такси!</string>
+    <string name="no_route_points">Информация о маршруте недоступна.</string>
+    <!-- todo: duplicate -->
+    <!--<string name="no_arrivals">Сервер не предоставляет расписания и графика прибытия для этой остановки</string>-->
+    <string name="cant_fetch_arrivals">Не удалось получить график транспорта: ошибка сети</string>
+    <string name="cant_get_arrivals">Не удалось получить график транспорта, сервер сообщает: %1$s</string>
+    <string name="cant_parse_arrivals">Не удалось разобрать ответ сервера</string>
+    <string name="refresh_arrivals">Обновить</string>
+    <string name="show_schedule">Показать расписание</string>
+    <string name="refresh">Обновить</string>
+
+    <string name="cant_fetch_vehicles">Сетевая ошибка загрузки координат</string>
+    <string name="cant_parse_vehicles">Ошибка загрузки координат: некорректный ответ сервера</string>
+
+    <string name="loading">Загружаю…</string>
+    <string name="wait_please">Подождите, пожалуйста.</string>
+    <string name="cant_load">Ошибка</string>
+    <string name="loading_failure">Не удалось получить данные с сервера</string>
+    <string name="retry">Попробуй ещё раз</string>
+    <string name="abort">Ну и ладно</string>
+    <string name="background_update_started">Обновление данных…</string>
+    <string name="background_update_stopped">Данные обновлены</string>
+    <string name="background_update_error">Не удалось обновить данные</string>
+
+    <string name="delete">Удалить</string>
+    <string name="edit">Изменить</string>
+    <string name="accept">Подтвердить</string>
+
+    <!-- One schedule row for vehicle popup on map. Parameters: time, stop name. -->
+    <string name="vehicle_schedule_row">%1$s %2$s</string>
+    <string name="vehicle_speed_format">%1$d км/ч</string>
+    <string name="vehicle_schedule_number">график №%1$d</string>
+    <string name="screen_wake_lock">Не выключать экран</string>
+    <string name="settings">Настройки</string>
+
+    <string name="edit_group_title">Группа маршрутов</string>
+
+    <plurals name="routes">
+        <item quantity="one">%1$d маршрут</item>
+        <item quantity="two">%1$d маршрута</item>
+        <item quantity="few">%1$d маршрутов</item>
+    </plurals>
+    <plurals name="groups">
+        <item quantity="one">%1$d группа</item>
+        <item quantity="two">%1$d группы</item>
+        <item quantity="few">%1$d групп</item>
+    </plurals>
+
+    <!-- Preferences -->
+    <string name="use_new_map">Новая карта</string>
+    <string name="use_new_map_summary">Использовать новый компонент карт</string>
+
+    <string name="new_map_not_supported">Новые карты не поддерживаются на вашем устройстве, будут использоваться старые
+        карты.
+    </string>
+
+    <!-- Navigation drawer -->
+    <string name="open_drawer">Открыть панель навигации</string>
+    <string name="close_drawer">Закрыть панель навигации</string>
+
+    <string name="news">Новости</string>
+    <plurals name="n_news">
+        <item quantity="one">%1$d новость</item>
+        <item quantity="two">%1$d новости</item>
+        <item quantity="few">%1$d новостей</item>
+    </plurals>
+    <string name="read_more">Подробнее</string>
+    <string name="no_news">Нет новостей</string>
+</resources>
