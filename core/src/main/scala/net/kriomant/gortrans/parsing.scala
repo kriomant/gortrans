@@ -173,7 +173,7 @@ object parsing {
     parser.parse(source, new DefaultHandler {
       override def startElement(uri: String, localName: String, qName: String, attrs: Attributes) {
         if (qName == "stop") {
-          stops += StopInfo(attrs.getValue("id").toInt, attrs.getValue("title"))
+          stops += StopInfo(attrs.getValue("id"), attrs.getValue("title"))
         }
       }
     })
@@ -370,7 +370,7 @@ object parsing {
 
   case class RoutePoint(stop: Option[RouteStop], latitude: Double, longitude: Double)
 
-  case class StopInfo(id: Int, name: String)
+  case class StopInfo(id: String, name: String)
 
   class NodeListAsTraversable(nodeList: NodeList) extends Traversable[Node] {
     def foreach[U](f: Node => U) {
