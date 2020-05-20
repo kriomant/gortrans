@@ -281,5 +281,7 @@ object core {
     val Holidays: ScheduleType.Value = Value(5)
     val Workdays: ScheduleType.Value = Value(11)
     val Daily: ScheduleType.Value = Value(23)
+    val Saturday: ScheduleType.Value = Value(9)
+    val Sunday: ScheduleType.Value = Value(10)
   }
 }

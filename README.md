@@ -1,6 +1,6 @@
 # Gortrans
 
-Android application which tracks location of public transport vehicles in Novosibirsk city (Russia). It works by using the same API [nskgortrans](http://maps.nskgortrans.ru) site uses internally.
+Android application which tracks location of public transport vehicles in Novosibirsk city (Russia). It works by using the same API [nskgortrans](https://maps.nskgortrans.ru) site uses internally.
 
 ## Building
 
