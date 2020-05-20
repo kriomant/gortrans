@@ -49,11 +49,11 @@ class RouteInfoActivity extends ActionBarActivity with BaseActivity {
     setContentView(R.layout.route_info)
 
     listView = findViewById(android.R.id.list).asInstanceOf[ListView]
-    listView.setOnItemClickListener(new OnItemClickListener {
-      def onItemClick(p1: AdapterView[_], p2: View, p3: Int, p4: Long) {
-        onListItemClick(p1, p2, p3, p4)
-      }
-    })
+//    listView.setOnItemClickListener(new OnItemClickListener {
+//      def onItemClick(p1: AdapterView[_], p2: View, p3: Int, p4: Long) {
+//        onListItemClick(p1, p2, p3, p4)
+//      }
+//    })
 
     // Disable list item dividers so that route stop icons
     // together look like solid route line.
