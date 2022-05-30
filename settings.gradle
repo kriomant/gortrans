@@ -1,0 +1,5 @@
+rootProject.name = 'gortrans'
+include 'android-app'
+include 'core'
+include 'checker'
+include 'explorer'
