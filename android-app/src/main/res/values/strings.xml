@@ -1,4 +1,5 @@
 <resources>
+	<string name="google_maps_key">API_KEY</string>
     <string name="app_name">Транспорт Новосибирска</string>
     <string name="route_points">Маршрут</string>
 		<string name="routes">Маршруты</string>
@@ -75,7 +76,6 @@
 		<string name="next_arrivals">Ближайшие прибытия</string>
 		<string name="no_arrivals">Транспорт уже не ходит. Время ловить такси!</string>
 		<string name="no_route_points">Информация о маршруте недоступна.</string>
-		<string name="no_arrivals">Сервер не предоставляет расписания и графика прибытия для этой остановки</string>
 		<string name="cant_fetch_arrivals">Не удалось получить график транспорта: ошибка сети</string>
 		<string name="cant_get_arrivals">Не удалось получить график транспорта, сервер сообщает: %1$s</string>
 		<string name="cant_parse_arrivals">Не удалось разобрать ответ сервера</string>
